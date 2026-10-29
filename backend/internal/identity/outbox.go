@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"math/big"
 	"time"
+	"writing.local/community/internal/ops"
 
 	"github.com/google/uuid"
 )
@@ -323,8 +324,14 @@ func (s *Service) ProcessOne(ctx context.Context, logger *slog.Logger, onlyDeliv
 }
 
 func (s *Service) RunWorker(ctx context.Context, logger *slog.Logger) {
-	var lastCleanup time.Time
+	var lastCleanup, lastHeartbeat time.Time
 	for ctx.Err() == nil {
+		if time.Since(lastHeartbeat) > 15*time.Second {
+			heartbeatCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			_ = ops.Beat(heartbeatCtx, s.DB, "mail-worker", true, 0)
+			cancel()
+			lastHeartbeat = time.Now()
+		}
 		if time.Since(lastCleanup) >= time.Minute {
 			if err := s.CleanupMail(ctx); err != nil {
 				if logger != nil {

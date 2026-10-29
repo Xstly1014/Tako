@@ -3,10 +3,10 @@ info:
   title: Tako 增量 A API
   version: 0.3.0
   description: |
-    测试阶段。尚未完成真实邮件、前端本机恢复与灾难恢复验收。
+    测试阶段。本人真实邮件登录已验收；独立容器恢复已演练，离机备份与真机验收仍在收口。
     Cookie 会话由验证码登录建立，浏览器不得手动填写会话令牌。
     所有写操作需同源 Origin 和 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
-    验证码持久化入队，由独立 worker 处理；sent 仅表示 SMTP 接受，不保证收件箱送达。
+    验证码持久化入队，由独立 worker 处理；sent 仅表示邮件服务接受，不保证收件箱送达。
 servers:
   - url: /
 tags:

@@ -62,3 +62,5 @@ docker compose up -d gateway
 草稿列表、保存确认时间和历史快照已接入；[保留规则与运行说明](docs/draft-storage.md)。通过 `docker compose --profile maintenance up -d maintenance` 独立执行历史清理，不启用邮件发送。迁移前必须备份，迁移不会补造旧版本。
 
 Resend 本机验收：已验证本人收件箱真实收到。日常启动已配置邮件的完整环境：`docker compose --profile mail up -d api web gateway mail-worker`。worker 配置 unless-stopped，手动停止后需显式重新启动；本机启动不等于生产可用性保障。
+
+当前增量 A 收口：[运行与恢复](docs/operations.md)、[2026-10-30 收口记录](docs/reviews/2026-10-30-a-closeout.md)。本地后端测试改用 `python scripts/test_backend.py`，隔离到 writing_test；不要在真实用户库运行清理测试。

@@ -30,12 +30,16 @@ func (s Resend) Validate() error {
 }
 
 func (s Resend) Send(ctx context.Context, to, code string) error {
+	return s.SendMessage(ctx, to, "Tako 登录验证码", "你的登录验证码是："+code+"\n有效期以请求页面为准；延迟或重复送达不会延长有效期。如果不是你本人请求，请忽略此邮件。")
+}
+
+func (s Resend) SendMessage(ctx context.Context, to, subject, text string) error {
 	if err := s.Validate(); err != nil {
 		return err
 	}
 	body, _ := json.Marshal(map[string]any{
-		"from": s.From, "to": []string{to}, "subject": "Tako 登录验证码",
-		"text": "你的登录验证码是：" + code + "\n有效期以请求页面为准；延迟或重复送达不会延长有效期。如果不是你本人请求，请忽略此邮件。",
+		"from": s.From, "to": []string{to}, "subject": subject,
+		"text": text,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.resend.com/emails", bytes.NewReader(body))
 	if err != nil {

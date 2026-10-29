@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"log/slog"
 	"time"
+	"writing.local/community/internal/ops"
 )
 
 // ReadRevision is private-resource access for recovery tooling, not a public
@@ -94,6 +95,11 @@ func (s Store) RunMaintenance(ctx context.Context, logger *slog.Logger) {
 	for ctx.Err() == nil {
 		runCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		removed, err := s.CleanupRevisions(runCtx, time.Now().UTC())
+		if err != nil {
+			_ = ops.Beat(runCtx, s.DB, "maintenance", false, 1)
+		} else {
+			_ = ops.Beat(runCtx, s.DB, "maintenance", true, 0)
+		}
 		cancel()
 		if err != nil {
 			logger.Error("draft_retention_failed", "failure_code", "database_failure")

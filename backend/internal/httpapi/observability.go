@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"log/slog"
 	"time"
+	"writing.local/community/internal/ops"
 )
 
 func requestLog(logger *slog.Logger) gin.HandlerFunc {
@@ -14,6 +15,7 @@ func requestLog(logger *slog.Logger) gin.HandlerFunc {
 		c.Header("X-Request-ID", id)
 		start := time.Now()
 		c.Next()
+		ops.RecordRequest(c.Writer.Status())
 		if logger == nil {
 			return
 		}

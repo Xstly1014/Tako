@@ -76,7 +76,59 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+  draft-restore:
+    image: writing-community-api:local
+    profiles: [recovery]
+    entrypoint: ["/draftrestore"]
+    environment:
+      <<: *api_environment
+      RECOVERY_AUDIT_FILE: /audit/recovery.jsonl
+    volumes:
+      - ./.runtime/recovery-audit:/audit
+    depends_on:
+      mysql:
+        condition: service_healthy
+  mobile-api:
+    image: writing-community-api:local
+    profiles: [mobile]
+    environment:
+      <<: *api_environment
+      OPS_API_ROLE: mobile-api
+      APP_ORIGIN: ${MOBILE_APP_ORIGIN:-https://localhost:3443}
+      COOKIE_SECURE: "true"
+      API_ENABLE_DOCS: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+  mobile-gateway:
+    image: nginx:1.28-alpine
+    profiles: [mobile]
+    ports:
+      - "${MOBILE_BIND_IP:-127.0.0.1}:3443:443"
+      - "${MOBILE_BIND_IP:-127.0.0.1}:3444:80"
+    volumes:
+      - ./infra/nginx.mobile.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.runtime/mobile-certs:/certs:ro
+    depends_on:
+      - mobile-api
+      - web
+  monitor:
+    image: writing-community-api:local
+    profiles: [ops]
+    restart: unless-stopped
+    entrypoint: ["/monitor"]
+    environment:
+      <<: *api_environment
+      ALERT_TO: ${ALERT_TO:-}
+      DATABASE_WARNING_BYTES: ${DATABASE_WARNING_BYTES:-536870912}
+      MONITOR_STATE_FILE: /state/monitor.json
+    volumes:
+      - ./.runtime/monitor:/state
+    depends_on:
+      mysql:
+        condition: service_healthy
   maintenance:
+    restart: unless-stopped
     image: writing-community-api:local
     profiles: [maintenance]
     environment:
@@ -94,7 +146,7 @@ services:
       - go_modules:/go/pkg/mod
       - go_build:/root/.cache/go-build
     environment:
-      TEST_MYSQL_DSN: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-writing}?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27
+      TEST_MYSQL_DSN: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/writing_test?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27
       GOOSE_DRIVER: mysql
       GOOSE_DBSTRING: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-writing}?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&multiStatements=true
     depends_on:

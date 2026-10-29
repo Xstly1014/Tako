@@ -9,3 +9,9 @@ test-results/
 playwright-report/
 bin/
 *.log
+
+backups/
+.runtime/
+
+__pycache__/
+*.pyc

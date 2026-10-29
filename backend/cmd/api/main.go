@@ -19,6 +19,7 @@ import (
 	"writing.local/community/internal/draft"
 	"writing.local/community/internal/httpapi"
 	"writing.local/community/internal/identity"
+	"writing.local/community/internal/ops"
 )
 
 // This initial liveness endpoint does not claim database readiness.
@@ -128,6 +129,11 @@ func main() {
 		auth.RunWorker(ctx, logger)
 		return
 	}
+	role := "api"
+	if os.Getenv("OPS_API_ROLE") == "mobile-api" {
+		role = "mobile-api"
+	}
+	go ops.RunAPI(ctx, db, role)
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
