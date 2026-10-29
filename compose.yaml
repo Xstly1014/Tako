@@ -1,0 +1,130 @@
+name: writing-community
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-writing}
+      MYSQL_USER: ${MYSQL_USER:-writing}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_bin", "--innodb-flush-log-at-trx-commit=1", "--sync-binlog=1"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysql -uroot -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  api:
+    image: writing-community-api:local
+    build: ./backend
+    environment: &api_environment
+      HTTP_ADDR: :8080
+      AUTH_PEPPER: ${AUTH_PEPPER:?Set a random AUTH_PEPPER in .env}
+      MAIL_ENCRYPTION_KEY: ${MAIL_ENCRYPTION_KEY:?Set a 32-byte hex MAIL_ENCRYPTION_KEY in .env}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      API_ENABLE_DOCS: ${API_ENABLE_DOCS:-true}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-starttls}
+      MYSQL_DSN: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-writing}?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+  gateway:
+    image: nginx:1.28-alpine
+    ports:
+      - "127.0.0.1:3000:80"
+    volumes:
+      - ./infra/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - web
+  web:
+    image: writing-community-web:local
+    build: ./frontend
+  mail-worker:
+    restart: unless-stopped
+    image: writing-community-api:local
+    profiles: [mail]
+    environment:
+      <<: *api_environment
+      APP_ROLE: mail-worker
+      API_ENABLE_DOCS: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+  smtp-check:
+    image: writing-community-api:local
+    profiles: [smtp-check]
+    entrypoint: ["/smtpcheck"]
+    environment:
+      <<: *api_environment
+      SMTP_CHECK_TO: ${SMTP_CHECK_TO:-}
+      SMTP_CHECK_DELIVERY_ID: ${SMTP_CHECK_DELIVERY_ID:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+  maintenance:
+    image: writing-community-api:local
+    profiles: [maintenance]
+    environment:
+      APP_ROLE: maintenance
+      MYSQL_DSN: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-writing}?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s
+    depends_on:
+      mysql:
+        condition: service_healthy
+  tools:
+    image: golang:1.26
+    profiles: [tools]
+    working_dir: /src
+    volumes:
+      - ./backend:/src
+      - go_modules:/go/pkg/mod
+      - go_build:/root/.cache/go-build
+    environment:
+      TEST_MYSQL_DSN: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-writing}?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27
+      GOOSE_DRIVER: mysql
+      GOOSE_DBSTRING: ${MYSQL_USER:-writing}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-writing}?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&multiStatements=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+  frontend-tools:
+    image: node:24-bookworm-slim
+    profiles: [tools]
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+      - npm_cache:/root/.npm
+  browser-tests:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: [tests]
+    working_dir: /app
+    shm_size: 1gb
+    network_mode: service:gateway
+    environment:
+      BASE_URL: http://localhost
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+    depends_on:
+      - gateway
+volumes:
+  mysql_data:
+  go_modules:
+  go_build:
+  frontend_modules:
+  npm_cache:
+

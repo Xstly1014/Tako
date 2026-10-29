@@ -1,0 +1,5 @@
+interface:
+  display_name: "Business First"
+  short_description: "Judge real business delivery versus demo code"
+policy:
+  allow_implicit_invocation: true

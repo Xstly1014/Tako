@@ -1,0 +1,367 @@
+openapi: 3.0.3
+info:
+  title: Tako 增量 A API
+  version: 0.3.0
+  description: |
+    测试阶段。尚未完成真实邮件、前端本机恢复与灾难恢复验收。
+    Cookie 会话由验证码登录建立，浏览器不得手动填写会话令牌。
+    所有写操作需同源 Origin 和 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
+    验证码持久化入队，由独立 worker 处理；sent 仅表示 SMTP 接受，不保证收件箱送达。
+servers:
+  - url: /
+tags:
+  - name: 身份
+  - name: 草稿
+security:
+  - session: []
+paths:
+  /api/auth/code:
+    post:
+      operationId: requestCode
+      tags: [身份]
+      security: []
+      summary: 请求登录验证码
+      description: |
+        delivery_id 是客户端生成且保留的非零 UUID。超时沿用同一 ID 和邮箱重试，返回现有任务状态，不生成新验证码或消耗新发送额度。
+        新的主动重发使用新 ID，并受冷却限制；旧码失效。SMTP 超时可能重复发送同一个验证码，无法保证绝对只发送一次。
+        202 表示任务已持久化或返回其当前状态，不表示邮件已送达。可用同一请求查询进展，不要生成新 ID 轮询。
+        任务与幂等记录至少保留 24 小时；超过此期限不得重用旧 ID。任务终态不因轮询自动重发。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, delivery_id]
+              properties:
+                email: {type: string, maxLength: 254, example: writer@example.com}
+                delivery_id: {type: string, format: uuid, description: 非零 UUID；不是响应 X-Request-ID}
+      responses:
+        '202':
+          description: 已持久化的发送任务及当前状态；幂等重放也返回 202
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delivery_id, status, expires_at]
+                additionalProperties: false
+                properties:
+                  delivery_id: {type: string, format: uuid}
+                  status: {type: string, enum: [queued, sending, sent, failed, expired]}
+                  expires_at: {type: string, format: date-time, description: 验证码有效期不因重试延长；任务 sent 后验证码也可能已经过期}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/auth/verify:
+    post:
+      operationId: verifyCode
+      tags: [身份]
+      security: []
+      summary: 验证并登录或注册
+      description: 验证码一次性消费。响应丢失后不会重发原会话 Cookie，需要重新登录；不得循环重试验证。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, code]
+              properties:
+                email: {type: string, maxLength: 254}
+                code: {type: string, pattern: '^[0-9]{6}$'}
+      responses:
+        '200':
+          description: 已登录；Set-Cookie 设置 HttpOnly 会话，生产 Secure
+          headers:
+            Set-Cookie: {schema: {type: string}, description: 浏览器管理的会话 Cookie}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/auth/logout:
+    post:
+      operationId: logout
+      tags: [身份]
+      security: []
+      summary: 撤销当前会话
+      description: 重复退出安全；只撤销服务端会话，不删除本机草稿。数据库失败不虚报成功。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
+      responses:
+        '204': {description: 会话已撤销，清除 Cookie}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/me:
+    get:
+      operationId: getMe
+      tags: [身份]
+      summary: 当前账号
+      responses:
+        '200':
+          description: 账号信息，不返回邮箱或会话令牌
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    patch:
+      operationId: updateNickname
+      tags: [身份]
+      summary: 设置或修改笔名
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nickname]
+              properties:
+                nickname: {type: string, minLength: 1, maxLength: 64, description: 去除首尾空白后校验，允许重名}
+      responses:
+        '200':
+          description: 更新后的账号
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/drafts:
+    get:
+      operationId: listDrafts
+      tags: [草稿]
+      summary: 分页查看自己的草稿元数据
+      description: 按创建时间与 ID 倒序，不按修改时间移动位置。新建内容刷新第一页可见；并发新建不插入后续页。游标绑定账号，不含正文，不是访问授权。
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: cursor
+          in: query
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 仅当前账号的元数据；next_cursor 为空表示结束
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/DraftSummary'}
+                  next_cursor: {type: string}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/drafts/{id}:
+    get:
+      operationId: readDraft
+      tags: [草稿]
+      summary: 读取自己的草稿
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 当前服务端草稿，不表示本机无未同步修改
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Draft'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/drafts/create:
+    post:
+      operationId: createDraft
+      tags: [草稿]
+      summary: 幂等创建草稿
+      description: 需非空笔名。相同 mutation_id 和载荷返回原结果；不同载荷复用 ID 返回 409。超时重试原请求，不能换 ID。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateDraft'}
+      responses: &writeResponses
+        '200':
+          description: 数据库已提交；重试可能返回历史修订号，不代表没有更新修订
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WriteResult'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/drafts/save:
+    post:
+      operationId: saveDraft
+      tags: [草稿]
+      summary: 按基础修订保存全文快照
+      description: 旧修订不可覆盖。409 revision_conflict 后客户端自动另存恢复副本；503 或超时需沿用 mutation_id 重试以确认结果。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SaveDraft'}
+      responses: *writeResponses
+  /api/drafts/recover:
+    post:
+      operationId: recoverDraft
+      tags: [草稿]
+      summary: 将冲突文字另存为关联恢复草稿
+      description: draft_id 指来源草稿，只能引用自己的草稿。重复请求必须使用同一 mutation_id，避免重复副本。成功前只能声称本机暂存。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecoverDraft'}
+      responses: *writeResponses
+components:
+  securitySchemes:
+    session: {type: apiKey, in: cookie, name: tako_session}
+  schemas:
+    Account:
+      type: object
+      additionalProperties: false
+      required: [id, nickname]
+      properties:
+        id: {type: string, format: uuid}
+        nickname: {type: string, maxLength: 64}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, request_id]
+      properties:
+        error:
+          type: string
+          enum: [invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error]
+        request_id: {type: string, format: uuid}
+    CreateDraft:
+      type: object
+      additionalProperties: false
+      required: [mutation_id]
+      properties: &createProperties
+        mutation_id: {type: string, format: uuid, description: 非零 UUID}
+        title: {type: string, maxLength: 200, default: ''}
+        content: {type: string, description: 有效 UTF-8，最大 1 MiB 字节，可为空}
+    SaveDraft:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, draft_id, base_revision, title, content]
+      properties: &saveProperties
+        mutation_id: {type: string, format: uuid, description: 非零 UUID}
+        draft_id: {type: string, format: uuid, description: 非零 UUID}
+        base_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, maxLength: 200, default: ''}
+        content: {type: string, description: 最大 1 MiB UTF-8 字节；是全文替换，不是补丁}
+    RecoverDraft:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, draft_id, content]
+      properties:
+        <<: *saveProperties
+        base_revision: {type: integer, minimum: 0, maximum: 9007199254740991, description: 记录来源，不作为另存前置版本条件}
+    Draft:
+      type: object
+      additionalProperties: false
+      required: [id, title, content, revision, saved_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, maxLength: 200}
+        content: {type: string}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        saved_at: {type: string, format: date-time, description: 数据库记录的本次修订保存时间，UTC；不是浏览器本机时间}
+    DraftSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, revision, saved_at, created_at, recovered_from]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, maxLength: 200}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        saved_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time}
+        recovered_from: {type: string, format: uuid, nullable: true, description: 来源草稿 ID，仅元数据，不授予额外权限}
+    WriteResult:
+      type: object
+      additionalProperties: false
+      required: [draft_id, revision, saved_at]
+      properties:
+        draft_id: {type: string, format: uuid}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        saved_at: {type: string, format: date-time, description: 幂等重放返回原确认时间，不能据此覆盖更高修订。旧数据迁移使用保存请求原记录时间。}
+  responses:
+    BadInput: &errorResponse
+      description: 输入格式、字段约束或验证码不正确；不透露账号是否存在
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    OriginRejected:
+      <<: *errorResponse
+      description: 写请求来源不匹配
+    TooLarge:
+      <<: *errorResponse
+      description: 请求超过 2 MiB；保留本机文字，禁止盲目重试
+    NotJSON:
+      <<: *errorResponse
+      description: 写请求必须使用 application/json
+    Limited:
+      <<: *errorResponse
+      description: 频率限制；Retry-After 是建议最短等待，小时额度可能尚未恢复
+      headers:
+        Retry-After: {schema: {type: string}, description: 建议等待秒数}
+    Unavailable:
+      <<: *errorResponse
+      description: 服务或邮件暂不可用，request_id 用于排查；保存请求保留原幂等标识
+    Unauthorized:
+      <<: *errorResponse
+      description: 会话缺失、过期或已撤销；前端保留本机草稿
+    NotFound:
+      <<: *errorResponse
+      description: 草稿不存在或无权访问，统一语义
+    Conflict:
+      <<: *errorResponse
+      description: revision_conflict、mutation_id_reused、delivery_id_reused 或 nickname_required；客户端分别处理，不循环重试
+
+    InternalError:
+      <<: *errorResponse
+      description: 未预期内部错误，携带请求 ID，不能假设业务未提交
+

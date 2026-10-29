@@ -1,0 +1,40 @@
+name: Backend contract and MySQL checks
+on:
+  push:
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+          MYSQL_DATABASE: writing_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TEST_MYSQL_DSN: root:ci-only-password@tcp(127.0.0.1:3306)/writing_test?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27
+      GOOSE_DRIVER: mysql
+      GOOSE_DBSTRING: root:ci-only-password@tcp(127.0.0.1:3306)/writing_test?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&multiStatements=true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: go mod download
+      - run: go run github.com/pressly/goose/v3/cmd/goose@v3.26.0 -dir migrations up
+      - name: Formatting
+        run: test -z "$(gofmt -l cmd internal)"
+      - run: go test -race -count=1 ./...
+      - run: go vet ./...
+
