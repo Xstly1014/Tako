@@ -64,3 +64,5 @@ docker compose up -d gateway
 Resend 本机验收：已验证本人收件箱真实收到。日常启动已配置邮件的完整环境：`docker compose --profile mail up -d api web gateway mail-worker`。worker 配置 unless-stopped，手动停止后需显式重新启动；本机启动不等于生产可用性保障。
 
 当前增量 A 收口：[运行与恢复](docs/operations.md)、[2026-10-30 收口记录](docs/reviews/2026-10-30-a-closeout.md)。本地后端测试改用 `python scripts/test_backend.py`，隔离到 writing_test；不要在真实用户库运行清理测试。
+
+已完成 [ECS 私有测试部署](docs/ecs-test-deployment.md)，通过本机 SSH 隧道的 localhost:3100 访问；3000 仍为本机环境。OSS 往返恢复与每日备份已执行通过；公网 HTTPS 和 iPhone 真机验收尚未完成。

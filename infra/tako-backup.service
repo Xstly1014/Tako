@@ -1,0 +1,20 @@
+[Unit]
+Description=Tako encrypted off-host backup
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/tako
+EnvironmentFile=/opt/tako/.backup.env
+ExecStart=/usr/bin/python3 /opt/tako/scripts/daily_backup.py
+TimeoutStartSec=600
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/tako/backups /opt/tako/.runtime /opt/tako/state/backup
+StandardOutput=journal
+StandardError=journal

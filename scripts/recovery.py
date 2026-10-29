@@ -94,13 +94,17 @@ def backup():
     return path
 
 
-def restore(path):
-    started = time.monotonic()
+def load_archive(path):
     data = path.read_bytes()
     if not data.startswith(MAGIC):
         raise RuntimeError("backup_format_invalid")
     offset = len(MAGIC)
-    payload = json.loads(gzip.decompress(AESGCM(key()).decrypt(data[offset:offset+12], data[offset+12:], MAGIC)))
+    return json.loads(gzip.decompress(AESGCM(key()).decrypt(data[offset:offset+12], data[offset+12:], MAGIC)))
+
+
+def restore(path):
+    started = time.monotonic()
+    payload = load_archive(path)
     container = "tako-restore-" + secrets.token_hex(6)
     environment = dict(os.environ, MYSQL_ROOT_PASSWORD=secrets.token_urlsafe(32))
     try:

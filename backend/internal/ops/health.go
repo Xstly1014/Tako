@@ -3,9 +3,34 @@ package ops
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"sync/atomic"
 	"time"
 )
+
+// BackupIssues consumes timestamps/status only, never backup contents or keys.
+func BackupIssues(data []byte, now time.Time) []string {
+	var status struct {
+		LastAttempt time.Time `json:"last_attempt"`
+		LastSuccess time.Time `json:"last_success"`
+		LastError   string    `json:"last_error"`
+	}
+	if json.Unmarshal(data, &status) != nil {
+		return []string{"backup_status_unreadable"}
+	}
+	issues := []string{}
+	active := status.LastError == "in_progress" && !status.LastAttempt.IsZero() && now.Sub(status.LastAttempt) < 10*time.Minute
+	if status.LastError == "backup_failed" {
+		issues = append(issues, "backup_failed")
+	}
+	if status.LastError == "in_progress" && !active {
+		issues = append(issues, "backup_stuck")
+	}
+	if (status.LastSuccess.IsZero() && !active) || (!status.LastSuccess.IsZero() && now.Sub(status.LastSuccess) > 26*time.Hour) {
+		issues = append(issues, "backup_overdue")
+	}
+	return issues
+}
 
 var requestFailures atomic.Uint64
 

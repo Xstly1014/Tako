@@ -38,7 +38,7 @@ python scripts/recovery.py drill
 
 ## OSS 离机往返验收
 
-.env 配置 OSS_REGION、OSS_BUCKET、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET，可选 OSS_SESSION_TOKEN。只使用私有 Bucket 的专用 RAM 权限，限定 tako-backups/ 前缀的上传与下载；不需要删除全桶或管理账号权限。Key 不进入命令行参数。
+.env 配置 OSS_REGION、OSS_BUCKET、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET，可选 OSS_SESSION_TOKEN。使用专用 RAM 权限，限定 tako-backups/ 前缀的 PutObject、GetObject、PutObjectAcl、GetObjectAcl；不需要删除或管理全桶。优先专用私有 Bucket；若复用现有 Bucket，所有备份对象必须显式 private 且匿名 HEAD 返回 403。工具在上传时指定 private 并执行这两项检查。Key 不进入命令行参数。
 
 ```sh
 python scripts/oss_backup.py
@@ -46,7 +46,7 @@ python scripts/oss_backup.py
 
 工具只上传 .tako.enc，下载后校验 SHA256 并运行独立恢复。使用阿里云官方 ossutil 2.4.1，准备时已验证官方 SHA256，二进制位于被忽略的 .runtime/tools；其他环境需自行安装并调整路径。支持范围目前为本机 Windows 验收，不当作 ECS 自动备份定时任务已交付。
 
-当前 OSS 往返验收等待用户填写配置，尚未上传。正式运行前还需确定备份频率、保留周期与备份失败告警。
+ECS 云端加密备份已完成 OSS 往返和本机独立恢复。用户确认每天一次、保留 30 天；ECS 的 systemd 服务已手工执行成功，timer 每日北京时间 03:00 至 03:05 运行。正常离机恢复点约落后一天，失败会更久。monitor 读取独立状态文件，检测失败、卡住及超过 26 小时未成功。
 
 ## 按授权恢复一个历史修订
 

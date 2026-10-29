@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +41,13 @@ func main() {
 }
 
 func run(logger *slog.Logger, test, once bool) error {
+	prefix := "Tako"
+	if instance := os.Getenv("ALERT_INSTANCE"); instance != "" {
+		if ok, _ := regexp.MatchString("^[a-zA-Z0-9._-]{1,32}$", instance); !ok {
+			return identity.ErrInvalid
+		}
+		prefix += " [" + instance + "]"
+	}
 	recipient, err := identity.NormalizeEmail(os.Getenv("ALERT_TO"))
 	if err != nil {
 		return err
@@ -53,7 +61,7 @@ func run(logger *slog.Logger, test, once bool) error {
 	if test {
 		check, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
-		if err = sender.SendMessage(check, recipient, "Tako 故障通知测试", "这是一封经授权的运行告警测试邮件。用于验证通知通道，不包含用户正文、验证码或凭据。"); err != nil {
+		if err = sender.SendMessage(check, recipient, prefix+" 故障通知测试", "这是一封经授权的运行告警测试邮件。用于验证通知通道，不包含用户正文、验证码或凭据。"); err != nil {
 			return err
 		}
 		logger.Info("monitor_test_accepted")
@@ -94,6 +102,14 @@ func run(logger *slog.Logger, test, once bool) error {
 			}
 		}
 		cancel()
+		if path := os.Getenv("BACKUP_STATUS_FILE"); path != "" {
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				issues = append(issues, "backup_status_unavailable")
+			} else {
+				issues = append(issues, ops.BackupIssues(data, time.Now().UTC())...)
+			}
+		}
 		if checkErr != nil {
 			issues = []string{"database_or_diagnostics_unavailable"}
 		}
@@ -107,9 +123,9 @@ func run(logger *slog.Logger, test, once bool) error {
 			if err = save(path, previous); err != nil {
 				return err
 			}
-			subject, text := "Tako 运行故障", "检测时间（UTC）："+now.Format(time.RFC3339)+"\n故障代码："+signature+"\n请检查运行进程、队列和数据库。此邮件不含用户内容。"
+			subject, text := prefix+" 运行故障", "检测时间（UTC）："+now.Format(time.RFC3339)+"\n故障代码："+signature+"\n请检查运行进程、队列和数据库。此邮件不含用户内容。"
 			if recovery {
-				subject = "Tako 运行已恢复"
+				subject = prefix + " 运行已恢复"
 				text = "运行检查已恢复正常。时间（UTC）：" + now.Format(time.RFC3339)
 			}
 			sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
