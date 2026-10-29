@@ -1,0 +1,29 @@
+# Merge with ECS compose.yaml; no additional public listeners.
+services:
+  mobile-api:
+    image: writing-community-api:${APP_VERSION:?required}
+    profiles: [mobile]
+    restart: unless-stopped
+    mem_limit: 96m
+    environment:
+      MYSQL_DSN: writing:${MYSQL_PASSWORD:?required}@tcp(mysql:3306)/writing?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s
+      AUTH_PEPPER: ${AUTH_PEPPER:?required}
+      MAIL_ENCRYPTION_KEY: ${MAIL_ENCRYPTION_KEY:?required}
+      MAIL_PROVIDER: resend
+      RESEND_API_KEY: ${RESEND_API_KEY:?required}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+      APP_ORIGIN: ${MOBILE_APP_ORIGIN:?required}
+      COOKIE_SECURE: "true"
+      API_ENABLE_DOCS: "false"
+      OPS_API_ROLE: mobile-api
+      GOMEMLIMIT: 72MiB
+    depends_on:
+      mysql: {condition: service_healthy}
+  mobile-gateway:
+    image: nginx:1.28-alpine
+    profiles: [mobile]
+    restart: unless-stopped
+    mem_limit: 64m
+    ports: ["127.0.0.1:3101:80"]
+    volumes: [./nginx.ecs-mobile.conf:/etc/nginx/conf.d/default.conf:ro]
+    depends_on: [mobile-api, web]

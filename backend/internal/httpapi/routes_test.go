@@ -19,6 +19,31 @@ import (
 
 type testMail struct{ code string }
 
+func TestUnavailableSessionStoreIsNotReportedAsExpiredLogin(t *testing.T) {
+	db, err := sql.Open("mysql", "fixture:fixture@tcp(127.0.0.1:1)/writing_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r := gin.New()
+	if err = (API{Identity: &identity.Service{DB: db}, DB: db, Origin: "http://localhost:3000"}).Register(r); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("GET", "/api/me", nil)
+	request.AddCookie(&http.Cookie{Name: "tako_session", Value: strings.Repeat("0", 64)})
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, request)
+	if response.Code != 503 || !strings.Contains(response.Body.String(), "service_unavailable") {
+		t.Fatal("dependency failure misclassified as invalid login")
+	}
+	if response.Header().Get("Set-Cookie") != "" {
+		t.Fatal("dependency failure cleared login cookie")
+	}
+	validateResponse(t, request, response)
+}
+
 func (s *testMail) Send(_ context.Context, _ string, code string) error { s.code = code; return nil }
 
 func TestLoginToSavedDraft(t *testing.T) {

@@ -1,68 +1,53 @@
-# 文字创作社区
+<p align="center">
+  <img src="frontend/public/images/tako-mascot-v1.png" width="220" alt="Tako 原创看板娘：蓝白街头风服装与章鱼发饰，包含精致版和 Q 版">
+</p>
+<h1 align="center">Tako</h1>
+<p align="center"><strong>有脑洞，就开写。</strong></p>
+<p align="center">冒险故事、深夜吐槽、今天的新鲜事。长短不限，题材由你。</p>
 
-Go、MySQL 与 Nuxt 驱动的文字创作社区。当前开发增量 A：邮箱登录与可靠草稿保存。
+Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日常与灵感，中篇讲完一个故事或一段经历，长篇让角色和世界继续生长。看板娘是品牌形象，创作题材由作者自己决定。
 
-## 业务约束
+![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
 
-- 服务端事务提交后才能确认保存。
-- 旧修订不得覆盖新正文，冲突自动另存，恢复操作幂等。
-- 本机未同步文字在退出后保留，仅原账号恢复，不跨账号上传。
-- 不记录正文、验证码、会话凭据和 SMTP 密码。
-- 暂不实现发布、删除、回收站、富文本或离线启动。
+> 当前界面的匿名浏览器截图。三类内容卡片展示产品方向，公开发布与内容发现仍在开发，没有虚构作品或运营数据。
 
-## 文档
+<details>
+<summary>看看手机布局</summary>
+<br>
+<img src="docs/images/tako-home-mobile.png" width="320" alt="Tako 首页 390px 宽移动端布局">
+<p>浏览器响应式截图；真实 iPhone 写作验收另见验收记录。</p>
+</details>
 
-- [业务决策](项目业务共识.html)
-- [增量 A 规格](增量A开发规格.html)
-- [开发进展](docs/development.md)
+## 现在能做什么
 
-生产凭据仅通过环境变量配置，不提交 `.env`。邮件必须使用真实发送服务验收；本地模拟服务仅验证协议流程。
+先把自己的文字写下来，再放心地回来继续。
 
-## 容器开发
+- 邮箱验证码登录，创建笔名和私密纯文本草稿。
+- 自动保存，数据库确认后显示“已保存”；关闭重开后继续写。
+- 服务断连时本机暂存；电脑和手机发生冲突时另存副本，保留双方文字。
+- 原账号重新登录恢复待同步内容，支持导出和历史恢复。
 
-本机需 Docker Desktop（Linux containers）与 Compose。复制 `.env.example` 为 `.env`，先设置 MYSQL_PASSWORD、MYSQL_ROOT_PASSWORD、AUTH_PEPPER（至少 32 字节随机值）和 MAIL_ENCRYPTION_KEY（独立 32 字节随机值的 64 位十六进制编码），再执行以下命令。不要输出或提交这些值。
+**增量 A 核心链路已验收，当前是私有 ECS 测试环境，暂无公开体验地址。** 真机粘贴和 Wi-Fi／蜂窝切换仍是明确的验收尾项，待稳定 HTTPS 入口补测；不能将服务断链演练当作网络切换测试。
 
-```sh
-docker compose up -d mysql
-docker compose run --rm tools go run github.com/pressly/goose/v3/cmd/goose@v3.26.0 -dir migrations up
-docker compose run --rm tools go test -race ./...
-docker compose run --rm tools go vet ./...
-docker compose up -d --build api
-docker compose up -d gateway
-```
+“已保存”表示数据库已提交。每日离机备份另行运行，正常恢复点约落后一天；本机缓存也不能抵抗浏览器数据被清除。
 
-数据库只绑定本机 `127.0.0.1:3307`，API 只绑定 `127.0.0.1:8080`。这是本地开发配置，不可原样作为公网部署。
+## 接下来一起把社区做出来
 
-## 接口契约与阶段复盘
+| 阶段 | 用户可以获得什么 | 当前状态 |
+|---|---|---|
+| A · 保存文字 | 登录、私密草稿、续写与冲突恢复 | 核心链路通过，两项真机补测待完成 |
+| B · 公开作品 | 完整中篇发布、稳定链接阅读、隐藏与恢复 | 待评审开发 |
+| C · 接收反馈 | 收藏、读过、评论、通知、举报与处置 | 待开发 |
 
-- 同源 Swagger UI：http://localhost:3000/docs/ （先启动 gateway）
-- OpenAPI JSON：http://localhost:3000/openapi.json
-- 唯一契约源：`backend/internal/contract/openapi.yaml`，运行时请求校验与自动化测试共用。
-- 文档由 `API_ENABLE_DOCS` 显式控制，程序默认关闭，本地 Compose 默认开启；公网部署保持关闭或另行限制访问。
-- 浏览器通过验证码接口登录后自动携带 Cookie，无须复制令牌。不得为调试绕过 Origin 校验。
-- [阶段复盘与阻断项](docs/reviews/2026-10-29-server-review.md)
+正式首发还需补齐既定的内容发现、版本展示、治理及短内容／长篇基础能力。当前没有公开阅读、推荐、支付或规模运营成果。
 
-自动化检查覆盖文档有效性、双向路由覆盖、正常链路响应、非法输入、错误响应关联与故意破坏响应的反例。GitHub Actions 已配置，但未推送，不能宣称远程 CI 已通过。
+## 从这里了解 Tako
 
-- `/health/live`：进程存活。
-- `/health/ready`：仅检查数据库连接，尚不代表登录、迁移版本或保存链路已验收。
+- [增量 A 业务复盘](docs/reviews/2026-10-30-a-business-review.md)：为什么做、踩过什么坑、证据是否足够、还欠什么。
+- [验收证据与边界](docs/reviews/2026-10-30-a-acceptance.md) · [当前进度](docs/reviews/current-progress.md)
+- [业务共识](项目业务共识.html) · [增量 A 开发规格](增量A开发规格.html)
+- [看板娘与视觉方向](docs/brand-mascot-v1.md)
 
-测试使用真实 MySQL；缺少 `TEST_MYSQL_DSN` 时集成测试跳过，不可把跳过当作验证通过。Compose tools 已配置此变量。测试账号和草稿具有随机标识，测试后清理自身数据；只在开发数据库执行。
+Go／Gin + MySQL + Nuxt／Vue／TypeScript，从模块化单体起步。当前不宣称高可用或高并发性能。
 
-登录、会话与草稿 API 已接入并完成真实 MySQL 集成测试，详见 [接口说明](docs/api.md)。身份从服务端会话取得，不接受客户端 owner_id 冒充身份。前端和真实邮件验收尚未完成。
-
-前端进展更新：Nuxt 私密写作空间已接入登录协议、草稿和本机同步，见 [前端说明](docs/frontend.md) 与 [阶段复盘](docs/reviews/2026-10-29-frontend-review.md)。真实邮件、浏览器 Cookie 全链路及完整 A 验收尚未完成，测试夹具不等于生产登录。
-
-本机启动前端：`docker compose up -d --build api web gateway`。访问 http://localhost:3000/ 或 http://localhost:3000/workspace 。已有网关更新配置后需 `nginx -t` 通过再重载。邮件 worker 独立运行；真实登录环境必须同时启动：`docker compose --profile mail up -d mail-worker`。仅启动前端和 API 无法发出验证码。
-
-启动新版 API 前，还需要在 `.env` 配置至少 32 字节随机的 `AUTH_PEPPER`；不要在重启时重新生成。真实邮件配置也放入 `.env`。仅本机开发允许 `COOKIE_SECURE=false`，生产必须 HTTPS。
-
-验证码现在通过持久化队列发送，还需独立 `MAIL_ENCRYPTION_KEY`。配置 SMTP 并构建 API 后，用 `docker compose --profile mail up -d mail-worker` 启动发送进程。发送接口新增必填 `delivery_id`，详见 [邮件任务与恢复语义](docs/mail-delivery.md)。没有 worker 时入队任务不会发送，202 不等于送达。
-
-草稿列表、保存确认时间和历史快照已接入；[保留规则与运行说明](docs/draft-storage.md)。通过 `docker compose --profile maintenance up -d maintenance` 独立执行历史清理，不启用邮件发送。迁移前必须备份，迁移不会补造旧版本。
-
-Resend 本机验收：已验证本人收件箱真实收到。日常启动已配置邮件的完整环境：`docker compose --profile mail up -d api web gateway mail-worker`。worker 配置 unless-stopped，手动停止后需显式重新启动；本机启动不等于生产可用性保障。
-
-当前增量 A 收口：[运行与恢复](docs/operations.md)、[2026-10-30 收口记录](docs/reviews/2026-10-30-a-closeout.md)。本地后端测试改用 `python scripts/test_backend.py`，隔离到 writing_test；不要在真实用户库运行清理测试。
-
-已完成 [ECS 私有测试部署](docs/ecs-test-deployment.md)，通过本机 SSH 隧道的 localhost:3100 访问；3000 仍为本机环境。OSS 往返恢复与每日备份已执行通过；公网 HTTPS 和 iPhone 真机验收尚未完成。
+开发者入口：[启动与测试](docs/development-guide.md) · [API / Swagger](docs/api.md) · [运行与恢复](docs/operations.md) · [ECS 部署](docs/ecs-test-deployment.md) · [真机验收](docs/mobile-acceptance.md)。凭据、正文、备份与开发证书不进入仓库。

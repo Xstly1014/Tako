@@ -16,7 +16,7 @@
 ssh -N -L 127.0.0.1:3100:127.0.0.1:3100 -i 私钥路径 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 root@ECS公网IP
 ```
 
-浏览器访问 http://localhost:3100/workspace 。本机开发环境仍为 3000，数据不互通。隧道关闭或电脑休眠后需重连。iPhone 不能直接使用电脑 localhost，仍待可用 HTTPS 入口或明确的私网接入方案。
+浏览器访问 http://localhost:3100/workspace 。本机开发环境仍为 3000，数据不互通。隧道关闭或电脑休眠后需重连。iPhone 不能直接使用电脑 localhost；已通过临时热点 HTTPS 转发完成真机验收，现已清理该入口。
 
 本机部署副本密钥和云环境秘密位于被忽略的 .runtime/ecs；原始下载密钥没有修改。云端 .env 权限 600、目录 700。云环境密码、AUTH_PEPPER、MAIL_ENCRYPTION_KEY、BACKUP_ENCRYPTION_KEY 独立生成；仅复用已授权的 Resend 测试发信账号。部署配置及实际秘密不得混为模板提交。
 
@@ -50,7 +50,7 @@ python scripts/ecs_backup.py --host ECS公网IP --identity 本机私钥路径 --
 
 ## 尚未完成
 
-域名实名/备案/解析与公网 HTTPS；iPhone 中文输入、切网、后台返回和跨设备冲突验收；服务器/磁盘故障外部探针。当前不对公众宣发，不把受保护的测试部署称为公开运营上线。
+域名实名/备案/解析与公网 HTTPS；服务器/磁盘故障外部探针。当前不对公众宣发，不把受保护的测试部署称为公开运营上线。
 
 
 ## 每日 OSS 备份与权限纠偏
@@ -64,3 +64,7 @@ OSS 使用专用 RAM 凭据，仅作用 tako-backups/，放在 /opt/tako/.backup
 用户确认配置前缀级 30 天生命周期；生命周期规则的执行是 OSS 异步行为，当前尚未经历 30 天自然到期，不声称删除已实测。未观察到对象 Expiration 响应头时，需要后续核对规则加载；不把用户配置确认等同于执行完成。
 
 备份状态文件只有最后尝试、最后成功与固定失败代码，监控只读挂载；故障邮件带 ecs-test 环境标识。外部主机故障探测仍是公网接入前的缺口。
+
+手机临时内测最终采用电脑热点上的原生 Caddy HTTPS 经 SSH 转到同一 ECS 库，见 [真机验收说明](mobile-acceptance.md)。Tailscale 未完成授权并已停用。备份逾期时间戳注入后，ecs-test 监控实际发送 backup_overdue 通知；恢复真实时间戳后发送恢复通知，均有服务商接受日志。
+
+最终收口：iPhone 与双设备断线/冲突验收通过，用户确认实际收到备份逾期与恢复邮件；最终冲突数据再次 OSS 往返独立恢复通过（2 份草稿、9 个修订）。详见最终验收结论。

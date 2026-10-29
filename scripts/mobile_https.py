@@ -49,3 +49,11 @@ p.write_text("\n".join(lines)+"\n",encoding="utf-8")
 print("Certificate download: http://"+str(address)+":3444/tako-dev-ca.cer")
 print("Phone test URL: https://"+str(address)+":3443/workspace")
 print("No system or phone trust changed. CA expires in seven days or less.")
+if len(sys.argv) > 2:
+    phone = ipaddress.ip_address(sys.argv[2])
+    if not phone.is_private:
+        raise SystemExit("A private phone/hotspot address is required")
+    template = (root / "infra/Caddyfile.mobile-ecs.template").read_text(encoding="utf-8")
+    rendered = template.replace("{{BIND_IP}}", str(address)).replace("{{PHONE_IP}}", str(phone)).replace("{{CERT_DIR}}", folder.resolve().as_posix())
+    (folder / "Caddyfile").write_text(rendered, encoding="utf-8")
+    print("Native Caddy acceptance configuration prepared; SSH forwarding still required.")

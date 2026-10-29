@@ -1,0 +1,37 @@
+{
+    admin off
+    auto_https off
+    persist_config off
+    servers {
+        protocols h1 h2
+    }
+}
+
+http://{{BIND_IP}}:3444 {
+    @allowed remote_ip {{PHONE_IP}} {{BIND_IP}}
+    handle @allowed {
+        @ca path /tako-dev-ca.cer
+        handle @ca {
+            root * "{{CERT_DIR}}"
+            rewrite * /dev-ca.cer
+            file_server
+        }
+        handle {
+            respond 404
+        }
+    }
+    handle {
+        respond 403
+    }
+}
+
+https://{{BIND_IP}}:3443 {
+    tls "{{CERT_DIR}}/server.pem" "{{CERT_DIR}}/server-key.pem"
+    @allowed remote_ip {{PHONE_IP}} {{BIND_IP}}
+    handle @allowed {
+        reverse_proxy 127.0.0.1:3102
+    }
+    handle {
+        respond 403
+    }
+}
