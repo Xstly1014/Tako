@@ -1,10 +1,12 @@
 """Transfer a committed release without secrets; promote using the existing ECS volume."""
 import argparse
 import hashlib
+import gzip
 import json
 from pathlib import Path
 import re
 import subprocess
+import shutil
 import tarfile
 
 ROOT=Path(__file__).resolve().parent.parent
@@ -34,8 +36,11 @@ def main():
         tag='writing-community-'+kind+':'+version
         run(['docker','tag','writing-community-'+kind+':local',tag])
         images[kind]=run(['docker','image','inspect',tag,'--format','{{.Id}}']).decode().strip()
-    archive=directory/'images.tar'
-    run(['docker','save','-o',str(archive),*[f'writing-community-{k}:{version}' for k in ('api','web')]])
+    archive=directory/'images.tar.gz'
+    process=subprocess.Popen(['docker','save',*[f'writing-community-{k}:{version}' for k in ('api','web')]],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    with gzip.open(archive,'wb',compresslevel=1) as output:
+        shutil.copyfileobj(process.stdout,output)
+    assert process.wait(timeout=120)==0
     plan=dict(version=version,images=images,volume='tako-ecs-test_mysql_data')
     (directory/'plan.json').write_text(json.dumps(plan))
     bundle=directory/'release.tar.gz'
@@ -59,7 +64,7 @@ def main():
         actual=run(ssh+['sha256sum '+remote+'/'+path.name]).decode().split()[0]
         assert actual==digest
     # Bundle contains only locally constructed fixed paths. Remote tar never receives user names.
-    run(ssh+['cd '+remote+' && tar -xzf release.tar.gz && docker load -i images.tar >/dev/null'])
+    run(ssh+['cd '+remote+' && tar -xzf release.tar.gz && docker load -i images.tar.gz >/dev/null'])
     print(json.dumps({'event':'release_images_verified','version':version}),flush=True)
     output=run(ssh+['python3 '+remote+'/ecs_promote.py'],timeout=900)
     for line in output.decode().splitlines():

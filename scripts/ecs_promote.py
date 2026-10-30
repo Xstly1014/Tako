@@ -89,6 +89,8 @@ def main():
         if source.exists():
             shutil.copy2(source, previous/name)
     original = read_env(ROOT/'.env')
+    auth_mode = original.get('AUTH_MODE','email')
+    assert auth_mode in ('email','password')
     mysql_id = compose('ps','-q','mysql',old=True).stdout.decode().strip()
     details = json.loads(run(['docker','inspect',mysql_id]).stdout)[0]
     volumes = [item['Name'] for item in details['Mounts'] if item['Destination']=='/var/lib/mysql']
@@ -119,7 +121,7 @@ def main():
         for name in ('recovery.py','oss_backup.py','daily_backup.py'):
             shutil.copy2(RELEASE/'scripts'/name,ROOT/'scripts'/name)
         patch_env(ROOT/'.env',{'APP_VERSION':version,'PRODUCTION_MYSQL_VOLUME':volumes[0],
-                  'MYSQL_IMAGE':'tako-mysql:preserved-'+version[:12], 'AUTH_MODE':'email',
+                  'MYSQL_IMAGE':'tako-mysql:preserved-'+version[:12], 'AUTH_MODE':auth_mode,
                   'OPERATOR_ACCOUNT_IDS':account, 'OSS_BACKUP_PREFIX':'tako-backups/production/'})
         if (ROOT/'.backup.env').exists():
             patch_env(ROOT/'.backup.env',{'OSS_BACKUP_PREFIX':'tako-backups/production/'})
@@ -136,11 +138,13 @@ def main():
         assert not any(table.startswith('synthetic_') for table in after)
         assert int(sql('SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1')) == 11
         STAGE = 'start_and_probe'
-        compose('up','-d','api','web','gateway','maintenance','mail-worker')
+        compose('up','-d','api','web','gateway','maintenance')
+        if auth_mode == 'email':
+            compose('up','-d','mail-worker')
         probe()
         compose('--profile','ops','up','-d','monitor')
         report = dict(version=version,schema=11,preserved_tables=len(before)-1,
-                      pre_upgrade_backup=backup.name,access='private_ssh',auth_mode='email_pending_owner_password')
+                      pre_upgrade_backup=backup.name,access='private_ssh',auth_mode=auth_mode)
         (ROOT/'production-release.json').write_text(json.dumps(report))
         emit('production_upgrade_verified',**report)
     except Exception:

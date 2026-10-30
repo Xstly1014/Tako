@@ -57,6 +57,7 @@ services:
     <<: *app
   mail-worker:
     <<: *app
+    profiles: [email]
     environment:
       <<: *environment
       APP_ROLE: mail-worker

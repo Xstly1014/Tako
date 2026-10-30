@@ -12,6 +12,25 @@ const environmentLabel =
       ? '正式环境 · 私有访问'
       : '开发环境 · 原有数据'
 const publishing = String(config.public.publicationEnabled) === 'true'
+const logoutBusy = ref(false), logoutNotice = ref('')
+async function logout() {
+  if (logoutBusy.value) return
+  logoutBusy.value = true
+  logoutNotice.value = ''
+  try {
+    await request<void>('/auth/logout', 'POST', {})
+    try { localStorage.setItem('tako-session-locked', '1') } catch { /* Server session was revoked. */ }
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('tako-session')
+      channel.postMessage('logout')
+      channel.close()
+    }
+    window.location.assign('/workspace')
+  } catch {
+    logoutBusy.value = false
+    logoutNotice.value = '未能确认退出，请重试。'
+  }
+}
 const expanded = ref(false),
   account = ref<Account | null>(null),
   operator = ref(false),
@@ -84,6 +103,8 @@ onUnmounted(() => {
             anonymous ? '登录 / 注册' : '账号'
           }}</NuxtLink>
         </slot>
+        <button v-if="account && !$slots.account" type="button" class="app-logout" :disabled="logoutBusy" @click="logout">{{ logoutBusy ? '正在退出…' : '退出登录' }}</button>
+        <span v-if="logoutNotice" role="alert">{{ logoutNotice }}</span>
         <details v-if="account && publishing" class="app-extra-menu">
           <summary>更多</summary>
           <div>
@@ -167,6 +188,16 @@ nav a.router-link-exact-active {
 .app-account-nav {
   margin-left: auto;
 }
+.app-logout {
+  padding: 8px 0;
+  color: var(--color-muted);
+  background: transparent;
+  border: 0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.app-logout:hover { color: var(--color-ink); }
+.app-logout:disabled { opacity: .5; cursor: wait; }
 .app-account-nav > a {
   max-width: 160px;
   overflow: hidden;
