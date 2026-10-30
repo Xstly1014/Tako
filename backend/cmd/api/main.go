@@ -112,7 +112,7 @@ func main() {
 		logger.Error("SMTP_HOST required when SMTP settings are supplied")
 		os.Exit(1)
 	}
-	api := httpapi.API{Identity: auth, Drafts: draft.Store{DB: db}, DB: db, Origin: os.Getenv("APP_ORIGIN"), SecureCookie: os.Getenv("COOKIE_SECURE") != "false", Logger: logger, EnableDocs: os.Getenv("API_ENABLE_DOCS") == "true", EnablePublications: os.Getenv("PUBLICATION_ENABLED") == "true"}
+	api := httpapi.API{AuthMode: os.Getenv("AUTH_MODE"), OperatorAccounts: os.Getenv("OPERATOR_ACCOUNT_IDS"), Identity: auth, Drafts: draft.Store{DB: db}, DB: db, Origin: os.Getenv("APP_ORIGIN"), SecureCookie: os.Getenv("COOKIE_SECURE") != "false", Logger: logger, EnableDocs: os.Getenv("API_ENABLE_DOCS") == "true", EnablePublications: os.Getenv("PUBLICATION_ENABLED") == "true"}
 	if err := api.Register(mux); err != nil {
 		logger.Error("api_configuration_invalid", "error", err.Error())
 		os.Exit(1)

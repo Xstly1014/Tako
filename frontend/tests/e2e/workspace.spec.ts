@@ -38,6 +38,7 @@ async function fixture(page: Page, loggedIn = true) {
     }
     const reply = (status: number, value: unknown) =>
       route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) })
+    if (path === '/api/auth/methods') return reply(200, { mode: 'email' })
     if (path === '/api/auth/code')
       return reply(202, {
         delivery_id: body.delivery_id,
@@ -213,7 +214,11 @@ test('logout preserves local data but does not expose or send it to another acco
   await page.getByLabel('草稿正文').fill('甲账号未同步的私密文字')
   await expect(page.getByRole('status')).toContainText('本机')
   await page.getByRole('button', { name: '退出登录' }).click()
+  // Login mode is fetched from the server rather than guessed while offline.
+  // Reconnect, explicitly retry that failed lookup, then use the other account.
+  await expect(page.getByRole('button', { name: '重新加载', exact: true })).toBeVisible()
   state.network = true
+  await page.getByRole('button', { name: '重新加载', exact: true }).click()
   await signIn(page, 'bob@example.test')
   await expect(page.getByText('甲账号未同步的私密文字', { exact: true })).toHaveCount(0)
   expect(state.crossAccountWrites).toBe(0)

@@ -31,7 +31,10 @@ const MaxSequence uint64 = 9007199254740991
 
 var Tags = []string{"幻想", "冒险", "日常", "情感", "悬疑", "科幻"}
 
-type Store struct{ DB *sql.DB }
+type Store struct {
+	DB              *sql.DB
+	ModerationClock func() time.Time
+}
 type Prepare struct {
 	MutationID      uuid.UUID `json:"mutation_id"`
 	DraftID         uuid.UUID `json:"draft_id"`

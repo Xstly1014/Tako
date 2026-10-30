@@ -467,6 +467,7 @@ onUnmounted(() => {
         <NuxtLink v-if="publicationEnabled && account" to="/my-works" class="text-button"
           >作品管理</NuxtLink
         ><span class="workspace-account-name">{{ account?.nickname || '写作空间' }}</span
+        ><NuxtLink v-if="account" to="/account">账号设置</NuxtLink
         ><button v-if="account" class="text-button" @click="logout">退出登录</button>
       </div>
     </header>

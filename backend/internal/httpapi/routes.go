@@ -25,6 +25,7 @@ import (
 )
 
 type API struct {
+	AuthMode           string
 	Identity           *identity.Service
 	Drafts             draft.Store
 	DB                 *sql.DB
@@ -33,9 +34,13 @@ type API struct {
 	Logger             *slog.Logger
 	EnableDocs         bool
 	EnablePublications bool
+	OperatorAccounts   string
 }
 
 func (a API) Register(r *gin.Engine) error {
+	if a.AuthMode != "" && a.AuthMode != "email" && a.AuthMode != "password" {
+		return errors.New("AUTH_MODE must be email or password")
+	}
 	parsed, err := url.Parse(a.Origin)
 	if err != nil || parsed.Host == "" || parsed.Path != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return errors.New("APP_ORIGIN must be an exact origin without path")
@@ -114,6 +119,10 @@ func (a API) Register(r *gin.Engine) error {
 		c.Next()
 	})
 	api.POST("/auth/code", func(c *gin.Context) {
+		if a.AuthMode == "password" {
+			respondError(c, 403, "auth_method_disabled")
+			return
+		}
 		var in struct {
 			Email      string    `json:"email"`
 			DeliveryID uuid.UUID `json:"delivery_id"`
@@ -131,6 +140,10 @@ func (a API) Register(r *gin.Engine) error {
 		c.JSON(202, delivery)
 	})
 	api.POST("/auth/verify", func(c *gin.Context) {
+		if a.AuthMode == "password" {
+			respondError(c, 403, "auth_method_disabled")
+			return
+		}
 		var in struct {
 			Email string `json:"email"`
 			Code  string `json:"code"`
@@ -171,6 +184,7 @@ func (a API) Register(r *gin.Engine) error {
 		c.Set("account", account)
 		c.Next()
 	})
+	a.registerPasswords(api, protected)
 	protected.GET("/me", func(c *gin.Context) { c.JSON(200, c.MustGet("account")) })
 	protected.PATCH("/me", func(c *gin.Context) {
 		var in struct {
@@ -257,6 +271,14 @@ func (a API) cookie(c *gin.Context, token string, maxAge int) {
 func fail(c *gin.Context, err error) {
 	status, code := 503, "service_unavailable"
 	switch {
+	case errors.Is(err, identity.ErrLogin):
+		status, code = 401, "invalid_login"
+	case errors.Is(err, identity.ErrPassword):
+		status, code = 400, "invalid_password"
+	case errors.Is(err, identity.ErrAccountExists):
+		status, code = 409, "account_exists"
+	case errors.Is(err, identity.ErrPasswordSet):
+		status, code = 409, "password_already_set"
 	case errors.Is(err, identity.ErrInvalid), errors.Is(err, draft.ErrInvalid):
 		status, code = 400, "invalid_input"
 	case errors.Is(err, identity.ErrLimited):

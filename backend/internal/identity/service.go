@@ -145,6 +145,15 @@ func (s *Service) Verify(ctx context.Context, email, code, ip string) (Account, 
 	if err != nil {
 		return Account{}, "", err
 	}
+	// Mailbox ownership cannot take over an unverified password account, even
+	// if a deployment accidentally switches back to the legacy email mode.
+	var passwordCount int
+	if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM account_passwords WHERE account_id=?", accountID[:]).Scan(&passwordCount); err != nil {
+		return Account{}, "", err
+	}
+	if passwordCount != 0 {
+		return Account{}, "", ErrInvalid
+	}
 	bytes := make([]byte, 32)
 	if _, err = rand.Read(bytes); err != nil {
 		return Account{}, "", err

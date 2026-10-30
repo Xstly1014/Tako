@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   telemetry: false,
   routeRules: {
     '/workspace': { ssr: false },
+    '/account': { ssr: false },
     '/publish': { ssr: false },
     '/my-works': { ssr: false },
     '/works/**': { headers: { 'cache-control': 'no-store' } },

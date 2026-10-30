@@ -13,6 +13,12 @@ import (
 func publicationError(c *gin.Context, e error) {
 	status, code := 503, "service_unavailable"
 	switch {
+	case errors.Is(e, publication.ErrReviewConflict):
+		status, code = 409, "review_conflict"
+	case errors.Is(e, publication.ErrAppealPending):
+		status, code = 409, "appeal_pending"
+	case errors.Is(e, publication.ErrAppealCooldown):
+		status, code = 409, "appeal_cooldown"
 	case errors.Is(e, publication.ErrInvalid):
 		status, code = 400, "invalid_input"
 	case errors.Is(e, publication.ErrNotFound):
@@ -126,4 +132,5 @@ func (a API) registerPublicationRoutes(api, protected *gin.RouterGroup) {
 	api.GET("/works/:id", read)
 	api.GET("/works/:id/versions/:number", read)
 	a.registerWorkManagement(api, protected, s, enabled)
+	a.registerModeration(protected, s, enabled)
 }

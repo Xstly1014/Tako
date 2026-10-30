@@ -490,7 +490,7 @@ onUnmounted(() => {
               @load="more('versions')"
             />
             <p v-if="timeline.versions.some((v) => v.platform_limited)" class="manager-limited">
-              菱形节点为受限版本，仅作者可查看和导出。
+              菱形节点为受限版本，仅作者可查看和导出。<NuxtLink to="/moderation">查看原因与申请复核</NuxtLink>
             </p>
             <article v-if="body" class="manager-preview">
               <header class="manager-preview-header">
@@ -553,6 +553,7 @@ onUnmounted(() => {
           </section>
           <section v-if="section === 'settings'" class="manager-settings">
             <h3>公开与历史阅读</h3>
+            <NuxtLink to="/moderation" class="text-button">查看处置与申请复核</NuxtLink>
             <p class="manager-help">控制新访问能否阅读作品，以及是否开放旧版正文。</p>
             <label class="manager-history"
               ><input

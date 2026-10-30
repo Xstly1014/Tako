@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +41,9 @@ func TestPublicationHTTPContractAndAccess(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer func() {
+		db.Exec("DELETE FROM moderation_mutations WHERE owner_id=?", owner[:])
+		db.Exec("DELETE a FROM moderation_appeals a JOIN moderation_cases c ON c.id=a.case_id WHERE c.owner_id=?", owner[:])
+		db.Exec("DELETE FROM moderation_cases WHERE owner_id=?", owner[:])
 		db.Exec("DELETE FROM work_state_mutations WHERE owner_id=?", owner[:])
 		db.Exec("DELETE e FROM work_events e JOIN works w ON w.id=e.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE q FROM publication_review_tasks q JOIN works w ON w.id=q.work_id WHERE w.owner_id=?", owner[:])
@@ -100,6 +104,47 @@ func TestPublicationHTTPContractAndAccess(t *testing.T) {
 	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions", nil, true, 200)
 	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions/1", nil, true, 200)
 	call("GET", path+"/timeline", nil, false, 200)
+
+	// The default-off operator gate is separate from ordinary author access.
+	call("GET", "/api/ops/reviews", nil, false, 401)
+	call("GET", "/api/ops/reviews", nil, true, 403)
+	call("GET", "/api/ops/moderation", nil, true, 403)
+	r = gin.New()
+	if e = (API{Identity: &identity.Service{DB: db}, DB: db, Origin: "http://localhost:3000", EnablePublications: true, OperatorAccounts: owner.String()}).Register(r); e != nil {
+		t.Fatal(e)
+	}
+	call("GET", "/api/ops/reviews", nil, true, 200)
+	reviewPath := "/api/ops/reviews/" + result.WorkID.String() + "/versions/1"
+	call("GET", reviewPath, nil, true, 200)
+	restrict := publication.ModerationAction{MutationID: uuid.New(), ExpectedRevision: 1, Decision: "restrict_version", Reason: "固定版本包含需处理内容"}
+	call("POST", reviewPath, restrict, true, 200)
+	call("POST", reviewPath, restrict, true, 200)
+	call("GET", path, nil, false, 404)
+	rec = call("GET", "/api/my/moderation", nil, true, 200)
+	var cases publication.CasePage
+	if e = json.Unmarshal(rec.Body.Bytes(), &cases); e != nil || len(cases.Items) != 1 {
+		t.Fatal("case list", e)
+	}
+	caseID := cases.Items[0].ID
+	authorPath := "/api/my/moderation/" + strconv.FormatUint(caseID, 10)
+	opsPath := "/api/ops/moderation/" + strconv.FormatUint(caseID, 10)
+	call("GET", authorPath, nil, true, 200)
+	appealIn := publication.ModerationAction{MutationID: uuid.New(), ExpectedRevision: 1, Decision: "appeal", Reason: "补充具体文字位置，请人工重新检查"}
+	rec = call("POST", authorPath, appealIn, true, 200)
+	var appealed publication.ModerationResult
+	json.Unmarshal(rec.Body.Bytes(), &appealed)
+	call("GET", "/api/ops/appeals", nil, true, 200)
+	uphold := publication.ModerationAction{MutationID: uuid.New(), ExpectedRevision: 1, Decision: "uphold", Reason: "重新检查后维持，具体问题仍存在", AppealID: appealed.ID}
+	call("POST", opsPath, uphold, true, 200)
+	call("POST", authorPath, appealIn, true, 200)
+	appealIn.MutationID = uuid.New()
+	appealIn.ExpectedRevision = 2
+	call("POST", authorPath, appealIn, true, 409)
+	call("GET", opsPath, nil, true, 200)
+	revoke := publication.ModerationAction{MutationID: uuid.New(), ExpectedRevision: 2, Decision: "revoke", Reason: "主动纠错，仅撤销这一条限制"}
+	call("POST", opsPath, revoke, true, 200)
+	call("POST", opsPath, revoke, true, 200)
+	call("GET", path, nil, false, 200)
 	stateResponse := call("GET", "/api/my/works/"+result.WorkID.String(), nil, true, 200)
 	var state publication.State
 	if e = json.Unmarshal(stateResponse.Body.Bytes(), &state); e != nil {

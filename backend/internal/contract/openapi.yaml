@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.5.0
+  version: 0.7.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
-    Cookie 会话由验证码登录建立，浏览器不得手动填写会话令牌。
+    Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
     所有写操作需同源 Origin 和 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
     验证码持久化入队，由独立 worker 处理；sent 仅表示邮件服务接受，不保证收件箱送达。
 servers:
@@ -17,6 +17,149 @@ tags:
 security:
   - session: []
 paths:
+  /api/auth/methods:
+    get:
+      operationId: getAuthMethods
+      tags: [身份]
+      security: []
+      summary: 获取当前启用的登录方式
+      responses:
+        '200':
+          description: password 模式关闭验证码登录和发送接口；不表示邮箱已经验证
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [mode]
+                properties:
+                  mode: {type: string, enum: [email, password]}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/auth/register:
+    post:
+      operationId: registerPassword
+      tags: [身份]
+      security: []
+      summary: 自主注册并登录（不验证邮箱）
+      description: |
+        仅 password 模式可用。邮箱沿用现有大小写规范，不证明邮箱归属，不支持邮件找回。
+        重复邮箱返回 account_exists，不覆盖原账号；响应丢失后用所选密码登录确认，不循环重新注册。
+        密码原样处理不裁剪，至少 8 个字符且 UTF-8 最多 72 字节；超长注册返回 invalid_password。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: {type: string, maxLength: 254}
+                password: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+      responses:
+        '200':
+          description: 已创建 HttpOnly 七天会话；不返回密码、邮箱或令牌
+          headers:
+            Set-Cookie: {schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/auth/login:
+    post:
+      operationId: loginPassword
+      tags: [身份]
+      security: []
+      summary: 邮箱密码登录
+      description: |
+        仅 password 模式可用。邮箱沿用现有大小写规范，不证明邮箱归属，不支持邮件找回。
+        未知账号、无密码和错误密码统一返回 invalid_login，不清除已有浏览器会话。
+        密码原样处理不裁剪，至少 8 个字符且 UTF-8 最多 72 字节；超长注册返回 invalid_password。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: {type: string, maxLength: 254}
+                password: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+      responses:
+        '200':
+          description: 已创建 HttpOnly 七天会话；不返回密码、邮箱或令牌
+          headers:
+            Set-Cookie: {schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/me/password:
+    get:
+      operationId: getPasswordStatus
+      tags: [身份]
+      summary: 查询自己的密码设置状态
+      responses:
+        '200':
+          description: 仅返回是否已设置，不返回散列或密码
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [configured]
+                properties:
+                  configured: {type: boolean}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: setupOwnPassword
+      tags: [身份]
+      summary: 已登录账号首次设置密码
+      description: |
+        只作用于会话账号，不能指定邮箱或账号 ID。原账号及数据不变。
+        相同密码重试成功，不同密码不能覆盖既有密码（password_already_set）。
+        不提供改密或邮件找回。至少 8 个字符且 UTF-8 最多 72 字节，不裁剪空白。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+      responses:
+        '204': {description: 密码已设置或相同设置的安全重试}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/auth/code:
     post:
       operationId: requestCode
@@ -605,10 +748,1050 @@ paths:
         '415': {$ref: '#/components/responses/NotJSON'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/reviews:
+    {
+      "get": {
+        "operationId": "moderationReviews",
+        "summary": "待后审正式版本队列，按稳定任务 ID 分页",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationTasks"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      }
+    }
+  /api/ops/reviews/{id}/versions/{number}:
+    {
+      "get": {
+        "operationId": "moderationReviewGet",
+        "summary": "读取或处理固定正式版本后审",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      },
+      "post": {
+        "operationId": "moderationReviewPost",
+        "summary": "读取或处理固定正式版本后审",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerationAction"
+              }
+            }
+          }
+        }
+      }
+    }
+  /api/my/moderation:
+    {
+      "get": {
+        "operationId": "myModerationCases",
+        "summary": "作者自己的处置列表",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationCases"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      }
+    }
+  /api/ops/moderation:
+    {
+      "get": {
+        "operationId": "opsModerationCases",
+        "summary": "运营处置列表",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationCases"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      }
+    }
+  /api/ops/appeals:
+    {
+      "get": {
+        "operationId": "moderationAppeals",
+        "summary": "运营待复核队列",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationAppeals"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      }
+    }
+  /api/my/moderation/{number}:
+    {
+      "get": {
+        "operationId": "moderationCaseMyGet",
+        "summary": "作者查询并申请复核",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationCaseDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      },
+      "post": {
+        "operationId": "moderationCaseMyPost",
+        "summary": "作者查询并申请复核",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerationAction"
+              }
+            }
+          }
+        }
+      }
+    }
+  /api/ops/moderation/{number}:
+    {
+      "get": {
+        "operationId": "moderationCaseOpsGet",
+        "summary": "运营查询并维持或撤销处置",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationCaseDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。"
+      },
+      "post": {
+        "operationId": "moderationCaseOpsPost",
+        "summary": "运营查询并维持或撤销处置",
+        "tags": [
+          "治理"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；写请求重试返回原确认，页面随后重新读取当前状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/NotJSON"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "description": "运营仅服务端白名单授权。固定正式版本，不读取工作稿。review_conflict、appeal_pending、appeal_cooldown 需重新读取状态，不能新建标识盲重试。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerationAction"
+              }
+            }
+          }
+        }
+      }
+    }
 components:
   securitySchemes:
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ModerationAction:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mutation_id",
+          "expected_revision",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "mutation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "restrict_version",
+              "restrict_work",
+              "appeal",
+              "uphold",
+              "revoke"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "appeal_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    ModerationResult:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "state",
+          "revision"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "restricted",
+              "pending",
+              "active",
+              "revoked"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    ModerationTask:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "work_id",
+          "version",
+          "revision",
+          "state",
+          "first_waiting_at",
+          "is_current",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "work_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "restricted"
+            ]
+          },
+          "first_waiting_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_current": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      }
+    ModerationCase:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "work_id",
+          "version",
+          "scope",
+          "reason",
+          "state",
+          "revision",
+          "created_at",
+          "next_appeal_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "work_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "version",
+              "work"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_appeal_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      }
+    ModerationAppeal:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "case_id",
+          "reason",
+          "state",
+          "decision_reason",
+          "created_at",
+          "decided_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "case_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "reason": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "upheld",
+              "revoked"
+            ]
+          },
+          "decision_reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      }
+    ModerationTasks:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/ModerationTask"
+            }
+          },
+          "next": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    ModerationCases:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/ModerationCase"
+            }
+          },
+          "next": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    ModerationAppeals:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/ModerationAppeal"
+            }
+          },
+          "next": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    ModerationDetail:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task",
+          "work"
+        ],
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/ModerationTask"
+          },
+          "work": {
+            "$ref": "#/components/schemas/PublicWork"
+          }
+        }
+      }
+    ModerationCaseDetail:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case",
+          "appeals",
+          "work",
+          "revocation"
+        ],
+        "properties": {
+          "case": {
+            "$ref": "#/components/schemas/ModerationCase"
+          },
+          "appeals": {
+            "$ref": "#/components/schemas/ModerationAppeals"
+          },
+          "work": {
+            "$ref": "#/components/schemas/PublicWork"
+          },
+          "revocation": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": false,
+            "required": [
+              "reason",
+              "created_at"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
     WorkState:
       type: object
       additionalProperties: false
@@ -776,7 +1959,7 @@ components:
       properties:
         error:
           type: string
-          enum: [invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted]
+          enum: [invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object
