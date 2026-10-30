@@ -460,129 +460,135 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="workspace">
-    <header class="topbar">
-      <NuxtLink to="/" class="brand-home" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
-      <div class="workspace-account-nav">
-        <NuxtLink v-if="publicationEnabled && account" to="/my-works" class="text-button"
-          >作品管理</NuxtLink
-        ><span class="workspace-account-name">{{ account?.nickname || '写作空间' }}</span
-        ><NuxtLink v-if="account" to="/account">账号设置</NuxtLink
-        ><button v-if="account" class="text-button" @click="logout">退出登录</button>
-      </div>
-    </header>
-    <p v-if="message" class="banner" role="alert">{{ message }}</p>
-    <p v-if="memoryMode" class="banner" role="alert">
-      浏览器本机存储不可用，服务端仍可保存。未同步文字仅在当前页面内存；刷新或关闭可能丢失，请及时同步或导出。
-    </p>
-    <div v-if="loading" class="empty">正在确认会话…</div>
-    <template v-else>
-      <section v-if="needsLogin && !active" class="login-wrap">
-        <LoginPanel @signed-in="signedIn" />
-      </section>
-      <form
-        v-if="account && !account.nickname && !needsLogin"
-        class="nickname-card"
-        @submit.prevent="setNickname"
-      >
-        <h2>你希望被怎样称呼？</h2>
-        <label for="nickname">笔名</label>
-        <div class="row">
-          <input id="nickname" v-model="nickname" maxlength="64" required /><button class="primary">
-            保存笔名
-          </button>
-        </div>
-        <p class="fine">可以重名，不需要真实姓名。</p>
-      </form>
-      <div v-if="account?.nickname || active" class="work-layout">
-        <aside class="draft-sidebar">
-          <div class="section-heading">
-            <h2>我的草稿</h2>
-            <button class="text-button" :disabled="needsLogin" @click="refreshList()">刷新</button>
+  <div class="app-page">
+    <AppHeader
+      ><template #account
+        ><template v-if="account"
+          ><NuxtLink to="/account" :title="account.nickname">{{
+            account.nickname || '账号设置'
+          }}</NuxtLink
+          ><button class="text-button" type="button" @click="logout">退出登录</button></template
+        ></template
+      ></AppHeader
+    >
+    <main class="workspace">
+      <p v-if="message" class="banner" role="alert">{{ message }}</p>
+      <p v-if="memoryMode" class="banner" role="alert">
+        浏览器本机存储不可用，服务端仍可保存。未同步文字仅在当前页面内存；刷新或关闭可能丢失，请及时同步或导出。
+      </p>
+      <div v-if="loading" class="empty">正在确认会话…</div>
+      <template v-else>
+        <section v-if="needsLogin && !active" class="login-wrap">
+          <LoginPanel @signed-in="signedIn" />
+        </section>
+        <form
+          v-if="account && !account.nickname && !needsLogin"
+          class="nickname-card"
+          @submit.prevent="setNickname"
+        >
+          <h2>你希望被怎样称呼？</h2>
+          <label for="nickname">笔名</label>
+          <div class="row">
+            <input id="nickname" v-model="nickname" maxlength="64" required /><button
+              class="primary"
+            >
+              保存笔名
+            </button>
           </div>
-          <button
-            class="primary full"
-            :disabled="creating || needsLogin || !storageOK"
-            @click="createDraft"
-          >
-            {{ creating ? '正在创建…' : '新建草稿' }}
-          </button>
-          <p v-if="!drafts.length" class="fine">还没有草稿，点击上方按钮新建。</p>
-          <button
-            v-for="item in drafts"
-            :key="item.id"
-            class="draft-item"
-            @click="openServer(item.id)"
-          >
-            <strong>{{ item.title || '未命名草稿' }}</strong
-            ><span
-              >{{ new Date(item.saved_at).toLocaleDateString('zh-CN') }} · 修订
-              {{ item.revision }}</span
-            ></button
-          ><button v-if="nextCursor" class="secondary full" @click="refreshList(true)">
-            加载更多
-          </button>
-          <section v-if="localDrafts.length" class="local-list">
-            <h3>本机待同步</h3>
+          <p class="fine">可以重名，不需要真实姓名。</p>
+        </form>
+        <div v-if="account?.nickname || active" class="work-layout">
+          <aside class="draft-sidebar">
+            <div class="section-heading">
+              <h2>我的草稿</h2>
+              <button class="text-button" :disabled="needsLogin" @click="refreshList()">
+                刷新
+              </button>
+            </div>
             <button
-              v-for="item in localDrafts"
-              :key="item.key"
+              class="primary full"
+              :disabled="creating || needsLogin || !storageOK"
+              @click="createDraft"
+            >
+              {{ creating ? '正在创建…' : '新建草稿' }}
+            </button>
+            <p v-if="!drafts.length" class="fine">还没有草稿，点击上方按钮新建。</p>
+            <button
+              v-for="item in drafts"
+              :key="item.id"
               class="draft-item"
-              @click="openRecord(item)"
+              @click="openServer(item.id)"
             >
               <strong>{{ item.title || '未命名草稿' }}</strong
-              ><span>本机保留 · 点击继续</span>
+              ><span
+                >{{ new Date(item.saved_at).toLocaleDateString('zh-CN') }} · 修订
+                {{ item.revision }}</span
+              ></button
+            ><button v-if="nextCursor" class="secondary full" @click="refreshList(true)">
+              加载更多
             </button>
-          </section>
-        </aside>
-        <section class="editor-panel">
-          <template v-if="selectedKey"
-            ><div class="editor-toolbar">
-              <span role="status">{{ status }}</span>
-              <div class="row">
-                <button
-                  v-if="publicationEnabled"
-                  class="text-button"
-                  :disabled="needsLogin"
-                  @click="preparePublication"
-                >
-                  准备发布</button
-                ><button class="text-button" @click="exportText">导出文字</button
-                ><button class="secondary" :disabled="needsLogin" @click="pump(true)">
-                  立即同步
-                </button>
+            <section v-if="localDrafts.length" class="local-list">
+              <h3>本机待同步</h3>
+              <button
+                v-for="item in localDrafts"
+                :key="item.key"
+                class="draft-item"
+                @click="openRecord(item)"
+              >
+                <strong>{{ item.title || '未命名草稿' }}</strong
+                ><span>本机保留 · 点击继续</span>
+              </button>
+            </section>
+          </aside>
+          <section class="editor-panel">
+            <template v-if="selectedKey"
+              ><div class="editor-toolbar">
+                <span role="status">{{ status }}</span>
+                <div class="row">
+                  <button
+                    v-if="publicationEnabled"
+                    class="text-button"
+                    :disabled="needsLogin"
+                    @click="preparePublication"
+                  >
+                    准备发布</button
+                  ><button class="text-button" @click="exportText">导出文字</button
+                  ><button class="secondary" :disabled="needsLogin" @click="pump(true)">
+                    立即同步
+                  </button>
+                </div>
               </div>
+              <label class="sr-only" for="draft-title">草稿标题</label
+              ><input
+                id="draft-title"
+                v-model="title"
+                class="title-input"
+                placeholder="输入草稿标题"
+              /><label class="sr-only" for="draft-content">草稿正文</label
+              ><textarea
+                id="draft-content"
+                v-model="content"
+                class="content-input"
+                placeholder="从你的脑洞、故事或今天的日常开始。"
+                spellcheck="false"
+              />
+              <div class="editor-foot">
+                <span>{{ count }} 字</span
+                ><span>{{
+                  lastConfirmed ? `上次服务端确认：${lastConfirmed}` : '尚无服务端确认'
+                }}</span>
+              </div>
+              <p class="fine">退出不会删除本机草稿。暂不支持完全断网时重新打开网站。</p></template
+            >
+            <div v-else class="empty editor-empty">
+              <h2>选择草稿，继续写。</h2>
+              <p>打开一份草稿，或新建一页。</p>
+              <p class="fine">草稿不会公开发布。</p>
             </div>
-            <label class="sr-only" for="draft-title">草稿标题</label
-            ><input
-              id="draft-title"
-              v-model="title"
-              class="title-input"
-              placeholder="输入草稿标题"
-            /><label class="sr-only" for="draft-content">草稿正文</label
-            ><textarea
-              id="draft-content"
-              v-model="content"
-              class="content-input"
-              placeholder="从你的脑洞、故事或今天的日常开始。"
-              spellcheck="false"
-            />
-            <div class="editor-foot">
-              <span>{{ count }} 字</span
-              ><span>{{
-                lastConfirmed ? `上次服务端确认：${lastConfirmed}` : '尚无服务端确认'
-              }}</span>
-            </div>
-            <p class="fine">退出不会删除本机草稿。暂不支持完全断网时重新打开网站。</p></template
-          >
-          <div v-else class="empty editor-empty">
-            <h2>选择草稿，继续写。</h2>
-            <p>打开一份草稿，或新建一页。</p>
-            <p class="fine">草稿不会公开发布。</p>
-          </div>
-          <LoginPanel v-if="needsLogin && active" compact @signed-in="signedIn" />
-        </section>
-      </div>
-    </template>
-  </main>
+            <LoginPanel v-if="needsLogin && active" compact @signed-in="signedIn" />
+          </section>
+        </div>
+      </template>
+    </main>
+  </div>
 </template>

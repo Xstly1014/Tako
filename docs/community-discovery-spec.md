@@ -1,4 +1,6 @@
-# 社区发现首版 · 评审中
+# 社区发现与反馈 · 规格及实现边界
+
+发现、人工精选与共享导航已接入本机，工程与用户本人功能验收通过；收藏与单层评论尚未实现。见 [本批设计](community-discovery-design.md) 与 [复盘](reviews/community-discovery-review.md)。
 
 ## 已确认
 

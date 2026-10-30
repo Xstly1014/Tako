@@ -13,6 +13,8 @@ import (
 func publicationError(c *gin.Context, e error) {
 	status, code := 503, "service_unavailable"
 	switch {
+	case errors.Is(e, publication.ErrCurationConflict):
+		status, code = 409, "curation_conflict"
 	case errors.Is(e, publication.ErrReviewConflict):
 		status, code = 409, "review_conflict"
 	case errors.Is(e, publication.ErrAppealPending):

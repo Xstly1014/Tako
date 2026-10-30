@@ -220,9 +220,15 @@ h3 {
 }
 .work-layout {
   display: grid;
+  align-items: start;
   grid-template-columns: 250px minmax(0, 1fr);
   gap: 30px;
   margin-top: 30px;
+}
+.draft-sidebar {
+  max-height: calc(100dvh - 176px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .section-heading {
   display: flex;
@@ -723,5 +729,20 @@ h3 {
   .editor-empty {
     min-height: 360px;
     padding: 32px 24px;
+  }
+}
+
+/* Shared header is outside page-specific reading/editor widths. */
+.app-page > main.workspace,
+.app-page > main.publication-page,
+.app-page > main.mod-page {
+  max-width: 1280px;
+  padding-top: 32px;
+}
+@media (max-width: 767px) {
+  .app-page > main.workspace,
+  .app-page > main.publication-page,
+  .app-page > main.mod-page {
+    padding-top: 24px;
   }
 }

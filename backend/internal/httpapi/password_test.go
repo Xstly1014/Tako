@@ -111,6 +111,49 @@ func TestPasswordHTTPContractAndLegacySetup(t *testing.T) {
 	if logged.ID != legacyID || logged.Nickname != "保留笔名" {
 		t.Fatal("legacy identity changed")
 	}
+	// Environment cookies must not authenticate the other environment, even
+	// when a developer accidentally routes both instances to the same store.
+	separate := gin.New()
+	if err = (API{AuthMode: "password", SessionCookieName: "tako_test_session", EnvironmentName: "test", EnableDocs: true, Identity: auth, DB: db, Origin: "http://localhost:3000"}).Register(separate); err != nil {
+		t.Fatal(err)
+	}
+	docReq := httptest.NewRequest("GET", "/openapi.json", nil)
+	docRes := httptest.NewRecorder()
+	separate.ServeHTTP(docRes, docReq)
+	var runtimeDoc map[string]any
+	if json.Unmarshal(docRes.Body.Bytes(), &runtimeDoc) != nil || runtimeDoc["components"].(map[string]any)["securitySchemes"].(map[string]any)["session"].(map[string]any)["name"] != "tako_test_session" {
+		t.Fatal("Swagger cookie name differs from actual environment")
+	}
+	checkCookie := func(server *gin.Engine, session *http.Cookie, want int) {
+		t.Helper()
+		req := httptest.NewRequest("GET", "/api/me", nil)
+		req.AddCookie(session)
+		res := httptest.NewRecorder()
+		server.ServeHTTP(res, req)
+		validateResponse(t, req, res)
+		if res.Code != want {
+			t.Fatal("environment cookie isolation failed")
+		}
+	}
+	validOriginalCookie := login.Result().Cookies()[0]
+	checkCookie(r, validOriginalCookie, 200)
+	checkCookie(separate, validOriginalCookie, 401)
+	raw, _ := json.Marshal(map[string]string{"email": email, "password": "example-test-password"})
+	req := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(string(raw)))
+	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	separate.ServeHTTP(res, req)
+	validateResponse(t, req, res)
+	if res.Code != 200 || res.Header().Get("X-Tako-Environment") != "test" {
+		t.Fatal("environment login failed")
+	}
+	custom := res.Result().Cookies()
+	if len(custom) != 1 || custom[0].Name != "tako_test_session" || !custom[0].HttpOnly {
+		t.Fatal("wrong environment cookie")
+	}
+	checkCookie(separate, custom[0], 200)
+	checkCookie(r, custom[0], 401)
 }
 
 func insertLegacySession(ctx context.Context, db *sql.DB, id uuid.UUID, token string) error {

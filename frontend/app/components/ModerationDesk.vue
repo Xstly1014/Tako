@@ -301,204 +301,226 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <main class="mod-page">
-    <header class="mod-nav">
-      <NuxtLink to="/" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
-      <nav>
-        <NuxtLink to="/workspace">写作空间</NuxtLink><NuxtLink to="/my-works">作品管理</NuxtLink
-        ><span>{{ title }}</span>
-      </nav>
-      <button class="secondary" :disabled="busy" @click="refresh()">刷新</button>
-    </header>
-    <h1>{{ title }}</h1>
-    <p class="mod-description">
-      {{
-        operator
-          ? '处理正式版本的后审与作者复核。不会读取私人工作稿。'
-          : '查看自己作品的处置原因，提交文字复核并跟进结果。'
-      }}
-    </p>
-    <p v-if="message" class="notice" role="status">{{ message }}</p>
-    <section v-if="pending" class="notice">
-      <p>有一次结果尚未确认的操作。检查会沿用原请求，不重复提交。</p>
-      <button class="primary" :disabled="busy" @click="execute">检查原操作结果</button>
-    </section>
-    <nav v-if="operator" class="mod-tabs">
-      <button
-        :aria-pressed="queue === 'reviews'"
-        :disabled="busy || !!pending"
-        @click="changeQueue('reviews')"
-      >
-        正式版本后审</button
-      ><button
-        :aria-pressed="queue === 'appeals'"
-        :disabled="busy || !!pending"
-        @click="changeQueue('appeals')"
-      >
-        待复核</button
-      ><button
-        :aria-pressed="queue === 'cases'"
-        :disabled="busy || !!pending"
-        @click="changeQueue('cases')"
-      >
-        处置记录
-      </button>
-    </nav>
-    <div class="mod-grid">
-      <aside class="mod-list">
-        <template v-if="operator && queue === 'reviews'"
-          ><button
-            v-for="t in tasks"
-            :key="t.id"
-            :disabled="busy || !!pending"
-            @click="choose(`/ops/reviews/${t.work_id}/versions/${t.version}`)"
-          >
-            <strong>{{ t.title }}</strong
-            ><span>V{{ t.version }} · {{ t.is_current ? '当前展示' : '历史版本' }}</span
-            ><span
-              >{{ now - Date.parse(t.first_waiting_at) > 48 * 3600000 ? '已超过 48 小时 · ' : ''
-              }}{{
-                new Date(t.first_waiting_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
-              }}</span
-            >
-          </button>
-          <p v-if="!tasks.length">没有待处理的后审任务。</p></template
-        ><template v-else-if="operator && queue === 'appeals'"
-          ><button
-            v-for="a in appeals"
-            :key="a.id"
-            :disabled="busy || !!pending"
-            @click="choose(`/ops/moderation/${a.case_id}`)"
-          >
-            <strong>复核 #{{ a.id }}</strong
-            ><span>{{ a.reason }}</span
-            ><span>{{
-              new Date(a.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
-            }}</span>
-          </button>
-          <p v-if="!appeals.length">没有待处理的复核申请。</p></template
-        ><template v-else
-          ><button
-            v-for="c in cases"
-            :key="c.id"
-            :disabled="busy || !!pending"
-            @click="choose(`/${operator ? 'ops' : 'my'}/moderation/${c.id}`)"
-          >
-            <strong>{{ c.scope === 'work' ? '作品限制' : '版本限制' }} · V{{ c.version }}</strong
-            ><span>{{ c.reason }}</span
-            ><span>{{ label(c.state) }}</span>
-          </button>
-          <p v-if="!cases.length">没有作品处置记录。</p></template
-        ><button v-if="next" class="text-button" :disabled="busy" @click="refresh(true)">
-          加载更多
-        </button>
-      </aside>
-      <section class="mod-detail">
-        <p v-if="!detail">{{ busy ? '正在读取…' : '选择左侧记录查看内容与处理结果。' }}</p>
-        <template v-else
-          ><header>
-            <h2>{{ detail.work.title }}</h2>
-            <p>
-              正式版本 V{{ detail.work.version
-              }}<span v-if="detail.case"> · {{ label(detail.case.state) }}</span>
-            </p>
-          </header>
-          <section v-if="detail.case" class="mod-case">
-            <section v-if="detail.revocation" class="notice"><h3>此处置已撤销</h3><p>{{detail.revocation.reason}}</p><p>{{new Date(detail.revocation.created_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}}</p></section><h3>处置原因</h3>
-            <p>{{ detail.case.reason }}</p>
-            <p>
-              范围：{{ detail.case.scope === 'work' ? '整部作品' : '此正式版本' }} ·
-              {{
-                new Date(detail.case.created_at).toLocaleString('zh-CN', {
-                  timeZone: 'Asia/Shanghai',
-                })
-              }}
-            </p>
-            <p v-if="detail.case.state==='active' && detail.case.next_appeal_at">
-              可再次申请：{{
-                new Date(detail.case.next_appeal_at).toLocaleString('zh-CN', {
-                  timeZone: 'Asia/Shanghai',
-                })
-              }}
-            </p>
-          </section>
-          <article class="mod-body">{{ detail.work.content }}</article>
-          <section v-if="detail.appeals" class="mod-history">
-            <h3>复核记录</h3>
-            <p v-if="!detail.appeals.items.length">暂无复核申请。</p>
-            <article v-for="a in detail.appeals.items" :key="a.id">
-              <p>
-                {{ label(a.state) }} ·
-                {{ new Date(a.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) }}
-              </p>
-              <p>{{ a.reason }}</p>
-              <p v-if="a.decision_reason">运营说明：{{ a.decision_reason }}</p>
-            </article>
-            <button
-              v-if="detail.appeals.next"
-              class="text-button"
-              :disabled="busy"
-              @click="moreAppeals"
-            >
-              更早复核记录
-            </button>
-          </section>
-          <form
-            v-if="(operator && detail.task?.state === 'pending') || currentCase?.state === 'active'"
-            class="mod-form"
-            @submit.prevent="prepare"
-          >
-            <template v-if="operator"
-              ><label for="mod-decision">处理方式</label
-              ><select id="mod-decision" v-model="decision" :disabled="busy || !!pending">
-                <template v-if="detail.task"
-                  ><option value="approve">完成后审，不限制内容</option>
-                  <option value="restrict_version">限制此版本</option>
-                  <option value="restrict_work">限制整部作品</option></template
-                ><template v-else
-                  ><option value="revoke">撤销此处置</option>
-                  <option v-if="inFlight" value="uphold">维持此处置</option></template
-                >
-              </select></template
-            >
-            <p v-else-if="inFlight">已有复核正在处理，请等待结果。</p>
-            <p v-else-if="cooldown">
-              仍在 24 小时冷静期。如需人工帮助，可<a href="mailto:1125448766@qq.com">联系运营</a>。
-            </p>
-            <label for="mod-reason">{{ operator ? '处理原因' : '补充复核理由' }}</label
-            ><textarea
-              id="mod-reason"
-              v-model="reason"
-              maxlength="2000"
-              required
-              :disabled="busy || !!pending || (!operator && (!!inFlight || cooldown))"
-            /><button
-              class="primary"
-              type="submit"
-              :disabled="
-                busy || !!pending || !reason.trim() || (!operator && (!!inFlight || cooldown))
-              "
-            >
-              {{ operator ? '检查处理内容' : '准备申请复核' }}
-            </button>
-          </form>
-          <section v-if="proposed" class="mod-confirm" role="dialog" aria-label="确认治理操作">
-            <h3>确认{{ operator ? '处理' : '复核申请' }}</h3>
-            <p>目标：{{ detail.work.title }} · V{{ detail.work.version }}</p>
-            <p>操作：{{ decisionLabel }}</p>
-            <p>{{ reason }}</p>
-            <p>不修改工作稿、作者隐藏或展示指针。复核申请不会自动解除限制。</p>
-            <div>
-              <button class="primary" :disabled="busy" @click="execute">确认提交</button
-              ><button class="secondary" :disabled="busy" @click="proposed = false">取消</button>
-            </div>
-          </section>
-        </template>
+  <div class="app-page">
+    <AppHeader />
+    <main class="mod-page">
+      <div class="mod-page-heading">
+        <h1>{{ title }}</h1>
+        <button class="secondary" :disabled="busy" @click="refresh()">刷新</button>
+      </div>
+      <p class="mod-description">
+        {{
+          operator
+            ? '处理正式版本的后审与作者复核。不会读取私人工作稿。'
+            : '查看自己作品的处置原因，提交文字复核并跟进结果。'
+        }}
+      </p>
+      <p v-if="message" class="notice" role="status">{{ message }}</p>
+      <section v-if="pending" class="notice">
+        <p>有一次结果尚未确认的操作。检查会沿用原请求，不重复提交。</p>
+        <button class="primary" :disabled="busy" @click="execute">检查原操作结果</button>
       </section>
-    </div>
-  </main>
+      <nav v-if="operator" class="mod-tabs">
+        <button
+          :aria-pressed="queue === 'reviews'"
+          :disabled="busy || !!pending"
+          @click="changeQueue('reviews')"
+        >
+          正式版本后审</button
+        ><button
+          :aria-pressed="queue === 'appeals'"
+          :disabled="busy || !!pending"
+          @click="changeQueue('appeals')"
+        >
+          待复核</button
+        ><button
+          :aria-pressed="queue === 'cases'"
+          :disabled="busy || !!pending"
+          @click="changeQueue('cases')"
+        >
+          处置记录
+        </button>
+      </nav>
+      <div class="mod-grid">
+        <aside class="mod-list">
+          <template v-if="operator && queue === 'reviews'"
+            ><button
+              v-for="t in tasks"
+              :key="t.id"
+              :disabled="busy || !!pending"
+              @click="choose(`/ops/reviews/${t.work_id}/versions/${t.version}`)"
+            >
+              <strong>{{ t.title }}</strong
+              ><span>V{{ t.version }} · {{ t.is_current ? '当前展示' : '历史版本' }}</span
+              ><span
+                >{{ now - Date.parse(t.first_waiting_at) > 48 * 3600000 ? '已超过 48 小时 · ' : ''
+                }}{{
+                  new Date(t.first_waiting_at).toLocaleString('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                  })
+                }}</span
+              >
+            </button>
+            <p v-if="!tasks.length">没有待处理的后审任务。</p></template
+          ><template v-else-if="operator && queue === 'appeals'"
+            ><button
+              v-for="a in appeals"
+              :key="a.id"
+              :disabled="busy || !!pending"
+              @click="choose(`/ops/moderation/${a.case_id}`)"
+            >
+              <strong>复核 #{{ a.id }}</strong
+              ><span>{{ a.reason }}</span
+              ><span>{{
+                new Date(a.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+              }}</span>
+            </button>
+            <p v-if="!appeals.length">没有待处理的复核申请。</p></template
+          ><template v-else
+            ><button
+              v-for="c in cases"
+              :key="c.id"
+              :disabled="busy || !!pending"
+              @click="choose(`/${operator ? 'ops' : 'my'}/moderation/${c.id}`)"
+            >
+              <strong>{{ c.scope === 'work' ? '作品限制' : '版本限制' }} · V{{ c.version }}</strong
+              ><span>{{ c.reason }}</span
+              ><span>{{ label(c.state) }}</span>
+            </button>
+            <p v-if="!cases.length">没有作品处置记录。</p></template
+          ><button v-if="next" class="text-button" :disabled="busy" @click="refresh(true)">
+            加载更多
+          </button>
+        </aside>
+        <section class="mod-detail">
+          <p v-if="!detail">{{ busy ? '正在读取…' : '选择左侧记录查看内容与处理结果。' }}</p>
+          <template v-else
+            ><header>
+              <h2>{{ detail.work.title }}</h2>
+              <p>
+                正式版本 V{{ detail.work.version
+                }}<span v-if="detail.case"> · {{ label(detail.case.state) }}</span>
+              </p>
+            </header>
+            <section v-if="detail.case" class="mod-case">
+              <section v-if="detail.revocation" class="notice">
+                <h3>此处置已撤销</h3>
+                <p>{{ detail.revocation.reason }}</p>
+                <p>
+                  {{
+                    new Date(detail.revocation.created_at).toLocaleString('zh-CN', {
+                      timeZone: 'Asia/Shanghai',
+                    })
+                  }}
+                </p>
+              </section>
+              <h3>处置原因</h3>
+              <p>{{ detail.case.reason }}</p>
+              <p>
+                范围：{{ detail.case.scope === 'work' ? '整部作品' : '此正式版本' }} ·
+                {{
+                  new Date(detail.case.created_at).toLocaleString('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                  })
+                }}
+              </p>
+              <p v-if="detail.case.state === 'active' && detail.case.next_appeal_at">
+                可再次申请：{{
+                  new Date(detail.case.next_appeal_at).toLocaleString('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                  })
+                }}
+              </p>
+            </section>
+            <article class="mod-body">{{ detail.work.content }}</article>
+            <section v-if="detail.appeals" class="mod-history">
+              <h3>复核记录</h3>
+              <p v-if="!detail.appeals.items.length">暂无复核申请。</p>
+              <article v-for="a in detail.appeals.items" :key="a.id">
+                <p>
+                  {{ label(a.state) }} ·
+                  {{
+                    new Date(a.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+                  }}
+                </p>
+                <p>{{ a.reason }}</p>
+                <p v-if="a.decision_reason">运营说明：{{ a.decision_reason }}</p>
+              </article>
+              <button
+                v-if="detail.appeals.next"
+                class="text-button"
+                :disabled="busy"
+                @click="moreAppeals"
+              >
+                更早复核记录
+              </button>
+            </section>
+            <form
+              v-if="
+                (operator && detail.task?.state === 'pending') || currentCase?.state === 'active'
+              "
+              class="mod-form"
+              @submit.prevent="prepare"
+            >
+              <template v-if="operator"
+                ><label for="mod-decision">处理方式</label
+                ><select id="mod-decision" v-model="decision" :disabled="busy || !!pending">
+                  <template v-if="detail.task"
+                    ><option value="approve">完成后审，不限制内容</option>
+                    <option value="restrict_version">限制此版本</option>
+                    <option value="restrict_work">限制整部作品</option></template
+                  ><template v-else
+                    ><option value="revoke">撤销此处置</option>
+                    <option v-if="inFlight" value="uphold">维持此处置</option></template
+                  >
+                </select></template
+              >
+              <p v-else-if="inFlight">已有复核正在处理，请等待结果。</p>
+              <p v-else-if="cooldown">
+                仍在 24 小时冷静期。如需人工帮助，可<a href="mailto:1125448766@qq.com">联系运营</a
+                >。
+              </p>
+              <label for="mod-reason">{{ operator ? '处理原因' : '补充复核理由' }}</label
+              ><textarea
+                id="mod-reason"
+                v-model="reason"
+                maxlength="2000"
+                required
+                :disabled="busy || !!pending || (!operator && (!!inFlight || cooldown))"
+              /><button
+                class="primary"
+                type="submit"
+                :disabled="
+                  busy || !!pending || !reason.trim() || (!operator && (!!inFlight || cooldown))
+                "
+              >
+                {{ operator ? '检查处理内容' : '准备申请复核' }}
+              </button>
+            </form>
+            <section v-if="proposed" class="mod-confirm" role="dialog" aria-label="确认治理操作">
+              <h3>确认{{ operator ? '处理' : '复核申请' }}</h3>
+              <p>目标：{{ detail.work.title }} · V{{ detail.work.version }}</p>
+              <p>操作：{{ decisionLabel }}</p>
+              <p>{{ reason }}</p>
+              <p>不修改工作稿、作者隐藏或展示指针。复核申请不会自动解除限制。</p>
+              <div>
+                <button class="primary" :disabled="busy" @click="execute">确认提交</button
+                ><button class="secondary" :disabled="busy" @click="proposed = false">取消</button>
+              </div>
+            </section>
+          </template>
+        </section>
+      </div>
+    </main>
+  </div>
 </template>
 <style scoped>
+.mod-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
 .mod-page {
   max-width: 1280px;
   margin: auto;
@@ -699,6 +721,12 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
+.mod-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
 .mod-form a {
   color: var(--color-brand);
   text-decoration: underline;

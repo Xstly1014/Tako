@@ -49,7 +49,10 @@ def main():
     if result.returncode:
         raise RuntimeError("encrypted_download_failed")
     previous = os.environ.get("BACKUP_ENCRYPTION_KEY")
+    previous_prefix = os.environ.get("OSS_BACKUP_PREFIX")
     os.environ["BACKUP_ENCRYPTION_KEY"] = values["BACKUP_ENCRYPTION_KEY"]
+    if values.get("OSS_BACKUP_PREFIX"):
+        os.environ["OSS_BACKUP_PREFIX"] = values["OSS_BACKUP_PREFIX"]
     try:
         restore(path)
         if args.oss:
@@ -59,6 +62,10 @@ def main():
             os.environ.pop("BACKUP_ENCRYPTION_KEY", None)
         else:
             os.environ["BACKUP_ENCRYPTION_KEY"] = previous
+        if previous_prefix is None:
+            os.environ.pop("OSS_BACKUP_PREFIX", None)
+        else:
+            os.environ["OSS_BACKUP_PREFIX"] = previous_prefix
     print(json.dumps({"event": "ecs_off_host_restore_verified", "backup_file": filename,
                       "oss_verified": args.oss}))
 

@@ -193,12 +193,17 @@ func (s Store) Review(ctx context.Context, actor, work uuid.UUID, version uint64
 				return ModerationResult{}, e
 			}
 			if scope == "work" {
-				_, e = tx.ExecContext(ctx, "UPDATE works SET platform_limited=TRUE WHERE id=?", work[:])
+				_, e = tx.ExecContext(ctx, "UPDATE works SET platform_limited=TRUE,discovery_revision=discovery_revision+1 WHERE id=?", work[:])
 			} else {
 				_, e = tx.ExecContext(ctx, "UPDATE work_versions SET platform_limited=TRUE WHERE work_id=? AND version=?", work[:], version)
 			}
 			if e != nil {
 				return ModerationResult{}, e
+			}
+			if scope == "version" {
+				if _, e = tx.ExecContext(ctx, "UPDATE works SET discovery_revision=discovery_revision+1 WHERE id=? AND display_version=?", work[:], version); e != nil {
+					return ModerationResult{}, e
+				}
 			}
 		}
 		if _, e = tx.ExecContext(ctx, "UPDATE publication_review_tasks SET state=?,revision=revision+1 WHERE work_id=? AND version=?", resultState, work[:], version); e != nil {

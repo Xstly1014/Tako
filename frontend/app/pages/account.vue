@@ -60,51 +60,48 @@ async function save() {
 onMounted(load)
 </script>
 <template>
-  <main class="account-page">
-    <header class="topbar">
-      <NuxtLink to="/"><TakoLogo /></NuxtLink>
-      <nav>
-        <NuxtLink to="/workspace">写作空间</NuxtLink><NuxtLink to="/my-works">作品管理</NuxtLink>
-      </nav>
-    </header>
-    <section class="account-settings">
-      <h1>账号设置</h1>
-      <p v-if="loading" role="status">正在加载…</p>
-      <template v-else-if="configured !== null">
-        <h2>登录密码</h2>
-        <p v-if="configured">已设置密码。内测期间暂不提供改密或邮件找回，请妥善保存密码。</p>
-        <form v-else @submit.prevent="save">
-          <p>为当前账号设置密码，之后可用原邮箱登录。原账号的内容和权限不变。</p>
-          <label for="setup-password">密码（至少 8 个字符）</label>
-          <input
-            id="setup-password"
-            v-model="password"
-            type="password"
-            autocomplete="new-password"
-            required
-            maxlength="72"
-            :disabled="busy"
-          />
-          <label for="setup-confirmation">再次输入密码</label>
-          <input
-            id="setup-confirmation"
-            v-model="confirmation"
-            type="password"
-            autocomplete="new-password"
-            required
-            maxlength="72"
-            :disabled="busy"
-          />
-          <button type="submit" :disabled="busy">{{ busy ? '设置中…' : '设置密码' }}</button>
-        </form>
-      </template>
-      <p v-if="notice" role="status">{{ notice }}</p>
-      <NuxtLink v-if="needLogin" to="/workspace">前往登录</NuxtLink>
-      <button v-else-if="!loading && configured === null" type="button" @click="load">
-        重新加载
-      </button>
-    </section>
-  </main>
+  <div class="app-page">
+    <AppHeader />
+    <main class="account-page">
+      <section class="account-settings">
+        <h1>账号设置</h1>
+        <p v-if="loading" role="status">正在加载…</p>
+        <template v-else-if="configured !== null">
+          <h2>登录密码</h2>
+          <p v-if="configured">已设置密码。内测期间暂不提供改密或邮件找回，请妥善保存密码。</p>
+          <form v-else @submit.prevent="save">
+            <p>为当前账号设置密码，之后可用原邮箱登录。原账号的内容和权限不变。</p>
+            <label for="setup-password">密码（至少 8 个字符）</label>
+            <input
+              id="setup-password"
+              v-model="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              maxlength="72"
+              :disabled="busy"
+            />
+            <label for="setup-confirmation">再次输入密码</label>
+            <input
+              id="setup-confirmation"
+              v-model="confirmation"
+              type="password"
+              autocomplete="new-password"
+              required
+              maxlength="72"
+              :disabled="busy"
+            />
+            <button type="submit" :disabled="busy">{{ busy ? '设置中…' : '设置密码' }}</button>
+          </form>
+        </template>
+        <p v-if="notice" role="status">{{ notice }}</p>
+        <NuxtLink v-if="needLogin" to="/workspace">前往登录</NuxtLink>
+        <button v-else-if="!loading && configured === null" type="button" @click="load">
+          重新加载
+        </button>
+      </section>
+    </main>
+  </div>
 </template>
 <style scoped>
 .account-page {

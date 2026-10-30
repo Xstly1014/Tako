@@ -1,0 +1,101 @@
+# Production data environment. Private SSH entry until public access is reviewed.
+name: tako-production
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+x-app: &app
+  image: writing-community-api:${APP_VERSION:?required}
+  restart: unless-stopped
+  logging: *logging
+  mem_limit: 96m
+  environment: &environment
+    MYSQL_DSN: writing:${MYSQL_PASSWORD:?required}@tcp(mysql:3306)/writing?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s
+    AUTH_PEPPER: ${AUTH_PEPPER:?required}
+    MAIL_ENCRYPTION_KEY: ${MAIL_ENCRYPTION_KEY:?required}
+    MAIL_PROVIDER: resend
+    RESEND_API_KEY: ${RESEND_API_KEY:?required}
+    RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+    APP_ORIGIN: http://localhost:3100
+    COOKIE_SECURE: "false"
+    API_ENABLE_DOCS: "false"
+    APP_ENVIRONMENT: production
+    SESSION_COOKIE_NAME: tako_production_session
+    AUTH_MODE: ${AUTH_MODE:-email}
+    PUBLICATION_ENABLED: "true"
+    OPERATOR_ACCOUNT_IDS: ${OPERATOR_ACCOUNT_IDS:-}
+    GOMEMLIMIT: 72MiB
+  depends_on:
+    mysql: {condition: service_healthy}
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 640m
+    environment:
+      MYSQL_DATABASE: writing
+      MYSQL_USER: writing
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?required}
+    volumes: [mysql_data:/var/lib/mysql]
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_bin", "--innodb-buffer-pool-size=256M", "--max-connections=50", "--innodb-flush-log-at-trx-commit=1", "--sync-binlog=1"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysql -uroot -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  migrate:
+    <<: *app
+    profiles: [tools]
+    restart: "no"
+    entrypoint: ["/goose", "-dir", "/migrations", "up"]
+    environment:
+      GOOSE_DRIVER: mysql
+      GOOSE_DBSTRING: writing:${MYSQL_PASSWORD:?required}@tcp(mysql:3306)/writing?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&multiStatements=true
+    volumes: [./bin/goose:/goose:ro, ./migrations:/migrations:ro]
+  api:
+    <<: *app
+  mail-worker:
+    <<: *app
+    environment:
+      <<: *environment
+      APP_ROLE: mail-worker
+  maintenance:
+    <<: *app
+    environment:
+      MYSQL_DSN: writing:${MYSQL_PASSWORD:?required}@tcp(mysql:3306)/writing?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s
+      APP_ROLE: maintenance
+      GOMEMLIMIT: 48MiB
+  monitor:
+    <<: *app
+    profiles: [ops]
+    entrypoint: ["/monitor"]
+    environment:
+      <<: *environment
+      ALERT_TO: ${ALERT_TO:?required}
+      ALERT_INSTANCE: production
+      MONITOR_STATE_FILE: /state/monitor.json
+      BACKUP_STATUS_FILE: /backup-state/status.json
+    volumes: [./state/monitor:/state, ./state/backup:/backup-state:ro]
+  web:
+    image: writing-community-web:${APP_VERSION:?required}
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 192m
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=128"
+      NUXT_PUBLIC_PUBLICATION_ENABLED: "true"
+      NUXT_PUBLIC_ENVIRONMENT: production
+      NUXT_PUBLICATION_API_BASE: http://api:8080
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 64m
+    ports: ["127.0.0.1:3100:80"]
+    volumes: [./nginx.conf:/etc/nginx/conf.d/default.conf:ro]
+    depends_on: [api, web]
+volumes:
+  mysql_data:
+    external: true
+    name: ${PRODUCTION_MYSQL_VOLUME:?explicit existing database volume required}

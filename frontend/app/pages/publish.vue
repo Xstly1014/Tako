@@ -313,119 +313,119 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <main class="publication-page publish-page">
-    <header class="publication-header">
-      <NuxtLink to="/" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
-      <nav aria-label="创作导航">
-        <NuxtLink to="/workspace">写作空间</NuxtLink><NuxtLink to="/my-works">作品管理</NuxtLink
-        ><span aria-current="page">准备发布</span>
-      </nav>
-    </header>
-    <div class="publish-heading">
-      <h1>{{ result ? '发布结果' : preview ? '确认发布内容' : '准备发布' }}</h1>
-      <p>填写发布信息，检查预览，再确认公开。</p>
-      <ol v-if="!result" class="publish-steps" aria-label="发布步骤">
-        <li :aria-current="!preview ? 'step' : undefined">填写信息</li>
-        <li :aria-current="preview ? 'step' : undefined">预览与确认</li>
-      </ol>
-    </div>
-    <p v-if="message" class="notice" role="status">{{ message }}</p>
-    <div v-if="result" class="publication-result">
-      <h2>发布已确认 · V{{ result.version }}</h2>
-      <p v-if="publishedState?.author_hidden" class="notice">新版本已发布，作品仍处于隐藏状态。</p>
-      <p v-if="publishedState?.platform_limited" class="notice">
-        新版本已保存，作品的平台限制仍生效。
-      </p>
-      <NuxtLink :to="{ path: '/my-works', query: { work: result.work_id } }">进入作品管理</NuxtLink>
-      <p>正式版本和后审待办已一并保存。“已发布”不等于审核通过，也不代表作品当前一定可读。</p>
-      <NuxtLink :to="`/works/${result.work_id}`" class="primary">打开作品链接</NuxtLink
-      ><button class="text-button" @click="reset">读取工作稿，准备下一次修订</button>
-    </div>
-    <div
-      v-if="ready && draft && !result"
-      class="publication-grid"
-      :class="{ 'publication-grid--form': !preview }"
-    >
-      <section>
-        <template v-if="!preview"
-          ><h2>{{ draft.title || '尚未填写标题' }}</h2>
-          <p class="fine">已保存修订 R{{ draft.revision }}。修改标题和正文请返回工作稿。</p>
-          <label for="publication-intro">简介（可选，最多 300 字）</label
-          ><textarea
-            id="publication-intro"
-            v-model="introduction"
-            :disabled="busy || !!pendingPrepare"
-            maxlength="600"
-          />
-          <fieldset class="publication-tags" :disabled="busy || !!pendingPrepare">
-            <legend>风格标签（选 1～3 个）</legend>
-            <label v-for="tag in publicationTags" :key="tag"
-              ><input v-model="tags" type="checkbox" :value="tag" />{{ tag }}</label
-            >
-          </fieldset>
-          <label class="publication-rights"
-            ><input
-              v-model="rights"
-              type="checkbox"
+  <div class="app-page">
+    <AppHeader />
+    <main class="publication-page publish-page">
+      <div class="publish-heading">
+        <h1>{{ result ? '发布结果' : preview ? '确认发布内容' : '准备发布' }}</h1>
+        <p>填写发布信息，检查预览，再确认公开。</p>
+        <ol v-if="!result" class="publish-steps" aria-label="发布步骤">
+          <li :aria-current="!preview ? 'step' : undefined">填写信息</li>
+          <li :aria-current="preview ? 'step' : undefined">预览与确认</li>
+        </ol>
+      </div>
+      <p v-if="message" class="notice" role="status">{{ message }}</p>
+      <div v-if="result" class="publication-result">
+        <h2>发布已确认 · V{{ result.version }}</h2>
+        <p v-if="publishedState?.author_hidden" class="notice">
+          新版本已发布，作品仍处于隐藏状态。
+        </p>
+        <p v-if="publishedState?.platform_limited" class="notice">
+          新版本已保存，作品的平台限制仍生效。
+        </p>
+        <NuxtLink :to="{ path: '/my-works', query: { work: result.work_id } }"
+          >进入作品管理</NuxtLink
+        >
+        <p>正式版本和后审待办已一并保存。“已发布”不等于审核通过，也不代表作品当前一定可读。</p>
+        <NuxtLink :to="`/works/${result.work_id}`" class="primary">打开作品链接</NuxtLink
+        ><button class="text-button" @click="reset">读取工作稿，准备下一次修订</button>
+      </div>
+      <div
+        v-if="ready && draft && !result"
+        class="publication-grid"
+        :class="{ 'publication-grid--form': !preview }"
+      >
+        <section>
+          <template v-if="!preview"
+            ><h2>{{ draft.title || '尚未填写标题' }}</h2>
+            <p class="fine">已保存修订 R{{ draft.revision }}。修改标题和正文请返回工作稿。</p>
+            <label for="publication-intro">简介（可选，最多 300 字）</label
+            ><textarea
+              id="publication-intro"
+              v-model="introduction"
               :disabled="busy || !!pendingPrepare"
-            />我确认本次内容为原创，或已取得发布授权。</label
+              maxlength="600"
+            />
+            <fieldset class="publication-tags" :disabled="busy || !!pendingPrepare">
+              <legend>风格标签（选 1～3 个）</legend>
+              <label v-for="tag in publicationTags" :key="tag"
+                ><input v-model="tags" type="checkbox" :value="tag" />{{ tag }}</label
+              >
+            </fieldset>
+            <label class="publication-rights"
+              ><input
+                v-model="rights"
+                type="checkbox"
+                :disabled="busy || !!pendingPrepare"
+              />我确认本次内容为原创，或已取得发布授权。</label
+            >
+            <p v-if="pendingPrepare" class="fine">
+              本次请求已固定；检查时沿用相同内容。需要修改请明确重新准备。
+            </p>
+            <button class="primary" :disabled="busy" @click="prepare">
+              {{ busy ? '处理中…' : pendingPrepare ? '检查本次预览请求' : '生成发布预览' }}</button
+            ><button v-if="pendingPrepare" class="text-button" :disabled="busy" @click="reset">
+              重新准备
+            </button></template
           >
-          <p v-if="pendingPrepare" class="fine">
-            本次请求已固定；检查时沿用相同内容。需要修改请明确重新准备。
-          </p>
-          <button class="primary" :disabled="busy" @click="prepare">
-            {{ busy ? '处理中…' : pendingPrepare ? '检查本次预览请求' : '生成发布预览' }}</button
-          ><button v-if="pendingPrepare" class="text-button" :disabled="busy" @click="reset">
-            重新准备
-          </button></template
-        >
-        <template v-else
-          ><div class="row">
-            <h2>{{ preview.title }}</h2>
-            <span class="fine">固定修订 R{{ preview.source_revision }}</span>
+          <template v-else
+            ><div class="row">
+              <h2>{{ preview.title }}</h2>
+              <span class="fine">固定修订 R{{ preview.source_revision }}</span>
+            </div>
+            <p v-if="draft.revision !== preview.source_revision" class="notice">
+              工作稿已有 R{{ draft.revision }}。当前仍可发布预览中的 R{{
+                preview.source_revision
+              }}，新稿保持不变。
+            </p>
+            <article class="publication-body">{{ preview.content }}</article></template
+          >
+        </section>
+        <aside v-if="preview">
+          <h2>发布确认</h2>
+          <p class="fine">读者将看到这份标题、简介与正文。</p>
+          <div class="publication-share">
+            <small>TAKO / 中篇</small>
+            <h3>{{ preview.title }}</h3>
+            <p v-if="preview.introduction">{{ preview.introduction }}</p>
+            <p v-else class="fine">作者未填写简介</p>
+            <span v-for="tag in preview.tags" :key="tag" class="publication-tag">{{ tag }}</span>
           </div>
-          <p v-if="draft.revision !== preview.source_revision" class="notice">
-            工作稿已有 R{{ draft.revision }}。当前仍可发布预览中的 R{{
-              preview.source_revision
-            }}，新稿保持不变。
+          <p v-if="short" class="notice">
+            正文不足 300 字，这个篇幅可能更适合短内容。你仍可以作为完整中篇发布。
           </p>
-          <article class="publication-body">{{ preview.content }}</article></template
-        >
-      </section>
-      <aside v-if="preview">
-        <h2>发布确认</h2>
-        <p class="fine">读者将看到这份标题、简介与正文。</p>
-        <div class="publication-share">
-          <small>TAKO / 中篇</small>
-          <h3>{{ preview.title }}</h3>
-          <p v-if="preview.introduction">{{ preview.introduction }}</p>
-          <p v-else class="fine">作者未填写简介</p>
-          <span v-for="tag in preview.tags" :key="tag" class="publication-tag">{{ tag }}</span>
-        </div>
-        <p v-if="short" class="notice">
-          正文不足 300 字，这个篇幅可能更适合短内容。你仍可以作为完整中篇发布。
-        </p>
-        <p class="fine">
-          未提交预览有效至
-          {{
-            new Date(preview.expires_at).toLocaleString('zh-CN')
-          }}。到期不影响草稿和已经提交的作品。
-        </p>
-        <p v-if="expired" class="notice">
-          预览已到期。如曾在网络中断前确认发布，仍可检查原请求结果。
-        </p>
-        <button class="primary full" :disabled="busy" @click="confirm">
-          {{
-            busy
-              ? '正在确认…'
-              : expired
-                ? '检查原发布请求结果'
-                : `确认发布 R${preview.source_revision}`
-          }}</button
-        ><button class="text-button" :disabled="busy" @click="reset">重新读取工作稿并准备</button>
-      </aside>
-    </div>
-  </main>
+          <p class="fine">
+            未提交预览有效至
+            {{
+              new Date(preview.expires_at).toLocaleString('zh-CN')
+            }}。到期不影响草稿和已经提交的作品。
+          </p>
+          <p v-if="expired" class="notice">
+            预览已到期。如曾在网络中断前确认发布，仍可检查原请求结果。
+          </p>
+          <button class="primary full" :disabled="busy" @click="confirm">
+            {{
+              busy
+                ? '正在确认…'
+                : expired
+                  ? '检查原发布请求结果'
+                  : `确认发布 R${preview.source_revision}`
+            }}</button
+          ><button class="text-button" :disabled="busy" @click="reset">重新读取工作稿并准备</button>
+        </aside>
+      </div>
+    </main>
+  </div>
 </template>
 
 <style scoped>

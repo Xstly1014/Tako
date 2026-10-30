@@ -27,7 +27,7 @@ def sql(text):
     return run(["docker", "compose", "exec", "-T", "mysql", "sh", "-c",
                 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot -N -B --default-character-set=utf8mb4 writing_test'], text.encode())
 
-def main(b2=False, restore_check=False, b3=False, password=False):
+def main(b2=False, restore_check=False, b3=False, password=False, community=False):
     config = {}
     for line in (ROOT / ".env").read_text(encoding="utf-8-sig").splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
@@ -49,7 +49,7 @@ def main(b2=False, restore_check=False, b3=False, password=False):
         # Fail before touching fixtures if the dedicated DB has not been migrated.
         sql("SELECT COUNT(*) FROM publication_review_tasks;")
         env = {"HTTP_ADDR": ":8080", "AUTH_PEPPER": config["AUTH_PEPPER"], "MAIL_ENCRYPTION_KEY": config["MAIL_ENCRYPTION_KEY"],
-               "APP_ORIGIN": "http://localhost:3200", "COOKIE_SECURE": "false", "API_ENABLE_DOCS": "false", "PUBLICATION_ENABLED": "true", "AUTH_MODE": "password" if password else "email", "OPERATOR_ACCOUNT_IDS": str(operator) if b3 else "",
+               "APP_ORIGIN": "http://localhost:3200", "COOKIE_SECURE": "false", "API_ENABLE_DOCS": "false", "PUBLICATION_ENABLED": "true", "AUTH_MODE": "password" if password else "email", "OPERATOR_ACCOUNT_IDS": str(operator) if (b3 or community) else "",
                "MYSQL_DSN": config.get("MYSQL_USER", "writing") + ":" + config["MYSQL_PASSWORD"] +
                "@tcp(mysql:3306)/writing_test?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s"}
         (folder / "api.env").write_text("".join(k + "=" + v + "\n" for k, v in env.items()), encoding="utf-8")
@@ -58,7 +58,7 @@ def main(b2=False, restore_check=False, b3=False, password=False):
         sql("INSERT INTO accounts (id,email,nickname) VALUES (X'" + owner.hex + "','" + str(owner) + "@example.test','验收作者');")
         seeded = True
         sql("INSERT INTO sessions (token_hash,account_id,expires_at) VALUES (UNHEX('" + hashlib.sha256(token.encode()).hexdigest() + "'),X'" + owner.hex + "',UTC_TIMESTAMP(6)+INTERVAL 1 HOUR);")
-        if b3:
+        if b3 or community:
             sql("INSERT INTO accounts (id,email,nickname) VALUES (X'"+operator.hex+"','"+str(operator)+"@example.test','验收运营');INSERT INTO sessions(token_hash,account_id,expires_at) VALUES(UNHEX('"+hashlib.sha256(operator_token.encode()).hexdigest()+"'),X'"+operator.hex+"',UTC_TIMESTAMP(6)+INTERVAL 1 HOUR);")
         commands = [
             ["docker", "run", "-d", "--name", names["api"], "--network", "writing-community_default", "--env-file", str(folder / "api.env"), "writing-community-api:local"],
@@ -80,6 +80,12 @@ def main(b2=False, restore_check=False, b3=False, password=False):
         counts = sql("SELECT (SELECT COUNT(*) FROM work_versions WHERE work_id=X'" + work + "'),(SELECT COUNT(*) FROM publication_review_tasks WHERE work_id=X'" + work + "');")
         if counts.strip() != b"1\t1":
             raise RuntimeError("b1_duplicate_publication")
+        if community:
+            print(run(browser + ["mcr.microsoft.com/playwright:v1.56.1-noble", "node", "/materials/scripts/community_browser_smoke.cjs"]).decode().strip())
+            check = json.loads((folder / "community-result.json").read_text(encoding="utf-8"))
+            mutation = uuid.UUID(check["mutation_id"]).hex
+            if sql("SELECT COUNT(*) FROM community_curation_mutations WHERE actor_id=X'" + operator.hex + "' AND mutation_id=X'" + mutation + "';").strip() != b"1":
+                raise RuntimeError("duplicate_curation_receipt")
         if b3:
             b3_command=["mcr.microsoft.com/playwright:v1.56.1-noble","node","/materials/scripts/b3_browser_smoke.cjs"]
             print(run(browser+b3_command).decode().strip())
@@ -141,13 +147,14 @@ def main(b2=False, restore_check=False, b3=False, password=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--community", action="store_true", help="Community SSR, curation lost-response, hide/restore and shared navigation; schema 11")
     parser.add_argument("--password", action="store_true", help="Real password registration/login and legacy password setup, schema 10")
     parser.add_argument("--b2", action="store_true", help="Include B2 management/browser checks; requires migration 8")
     parser.add_argument("--b3", action="store_true", help="Real separate-operator moderation/appeal browser chain; schema 9")
     parser.add_argument("--restore", action="store_true", help="Also encrypt/restore this synthetic DB in a separate MySQL container")
     try:
         args = parser.parse_args()
-        main(args.b2, args.restore, args.b3, args.password)
+        main(args.b2, args.restore, args.b3, args.password, args.community)
     except Exception as error:
         print("B1/B2 live test failed (" + type(error).__name__ + "); inspect synthetic fixture logs without exposing credentials.")
         raise SystemExit(1)

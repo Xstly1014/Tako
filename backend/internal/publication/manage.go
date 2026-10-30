@@ -171,6 +171,11 @@ func (s Store) Change(ctx context.Context, owner, id uuid.UUID, in Change) (Stat
 		kind = "restored"
 	}
 	if current != before {
+		if current.AuthorHidden && !before.AuthorHidden {
+			if _, e = tx.ExecContext(ctx, "UPDATE works SET discovery_revision=discovery_revision+1 WHERE id=?", id[:]); e != nil {
+				return State{}, e
+			}
+		}
 		current.StateRevision++
 		_, e = tx.ExecContext(ctx, "UPDATE works SET display_version=?,author_hidden=?,history_open=?,state_revision=? WHERE id=? AND owner_id=?", current.DisplayVersion, current.AuthorHidden, current.HistoryOpen, current.StateRevision, id[:], owner[:])
 		if e != nil {

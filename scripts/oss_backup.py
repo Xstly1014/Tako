@@ -45,6 +45,13 @@ def require_private(executable, environment, bucket, object_key, repair=False):
     raise RuntimeError("backup_object_publicly_readable")
 
 
+def object_prefix(values):
+    prefix = values.get("OSS_BACKUP_PREFIX", "tako-backups/")
+    if not re.fullmatch(r"tako-backups/(?:[a-z0-9_-]+/)*", prefix):
+        raise RuntimeError("backup_prefix_invalid")
+    return prefix
+
+
 def main(path=None, restore_data=True):
     values = config()
     required = ("OSS_REGION", "OSS_BUCKET", "OSS_ACCESS_KEY_ID", "OSS_ACCESS_KEY_SECRET")
@@ -66,7 +73,8 @@ def main(path=None, restore_data=True):
     path = Path(path).resolve() if path else backup()
     if not path.name.endswith(".tako.enc") or not path.read_bytes().startswith(b"TAKO_BACKUP_V1\x00"):
         raise RuntimeError("encrypted_backup_required")
-    destination = "oss://" + values["OSS_BUCKET"] + "/tako-backups/" + path.name
+    object_key = object_prefix(values) + path.name
+    destination = "oss://" + values["OSS_BUCKET"] + "/" + object_key
     downloaded = ROOT / ".runtime/downloads" / path.name
     downloaded.parent.mkdir(parents=True, exist_ok=True)
     for index, args in enumerate(([str(executable), "cp", str(path), destination, "--acl", "private", "--retry-times", "2"],
@@ -75,7 +83,7 @@ def main(path=None, restore_data=True):
         if result.returncode:
             raise RuntimeError("oss_transfer_failed")
         if index == 0:
-            require_private(executable, environment, values["OSS_BUCKET"], "tako-backups/" + path.name)
+            require_private(executable, environment, values["OSS_BUCKET"], object_key)
     if hashlib.sha256(path.read_bytes()).digest() != hashlib.sha256(downloaded.read_bytes()).digest():
         raise RuntimeError("download_checksum_mismatch")
     if restore_data:
@@ -83,7 +91,7 @@ def main(path=None, restore_data=True):
     else:
         load_archive(downloaded)  # Verify authenticated encryption without a second DB on a small ECS.
     report = {"event": "oss_roundtrip_restore_verified" if restore_data else "oss_roundtrip_integrity_verified",
-              "object": "tako-backups/" + path.name}
+              "object": object_key}
     (ROOT / ".runtime/oss-report.json").write_text(json.dumps(report), encoding="utf-8")
     print(json.dumps(report))
 

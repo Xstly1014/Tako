@@ -34,6 +34,7 @@ const assert = require('node:assert/strict');
   assert.equal(await page.getByLabel('草稿正文',{exact:true}).inputValue(),'注册后正常写作，邮件服务不参与这条链路。');
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.getByRole('button',{name:'菜单',exact:true}).click();
   await page.getByRole('button',{name:'退出登录',exact:true}).click();
   await page.getByRole('button',{name:'没有账号，去注册'}).waitFor();
   await page.screenshot({path:'/materials/docs/design/password-login-mobile.png',fullPage:true});

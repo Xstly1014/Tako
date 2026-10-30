@@ -61,6 +61,7 @@ async function fixture(page: Page, loggedIn = true) {
         error: 'authentication_required',
         request_id: '706dbf1e-f6c6-4f16-a40b-f4360e199ac8',
       })
+    if (path === '/api/me/access') return reply(200, { operator: false })
     if (path === '/api/me')
       return reply(200, {
         id: state.account,

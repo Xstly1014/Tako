@@ -28,6 +28,8 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-true}
       AUTH_MODE: ${AUTH_MODE:-email}
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-tako_session}
       OPERATOR_ACCOUNT_IDS: ${OPERATOR_ACCOUNT_IDS:-}
       PUBLICATION_ENABLED: ${PUBLICATION_ENABLED:-false}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
@@ -59,6 +61,7 @@ services:
     build: ./frontend
     environment:
       NUXT_PUBLIC_PUBLICATION_ENABLED: ${PUBLICATION_ENABLED:-false}
+      NUXT_PUBLIC_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
   mail-worker:
     restart: unless-stopped
     image: writing-community-api:local

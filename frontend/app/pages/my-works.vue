@@ -353,284 +353,289 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <main class="publication-page manager-page">
-    <header class="manager-nav">
-      <NuxtLink to="/" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
-      <nav aria-label="创作导航">
-        <NuxtLink to="/workspace">写作空间</NuxtLink><span aria-current="page">作品管理</span>
-      </nav>
-      <button class="secondary" :disabled="busy" @click="refresh">刷新</button>
-    </header>
-    <div class="manager-page-heading">
-      <h1>作品管理</h1>
-      <p>查看已发布内容，管理版本和公开范围。</p>
-    </div>
-    <p v-if="message" class="notice" role="status">{{ message }}</p>
-    <p v-if="!ready && !message" class="manager-loading" role="status">正在读取作品…</p>
-    <section v-if="ready && !works.length" class="manager-empty">
-      <h2>还没有发布的作品</h2>
-      <p>在写作空间保存草稿后，可以准备发布。</p>
-      <NuxtLink to="/workspace" class="primary">打开写作空间</NuxtLink>
-    </section>
-    <div v-if="ready && works.length" class="manager-grid">
-      <aside class="manager-library">
-        <h2>我的作品</h2>
-        <button
-          v-for="item in works"
-          :key="item.id"
-          class="manager-work"
-          :class="{ 'manager-selected': selected === item.id }"
-          :disabled="busy"
-          @click="choose(item.id)"
-        >
-          <strong>{{ item.title }}</strong
-          ><small
-            >{{ item.author_hidden ? '已隐藏' : '已发布'
-            }}{{ item.platform_limited ? ' · 受限' : '' }}</small
-          ></button
-        ><button v-if="cursor" class="text-button" :disabled="busy" @click="moreWorks">
-          更多作品
-        </button>
-      </aside>
-      <section v-if="timeline" class="manager-workspace" :aria-busy="busy">
-        <header class="manager-work-header">
-          <div>
-            <h2 class="manager-body-title">
-              {{ body?.title ?? works.find((w) => w.id === selected)?.title }}
-            </h2>
-            <p>
-              {{ timeline.state.author_hidden ? '已隐藏，读者不可访问' : '已发布'
-              }}<span v-if="timeline.state.platform_limited"> · 作品受限</span>
-            </p>
-          </div>
-          <div class="manager-actions">
-            <NuxtLink :to="`/works/${selected}`" target="_blank" class="secondary"
-              >打开读者链接</NuxtLink
-            ><NuxtLink
-              :to="{ path: '/publish', query: { draft: timeline.state.draft_id, fresh: '1' } }"
-              class="primary"
-              >准备新修订</NuxtLink
-            >
-          </div>
-        </header>
-        <nav class="manager-tabs" aria-label="作品管理区域">
-          <button :aria-pressed="section === 'content'" @click="section = 'content'">
-            内容与版本</button
-          ><button :aria-pressed="section === 'settings'" @click="section = 'settings'">
-            作品设置</button
-          ><button :aria-pressed="section === 'events'" @click="section = 'events'">
-            管理记录
-          </button>
-        </nav>
-        <div ref="sectionPane" class="manager-section-body">
-          <p v-if="timeline.state.platform_limited" class="notice">
-            作品整体受限。作者设置不能解除平台限制。
-          </p>
-          <section v-if="pending" class="notice">
-            <p>有一次操作的结果尚未确认。检查原请求不会重复执行。</p>
-            <button class="primary" :disabled="busy" @click="act">检查原操作结果</button>
-          </section>
-          <section
-            v-if="confirmation"
-            class="manager-confirm"
-            role="dialog"
-            aria-labelledby="manage-confirm-title"
-          >
-            <h2 id="manage-confirm-title">
-              确认{{
-                eventText(
-                  confirmation.action === 'set_history'
-                    ? confirmation.history_open
-                      ? 'history_opened'
-                      : 'history_closed'
-                    : confirmation.action === 'hide'
-                      ? 'hidden'
-                      : confirmation.action === 'restore'
-                        ? 'restored'
-                        : 'display_changed',
-                )
-              }}？
-            </h2>
-            <p v-if="confirmation.action === 'restore'">
-              将恢复公开并展示 V{{
-                confirmation.version ?? timeline.state.last_version
-              }}；历史阅读保持{{ timeline.state.history_open ? '开启' : '关闭' }}。
-            </p>
-            <p v-else-if="confirmation.action === 'switch_display'">
-              读者展示将切换为 V{{ confirmation.version }}，工作稿和正式版本号不回退。
-            </p>
-            <p v-else-if="confirmation.action === 'hide'">
-              新访问将不可读；已经加载的正文允许读完。待审流程不自动撤回。
-            </p>
-            <p v-else>
-              历史阅读{{
-                confirmation.history_open
-                  ? '开启后，全部正常正式版本可读'
-                  : '关闭后，旧链接重新访问不能获取历史正文'
-              }}。
-            </p>
-            <div class="row">
-              <button class="primary" :disabled="busy" @click="act">确认操作</button
-              ><button class="secondary" :disabled="busy" @click="confirmation = null">取消</button>
-            </div>
-          </section>
-
-          <section v-if="section === 'content'" class="manager-content">
-            <div class="manager-section-label">
-              <h3>发布版本</h3>
-              <p>选择节点预览内容</p>
-            </div>
-            <VersionRail
-              :versions="timeline.versions"
-              :selected="body?.version"
-              :displayed="timeline.state.display_version"
-              :busy="busy"
-              :more="!!timeline.next_version_before"
-              @select="previewVersion"
-              @load="more('versions')"
-            />
-            <p v-if="timeline.versions.some((v) => v.platform_limited)" class="manager-limited">
-              菱形节点为受限版本，仅作者可查看和导出。<NuxtLink to="/moderation">查看原因与申请复核</NuxtLink>
-            </p>
-            <article v-if="body" class="manager-preview">
-              <header class="manager-preview-header">
-                <div>
-                  <h3>正文预览</h3>
-                  <span>{{
-                    body.version === timeline.state.display_version
-                      ? '读者正在看的版本'
-                      : '历史版本'
-                  }}</span>
-                </div>
-                <div class="manager-actions">
-                  <button
-                    v-if="body.version !== timeline.state.display_version"
-                    class="secondary"
-                    :disabled="
-                      busy ||
-                      !!pending ||
-                      !!timeline.versions.find((v) => v.version === body?.version)?.platform_limited
-                    "
-                    @click="propose('switch_display', body.version)"
-                  >
-                    设为读者展示</button
-                  ><button class="text-button" @click="exportVersion">导出此版本</button>
-                </div>
-              </header>
-              <div class="manager-reading publication-body">{{ body.content }}</div>
-              <footer class="manager-version-footer">
-                <button
-                  class="text-button"
-                  :aria-expanded="versionInfo"
-                  @click="versionInfo = !versionInfo"
-                >
-                  {{ versionInfo ? '收起版本信息' : '查看版本信息' }}
-                </button>
-                <div v-if="versionInfo" class="manager-version-info">
-                  <dl>
-                    <dt>版本</dt>
-                    <dd>V{{ body.version }}</dd>
-                    <dt>发布时间</dt>
-                    <dd>{{ new Date(body.published_at).toLocaleString('zh-CN') }}</dd>
-                    <dt>状态</dt>
-                    <dd>
-                      {{
-                        timeline.versions.find((v) => v.version === body?.version)?.platform_limited
-                          ? '受限 · 仅作者可见'
-                          : '已发布'
-                      }}{{
-                        timeline.versions.find((v) => v.version === body?.version)
-                          ?.review_status === 'pending'
-                          ? ' · 待后审'
-                          : ''
-                      }}
-                    </dd>
-                  </dl>
-                  <p>更换公开展示不会覆盖工作稿。</p>
-                </div>
-              </footer>
-            </article>
-          </section>
-          <section v-if="section === 'settings'" class="manager-settings">
-            <h3>公开与历史阅读</h3>
-            <NuxtLink to="/moderation" class="text-button">查看处置与申请复核</NuxtLink>
-            <p class="manager-help">控制新访问能否阅读作品，以及是否开放旧版正文。</p>
-            <label class="manager-history"
-              ><input
-                type="checkbox"
-                :checked="timeline.state.history_open"
-                :disabled="busy || !!pending"
-                @change="
-                  propose('set_history', undefined, ($event.target as HTMLInputElement).checked)
-                  ;($event.target as HTMLInputElement).checked = timeline.state.history_open
-                "
-              />允许读者查看历史版本</label
-            >
-            <div class="row">
-              <button
-                v-if="!timeline.state.author_hidden"
-                class="secondary"
-                :disabled="busy || !!pending"
-                @click="propose('hide')"
-              >
-                隐藏作品</button
-              ><template v-else
-                ><button
-                  class="primary"
-                  :disabled="busy || !!pending || timeline.state.platform_limited"
-                  @click="propose('restore')"
-                >
-                  恢复公开</button
-                ><label
-                  v-if="
-                    timeline.versions.find((v) => v.version === timeline?.state.last_version)
-                      ?.platform_limited
-                  "
-                  class="fine"
-                  >最新版受限，选择正常旧版<select v-model="fallback" aria-label="选择恢复旧版">
-                    <option value="">请选择</option>
-                    <option
-                      v-for="v in timeline.versions.filter((v) => !v.platform_limited)"
-                      :key="v.version"
-                      :value="String(v.version)"
-                    >
-                      V{{ v.version }}
-                    </option>
-                  </select></label
-                ></template
-              >
-            </div>
-          </section>
-          <section v-if="section === 'events'" class="manager-log">
-            <h3>管理记录</h3>
-            <p v-if="!timeline.events.length" class="manager-help">
-              还没有更换展示或调整公开范围的记录。
-            </p>
-            <ol v-else>
-              <li v-for="event in timeline.events" :key="event.sequence">
-                <span>{{ eventText(event.kind) }}</span
-                ><span class="manager-log-meta"
-                  >V{{ event.version }} ·
-                  {{ new Date(event.created_at).toLocaleString('zh-CN') }}</span
-                >
-              </li>
-            </ol>
-            <button
-              v-if="timeline.next_event_before"
-              class="text-button"
-              :disabled="busy"
-              @click="more('events')"
-            >
-              更多记录
-            </button>
-          </section>
+  <div class="app-page">
+    <AppHeader />
+    <main class="publication-page manager-page">
+      <div class="manager-page-heading">
+        <div>
+          <h1>作品管理</h1>
+          <p>查看已发布内容，管理版本和公开范围。</p>
         </div>
+        <button class="secondary" :disabled="busy" @click="refresh">刷新</button>
+      </div>
+      <p v-if="message" class="notice" role="status">{{ message }}</p>
+      <p v-if="!ready && !message" class="manager-loading" role="status">正在读取作品…</p>
+      <section v-if="ready && !works.length" class="manager-empty">
+        <h2>还没有发布的作品</h2>
+        <p>在写作空间保存草稿后，可以准备发布。</p>
+        <NuxtLink to="/workspace" class="primary">打开写作空间</NuxtLink>
       </section>
-      <section v-else class="manager-workspace manager-loading">
-        {{ busy ? '正在读取作品内容…' : '请选择作品，或刷新重试。' }}
-      </section>
-    </div>
-  </main>
+      <div v-if="ready && works.length" class="manager-grid">
+        <aside class="manager-library">
+          <h2>我的作品</h2>
+          <button
+            v-for="item in works"
+            :key="item.id"
+            class="manager-work"
+            :class="{ 'manager-selected': selected === item.id }"
+            :disabled="busy"
+            @click="choose(item.id)"
+          >
+            <strong>{{ item.title }}</strong
+            ><small
+              >{{ item.author_hidden ? '已隐藏' : '已发布'
+              }}{{ item.platform_limited ? ' · 受限' : '' }}</small
+            ></button
+          ><button v-if="cursor" class="text-button" :disabled="busy" @click="moreWorks">
+            更多作品
+          </button>
+        </aside>
+        <section v-if="timeline" class="manager-workspace" :aria-busy="busy">
+          <header class="manager-work-header">
+            <div>
+              <h2 class="manager-body-title">
+                {{ body?.title ?? works.find((w) => w.id === selected)?.title }}
+              </h2>
+              <p>
+                {{ timeline.state.author_hidden ? '已隐藏，读者不可访问' : '已发布'
+                }}<span v-if="timeline.state.platform_limited"> · 作品受限</span>
+              </p>
+            </div>
+            <div class="manager-actions">
+              <NuxtLink :to="`/works/${selected}`" target="_blank" class="secondary"
+                >打开读者链接</NuxtLink
+              ><NuxtLink
+                :to="{ path: '/publish', query: { draft: timeline.state.draft_id, fresh: '1' } }"
+                class="primary"
+                >准备新修订</NuxtLink
+              >
+            </div>
+          </header>
+          <nav class="manager-tabs" aria-label="作品管理区域">
+            <button :aria-pressed="section === 'content'" @click="section = 'content'">
+              内容与版本</button
+            ><button :aria-pressed="section === 'settings'" @click="section = 'settings'">
+              作品设置</button
+            ><button :aria-pressed="section === 'events'" @click="section = 'events'">
+              管理记录
+            </button>
+          </nav>
+          <div ref="sectionPane" class="manager-section-body">
+            <p v-if="timeline.state.platform_limited" class="notice">
+              作品整体受限。作者设置不能解除平台限制。
+            </p>
+            <section v-if="pending" class="notice">
+              <p>有一次操作的结果尚未确认。检查原请求不会重复执行。</p>
+              <button class="primary" :disabled="busy" @click="act">检查原操作结果</button>
+            </section>
+            <section
+              v-if="confirmation"
+              class="manager-confirm"
+              role="dialog"
+              aria-labelledby="manage-confirm-title"
+            >
+              <h2 id="manage-confirm-title">
+                确认{{
+                  eventText(
+                    confirmation.action === 'set_history'
+                      ? confirmation.history_open
+                        ? 'history_opened'
+                        : 'history_closed'
+                      : confirmation.action === 'hide'
+                        ? 'hidden'
+                        : confirmation.action === 'restore'
+                          ? 'restored'
+                          : 'display_changed',
+                  )
+                }}？
+              </h2>
+              <p v-if="confirmation.action === 'restore'">
+                将恢复公开并展示 V{{
+                  confirmation.version ?? timeline.state.last_version
+                }}；历史阅读保持{{ timeline.state.history_open ? '开启' : '关闭' }}。
+              </p>
+              <p v-else-if="confirmation.action === 'switch_display'">
+                读者展示将切换为 V{{ confirmation.version }}，工作稿和正式版本号不回退。
+              </p>
+              <p v-else-if="confirmation.action === 'hide'">
+                新访问将不可读；已经加载的正文允许读完。待审流程不自动撤回。
+              </p>
+              <p v-else>
+                历史阅读{{
+                  confirmation.history_open
+                    ? '开启后，全部正常正式版本可读'
+                    : '关闭后，旧链接重新访问不能获取历史正文'
+                }}。
+              </p>
+              <div class="row">
+                <button class="primary" :disabled="busy" @click="act">确认操作</button
+                ><button class="secondary" :disabled="busy" @click="confirmation = null">
+                  取消
+                </button>
+              </div>
+            </section>
+
+            <section v-if="section === 'content'" class="manager-content">
+              <div class="manager-section-label">
+                <h3>发布版本</h3>
+                <p>选择节点预览内容</p>
+              </div>
+              <VersionRail
+                :versions="timeline.versions"
+                :selected="body?.version"
+                :displayed="timeline.state.display_version"
+                :busy="busy"
+                :more="!!timeline.next_version_before"
+                @select="previewVersion"
+                @load="more('versions')"
+              />
+              <p v-if="timeline.versions.some((v) => v.platform_limited)" class="manager-limited">
+                菱形节点为受限版本，仅作者可查看和导出。<NuxtLink to="/moderation"
+                  >查看原因与申请复核</NuxtLink
+                >
+              </p>
+              <article v-if="body" class="manager-preview">
+                <header class="manager-preview-header">
+                  <div>
+                    <h3>正文预览</h3>
+                    <span>{{
+                      body.version === timeline.state.display_version
+                        ? '读者正在看的版本'
+                        : '历史版本'
+                    }}</span>
+                  </div>
+                  <div class="manager-actions">
+                    <button
+                      v-if="body.version !== timeline.state.display_version"
+                      class="secondary"
+                      :disabled="
+                        busy ||
+                        !!pending ||
+                        !!timeline.versions.find((v) => v.version === body?.version)
+                          ?.platform_limited
+                      "
+                      @click="propose('switch_display', body.version)"
+                    >
+                      设为读者展示</button
+                    ><button class="text-button" @click="exportVersion">导出此版本</button>
+                  </div>
+                </header>
+                <div class="manager-reading publication-body">{{ body.content }}</div>
+                <footer class="manager-version-footer">
+                  <button
+                    class="text-button"
+                    :aria-expanded="versionInfo"
+                    @click="versionInfo = !versionInfo"
+                  >
+                    {{ versionInfo ? '收起版本信息' : '查看版本信息' }}
+                  </button>
+                  <div v-if="versionInfo" class="manager-version-info">
+                    <dl>
+                      <dt>版本</dt>
+                      <dd>V{{ body.version }}</dd>
+                      <dt>发布时间</dt>
+                      <dd>{{ new Date(body.published_at).toLocaleString('zh-CN') }}</dd>
+                      <dt>状态</dt>
+                      <dd>
+                        {{
+                          timeline.versions.find((v) => v.version === body?.version)
+                            ?.platform_limited
+                            ? '受限 · 仅作者可见'
+                            : '已发布'
+                        }}{{
+                          timeline.versions.find((v) => v.version === body?.version)
+                            ?.review_status === 'pending'
+                            ? ' · 待后审'
+                            : ''
+                        }}
+                      </dd>
+                    </dl>
+                    <p>更换公开展示不会覆盖工作稿。</p>
+                  </div>
+                </footer>
+              </article>
+            </section>
+            <section v-if="section === 'settings'" class="manager-settings">
+              <h3>公开与历史阅读</h3>
+              <NuxtLink to="/moderation" class="text-button">查看处置与申请复核</NuxtLink>
+              <p class="manager-help">控制新访问能否阅读作品，以及是否开放旧版正文。</p>
+              <label class="manager-history"
+                ><input
+                  type="checkbox"
+                  :checked="timeline.state.history_open"
+                  :disabled="busy || !!pending"
+                  @change="
+                    propose('set_history', undefined, ($event.target as HTMLInputElement).checked)
+                    ;($event.target as HTMLInputElement).checked = timeline.state.history_open
+                  "
+                />允许读者查看历史版本</label
+              >
+              <div class="row">
+                <button
+                  v-if="!timeline.state.author_hidden"
+                  class="secondary"
+                  :disabled="busy || !!pending"
+                  @click="propose('hide')"
+                >
+                  隐藏作品</button
+                ><template v-else
+                  ><button
+                    class="primary"
+                    :disabled="busy || !!pending || timeline.state.platform_limited"
+                    @click="propose('restore')"
+                  >
+                    恢复公开</button
+                  ><label
+                    v-if="
+                      timeline.versions.find((v) => v.version === timeline?.state.last_version)
+                        ?.platform_limited
+                    "
+                    class="fine"
+                    >最新版受限，选择正常旧版<select v-model="fallback" aria-label="选择恢复旧版">
+                      <option value="">请选择</option>
+                      <option
+                        v-for="v in timeline.versions.filter((v) => !v.platform_limited)"
+                        :key="v.version"
+                        :value="String(v.version)"
+                      >
+                        V{{ v.version }}
+                      </option>
+                    </select></label
+                  ></template
+                >
+              </div>
+            </section>
+            <section v-if="section === 'events'" class="manager-log">
+              <h3>管理记录</h3>
+              <p v-if="!timeline.events.length" class="manager-help">
+                还没有更换展示或调整公开范围的记录。
+              </p>
+              <ol v-else>
+                <li v-for="event in timeline.events" :key="event.sequence">
+                  <span>{{ eventText(event.kind) }}</span
+                  ><span class="manager-log-meta"
+                    >V{{ event.version }} ·
+                    {{ new Date(event.created_at).toLocaleString('zh-CN') }}</span
+                  >
+                </li>
+              </ol>
+              <button
+                v-if="timeline.next_event_before"
+                class="text-button"
+                :disabled="busy"
+                @click="more('events')"
+              >
+                更多记录
+              </button>
+            </section>
+          </div>
+        </section>
+        <section v-else class="manager-workspace manager-loading">
+          {{ busy ? '正在读取作品内容…' : '请选择作品，或刷新重试。' }}
+        </section>
+      </div>
+    </main>
+  </div>
 </template>
 
 <style scoped>
@@ -662,6 +667,10 @@ onUnmounted(() => {
   font-size: 12px;
 }
 .manager-page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
   padding: 32px 0 24px;
 }
 .manager-page-heading h1 {
@@ -677,12 +686,16 @@ onUnmounted(() => {
 }
 .manager-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: 224px minmax(0, 1fr);
   gap: 24px;
 }
 .manager-library {
   padding: 8px 0;
   border: 0;
+  max-height: calc(100dvh - 256px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .manager-library h2 {
   font-size: 14px;

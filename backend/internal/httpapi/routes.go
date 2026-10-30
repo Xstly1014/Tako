@@ -25,6 +25,8 @@ import (
 )
 
 type API struct {
+	SessionCookieName  string
+	EnvironmentName    string
 	AuthMode           string
 	Identity           *identity.Service
 	Drafts             draft.Store
@@ -38,6 +40,14 @@ type API struct {
 }
 
 func (a API) Register(r *gin.Engine) error {
+	if a.EnvironmentName != "" && a.EnvironmentName != "local" && a.EnvironmentName != "test" && a.EnvironmentName != "production" {
+		return errors.New("APP_ENVIRONMENT must be local, test or production")
+	}
+	if len(a.sessionCookieName()) > 64 || strings.IndexFunc(a.sessionCookieName(), func(r rune) bool {
+		return !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_')
+	}) >= 0 {
+		return errors.New("SESSION_COOKIE_NAME must contain only letters, digits or underscore")
+	}
 	if a.AuthMode != "" && a.AuthMode != "email" && a.AuthMode != "password" {
 		return errors.New("AUTH_MODE must be email or password")
 	}
@@ -61,6 +71,10 @@ func (a API) Register(r *gin.Engine) error {
 		if err != nil {
 			return err
 		}
+		// Swagger must describe this deployment's actual browser-managed cookie.
+		if scheme := doc.Components.SecuritySchemes["session"]; scheme != nil && scheme.Value != nil {
+			scheme.Value.Name = a.sessionCookieName()
+		}
 		data, err := json.Marshal(doc)
 		if err != nil {
 			return err
@@ -71,6 +85,11 @@ func (a API) Register(r *gin.Engine) error {
 	api := r.Group("/api")
 	api.Use(requestLog(a.Logger))
 	api.Use(func(c *gin.Context) {
+		environment := a.EnvironmentName
+		if environment == "" {
+			environment = "local"
+		}
+		c.Header("X-Tako-Environment", environment)
 		c.Header("Cache-Control", "no-store")
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
 		if c.Request.Method != "GET" && c.Request.Method != "HEAD" {
@@ -161,7 +180,7 @@ func (a API) Register(r *gin.Engine) error {
 		c.JSON(200, account)
 	})
 	api.POST("/auth/logout", func(c *gin.Context) {
-		token, _ := c.Cookie("tako_session")
+		token, _ := c.Cookie(a.sessionCookieName())
 		if err := a.Identity.Logout(c.Request.Context(), token); err != nil {
 			fail(c, err)
 			return
@@ -171,7 +190,7 @@ func (a API) Register(r *gin.Engine) error {
 	})
 	protected := api.Group("")
 	protected.Use(func(c *gin.Context) {
-		token, _ := c.Cookie("tako_session")
+		token, _ := c.Cookie(a.sessionCookieName())
 		account, err := a.Identity.Authenticate(c.Request.Context(), token)
 		if err != nil {
 			if errors.Is(err, identity.ErrInvalid) {
@@ -262,11 +281,18 @@ func (a API) Register(r *gin.Engine) error {
 		})
 	}
 	a.registerPublicationRoutes(api, protected)
+	a.registerDiscovery(api, protected)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("tako_session", token, maxAge, "/", "", a.SecureCookie, true)
+	c.SetCookie(a.sessionCookieName(), token, maxAge, "/", "", a.SecureCookie, true)
+}
+func (a API) sessionCookieName() string {
+	if a.SessionCookieName != "" {
+		return a.SessionCookieName
+	}
+	return "tako_session"
 }
 func fail(c *gin.Context, err error) {
 	status, code := 503, "service_unavailable"

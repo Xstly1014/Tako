@@ -1,10 +1,11 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.7.0
+  version: 0.9.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
+    部署可通过 SESSION_COOKIE_NAME 隔离会话；运行时文档使用该环境实际 Cookie 名，默认 tako_session。API 返回 X-Tako-Environment 标识 local/test/production。
     所有写操作需同源 Origin 和 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
     验证码持久化入队，由独立 worker 处理；sent 仅表示邮件服务接受，不保证收件箱送达。
 servers:
@@ -17,6 +18,276 @@ tags:
 security:
   - session: []
 paths:
+  /api/community:
+    get:
+      operationId: discoverWorks
+      summary: 浏览真实公开作品、人工精选及风格标签
+      tags:
+      - 阅读
+      security: []
+      responses:
+        '200':
+          description: 成功；不缓存访问权限与正文
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - featured
+                - tags
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 12
+                    items:
+                      $ref: '#/components/schemas/DiscoveryCard'
+                  featured:
+                    type: array
+                    maxItems: 6
+                    items:
+                      $ref: '#/components/schemas/DiscoveryCard'
+                  tags:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - name
+                      - count
+                      properties:
+                        name:
+                          type: string
+                        count:
+                          type: integer
+                          minimum: 1
+                  next_cursor:
+                    type: string
+                    maxLength: 512
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      description: 最新按 V1 正式发布时间和 ID 倒序，每页 12 条；修订、隐藏恢复不顶帖。精选最多 6 条，撤出后须人工重新选入。卡片来自当前展示正式版，不含正文，不自动截取简介；各分区同一读取快照。
+      parameters:
+      - name: tag
+        in: query
+        schema:
+          type: string
+          enum:
+          - ''
+          - 幻想
+          - 冒险
+          - 日常
+          - 情感
+          - 悬疑
+          - 科幻
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+  /api/me/access:
+    get:
+      operationId: getOwnAccess
+      summary: 查询会话本人可用的运营入口
+      tags:
+      - 身份
+      responses:
+        '200':
+          description: 成功；不缓存访问权限与正文
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - operator
+                properties:
+                  operator:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      description: 由发布开关和服务端白名单决定，隐藏前端入口不替代各运营接口授权。
+  /api/ops/curation/{id}:
+    get:
+      operationId: inspectCurationCandidate
+      summary: 检查当前可公开的精选候选作品
+      tags:
+      - 阅读
+      responses:
+        '200':
+          description: 成功；不缓存访问权限与正文
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - work
+                - state_revision
+                properties:
+                  work:
+                    $ref: '#/components/schemas/DiscoveryCard'
+                  state_revision:
+                    type: integer
+                    minimum: 1
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          description: 资源当前不可公开或不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/ops/curation:
+    get:
+      operationId: getCurationSlots
+      summary: 查看精选编排及失效位置
+      tags:
+      - 阅读
+      responses:
+        '200':
+          description: 成功；不缓存访问权限与正文
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - revision
+                - slots
+                properties:
+                  revision:
+                    type: integer
+                    minimum: 1
+                  slots:
+                    type: array
+                    minItems: 6
+                    maxItems: 6
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - slot
+                      - work_id
+                      - work
+                      properties:
+                        slot:
+                          type: integer
+                          minimum: 1
+                          maximum: 6
+                        work_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        work:
+                          $ref: '#/components/schemas/NullableDiscoveryCard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      description: 固定六个可编排位置。work=null 表示空位或资格已失效；不返回旧内容。
+    post:
+      operationId: changeCurationSlot
+      summary: 选择、移动或清空精选位置
+      tags:
+      - 阅读
+      responses:
+        '200':
+          description: 成功；不缓存访问权限与正文
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - revision
+                properties:
+                  revision:
+                    type: integer
+                    minimum: 1
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          description: 资源当前不可公开或不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      description: 同作品只占一处，移入已占位置会替换原作品。work_id=null 为清空，expected_work_revision 须为 0。整组编排和候选状态均验证。响应丢失沿用 mutation_id；重放不重新选入已撤出的作品。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - mutation_id
+              - expected_revision
+              - slot
+              - work_id
+              - expected_work_revision
+              properties:
+                mutation_id:
+                  type: string
+                  format: uuid
+                expected_revision:
+                  type: integer
+                  minimum: 1
+                slot:
+                  type: integer
+                  minimum: 1
+                  maximum: 6
+                work_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                expected_work_revision:
+                  type: integer
+                  minimum: 0
   /api/auth/methods:
     get:
       operationId: getAuthMethods
@@ -1425,6 +1696,79 @@ components:
   securitySchemes:
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    DiscoveryCard:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - title
+      - introduction
+      - tags
+      - author_nickname
+      - first_published_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          maxLength: 200
+        introduction:
+          type: string
+          maxLength: 300
+        tags:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+        author_nickname:
+          type: string
+          maxLength: 64
+        first_published_at:
+          type: string
+          format: date-time
+    NullableDiscoveryCard:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - title
+      - introduction
+      - tags
+      - author_nickname
+      - first_published_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          maxLength: 200
+        introduction:
+          type: string
+          maxLength: 300
+        tags:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+        author_nickname:
+          type: string
+          maxLength: 64
+        first_published_at:
+          type: string
+          format: date-time
+      nullable: true
     ModerationAction:
       {
         "type": "object",
@@ -1959,7 +2303,7 @@ components:
       properties:
         error:
           type: string
-          enum: [invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

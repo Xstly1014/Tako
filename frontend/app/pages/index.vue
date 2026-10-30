@@ -3,70 +3,67 @@ const config = useRuntimeConfig()
 const publishing = String(config.public.publicationEnabled) === 'true'
 </script>
 <template>
-  <main class="landing">
-    <nav class="topbar" aria-label="主导航">
-      <NuxtLink to="/" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
-      <div class="landing-nav">
-        <a href="#content-types">创作方向</a
-        ><NuxtLink to="/workspace" class="secondary">我的草稿</NuxtLink>
-      </div>
-    </nav>
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="hero-kicker">Tako 创作社区</p>
-        <h1>脑洞、日常、<br />新故事。<br /><em>都可以开写。</em></h1>
-        <p class="hero-description">
-          写个冒险故事，分享今天的离谱事，<br />或者认真吐槽一下。题材由你。
-        </p>
-        <div class="hero-actions">
-          <NuxtLink to="/workspace" class="primary">打开我的草稿</NuxtLink
-          ><a href="#content-types">看看创作方向</a>
+  <div class="app-page">
+    <AppHeader />
+    <main class="landing">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="hero-kicker">Tako 创作社区</p>
+          <h1>脑洞、日常、<br />新故事。<br /><em>都可以开写。</em></h1>
+          <p class="hero-description">
+            写个冒险故事，分享今天的离谱事，<br />或者认真吐槽一下。题材由你。
+          </p>
+          <div class="hero-actions">
+            <NuxtLink v-if="publishing" to="/community" class="primary">进入社区</NuxtLink
+            ><NuxtLink v-else to="/workspace" class="primary">打开我的草稿</NuxtLink
+            ><NuxtLink to="/workspace">开始写作</NuxtLink>
+          </div>
+          <p class="hero-note">
+            {{
+              publishing
+                ? '中篇发布与阅读已开放，短内容和长篇仍在开发。'
+                : '先写下草稿。公开发布与内容发现正在开发中。'
+            }}
+          </p>
         </div>
-        <p class="hero-note">
-          {{
-            publishing
-              ? '中篇发布与阅读已开放，短内容和长篇仍在开发。'
-              : '先写下草稿。公开发布与内容发现正在开发中。'
-          }}
-        </p>
-      </div>
-      <div class="mascot-stage">
-        <img
-          src="/images/tako-hero-dynamic-v4.png"
-          width="1254"
-          height="1254"
-          fetchpriority="high"
-          alt="Tako 看板娘向读者伸手，蓝白外套与短发随动作扬起"
-        />
-      </div>
-    </section>
-    <section id="content-types" class="content-directions" aria-labelledby="directions-heading">
-      <header>
-        <h2 id="directions-heading">想写什么，就从什么开始。</h2>
-        <p>不同篇幅，都有自己的表达方式。</p>
-      </header>
-      <div class="direction-grid">
-        <article>
-          <p class="direction-kind">短内容</p>
-          <h3>今天也有话说</h3>
-          <p>新脑洞、游戏吐槽、创作进度。<br />几句话也能聊得起来。</p>
-        </article>
-        <article>
-          <p class="direction-kind">中篇</p>
-          <h3>讲一个完整故事</h3>
-          <p>短篇小说、深夜情绪、生活经历。<br />写清楚你想讲的那件事。</p>
-        </article>
-        <article>
-          <p class="direction-kind">长篇</p>
-          <h3>开一个大世界</h3>
-          <p>幻想、冒险、二次元。<br />让角色和剧情一章章展开。</p>
-        </article>
-      </div>
-    </section>
-    <footer>
-      <TakoLogo /><span>有脑洞，就开写。</span><NuxtLink to="/workspace">进入写作空间</NuxtLink>
-    </footer>
-  </main>
+        <div class="mascot-stage">
+          <img
+            src="/images/tako-hero-dynamic-v4.png"
+            width="1254"
+            height="1254"
+            fetchpriority="high"
+            alt="Tako 看板娘向读者伸手，蓝白外套与短发随动作扬起"
+          />
+        </div>
+      </section>
+      <section id="content-types" class="content-directions" aria-labelledby="directions-heading">
+        <header>
+          <h2 id="directions-heading">想写什么，就从什么开始。</h2>
+          <p>不同篇幅，都有自己的表达方式。</p>
+        </header>
+        <div class="direction-grid">
+          <article>
+            <p class="direction-kind">短内容</p>
+            <h3>今天也有话说</h3>
+            <p>新脑洞、游戏吐槽、创作进度。<br />几句话也能聊得起来。</p>
+          </article>
+          <article>
+            <p class="direction-kind">中篇</p>
+            <h3>讲一个完整故事</h3>
+            <p>短篇小说、深夜情绪、生活经历。<br />写清楚你想讲的那件事。</p>
+          </article>
+          <article>
+            <p class="direction-kind">长篇</p>
+            <h3>开一个大世界</h3>
+            <p>幻想、冒险、二次元。<br />让角色和剧情一章章展开。</p>
+          </article>
+        </div>
+      </section>
+      <footer>
+        <TakoLogo /><span>有脑洞，就开写。</span><NuxtLink to="/workspace">进入写作空间</NuxtLink>
+      </footer>
+    </main>
+  </div>
 </template>
 <style scoped>
 .landing {
