@@ -197,6 +197,25 @@ async function createDraft() {
     creating.value = false
   }
 }
+async function preparePublication() {
+  await writeChain
+  await pump(true)
+  await writeChain
+  if (!active || needsLogin.value) return
+  const row = await db.get(active.key)
+  if (
+    !row ||
+    row.dirty ||
+    row.pending ||
+    row.title !== title.value ||
+    row.content !== content.value
+  ) {
+    message.value = '请先等待当前内容获得服务端保存确认，再准备发布。'
+    return
+  }
+  await navigateTo({ path: '/publish', query: { draft: row.serverId } })
+}
+const publicationEnabled = String(useRuntimeConfig().public.publicationEnabled) === 'true'
 async function setNickname() {
   try {
     const who = await request<Account>('/me', 'PATCH', { nickname: nickname.value })
@@ -518,7 +537,14 @@ onUnmounted(() => {
             ><div class="editor-toolbar">
               <span role="status">{{ status }}</span>
               <div class="row">
-                <button class="text-button" @click="exportText">导出文字</button
+                <button
+                  v-if="publicationEnabled"
+                  class="text-button"
+                  :disabled="needsLogin"
+                  @click="preparePublication"
+                >
+                  准备发布</button
+                ><button class="text-button" @click="exportText">导出文字</button
                 ><button class="secondary" :disabled="needsLogin" @click="pump(true)">
                   立即同步
                 </button>
@@ -552,7 +578,7 @@ onUnmounted(() => {
             <p>打开一份草稿，或新建一页。</p>
             <p class="fine">草稿不会公开发布。</p>
           </div>
-          <LoginPanel v-if="needsLogin && active" @signed-in="signedIn" />
+          <LoginPanel v-if="needsLogin && active" compact @signed-in="signedIn" />
         </section>
       </div>
     </template>

@@ -25,13 +25,14 @@ import (
 )
 
 type API struct {
-	Identity     *identity.Service
-	Drafts       draft.Store
-	DB           *sql.DB
-	Origin       string
-	SecureCookie bool
-	Logger       *slog.Logger
-	EnableDocs   bool
+	Identity           *identity.Service
+	Drafts             draft.Store
+	DB                 *sql.DB
+	Origin             string
+	SecureCookie       bool
+	Logger             *slog.Logger
+	EnableDocs         bool
+	EnablePublications bool
 }
 
 func (a API) Register(r *gin.Engine) error {
@@ -246,6 +247,7 @@ func (a API) Register(r *gin.Engine) error {
 			c.JSON(200, out)
 		})
 	}
+	a.registerPublicationRoutes(api, protected)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {

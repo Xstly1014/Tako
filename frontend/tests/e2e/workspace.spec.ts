@@ -250,3 +250,20 @@ test('mobile viewport keeps editing and export within the screen', async ({ page
   ).toBe(true)
   await page.screenshot({ path: 'test-results/mobile-workspace.png', fullPage: true })
 })
+
+
+test('expired session keeps editing and uses compact login without a brand panel', async ({ page }) => {
+  const { state, records } = await fixture(page)
+  await page.goto('/workspace')
+  await openFirst(page)
+  state.account = ''
+  await page.getByLabel('草稿正文').fill('登录过期期间继续编辑的文字')
+  await page.getByRole('button', { name: '立即同步' }).click()
+  await expect(page.locator('.auth-shell--compact')).toBeVisible()
+  await expect(page.locator('.auth-art')).toHaveCount(0)
+  await expect(page.locator('.auth-mobile-mascot')).toHaveCount(0)
+  await expect(page.getByLabel('草稿正文')).toHaveValue('登录过期期间继续编辑的文字')
+  await signIn(page)
+  await expect.poll(() => records.get(source)?.content, { timeout: 20_000 })
+    .toBe('登录过期期间继续编辑的文字')
+})

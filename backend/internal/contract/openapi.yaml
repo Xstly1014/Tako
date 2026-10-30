@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Tako 增量 A API
-  version: 0.3.0
+  title: Tako 创作 API
+  version: 0.4.0
   description: |
-    测试阶段。本人真实邮件登录已验收；独立容器恢复已演练，离机备份与真机验收仍在收口。
+    私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由验证码登录建立，浏览器不得手动填写会话令牌。
     所有写操作需同源 Origin 和 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
     验证码持久化入队，由独立 worker 处理；sent 仅表示邮件服务接受，不保证收件箱送达。
@@ -12,6 +12,8 @@ servers:
 tags:
   - name: 身份
   - name: 草稿
+  - name: 发布
+  - name: 阅读
 security:
   - session: []
 paths:
@@ -254,10 +256,229 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/RecoverDraft'}
       responses: *writeResponses
+  /api/publication-previews:
+    post:
+      operationId: preparePublication
+      tags: [发布]
+      summary: 固化本人的已保存修订作为 24 小时发布预览
+      description: |
+        B1 私有测试。PUBLICATION_ENABLED=false 时返回 503 publication_disabled。所有读取为 no-store。
+        标题正文只读取本人明确的已保存 source_revision，不自动换最新版。简介最多 300 字，标签 1～3 个。
+        每账号每小时最多新建 30 份预览，幂等重试不消耗额度。未提交预览 24 小时后失效，正文随后清理；草稿与已提交内容不受影响。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreparePublication'}
+      responses:
+        '200':
+          description: 确定的业务结果；发布确认只在事务提交后返回
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicationPreview'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/publication-previews/{id}:
+    get:
+      operationId: readPublicationPreview
+      tags: [发布]
+      summary: 读取本人固定预览，过期未提交预览返回 410
+      description: |
+        B1 私有测试。PUBLICATION_ENABLED=false 时返回 503 publication_disabled。所有读取为 no-store。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 确定的业务结果；发布确认只在事务提交后返回
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicationPreview'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/publications:
+    post:
+      operationId: publishPreview
+      tags: [发布]
+      summary: 原子生成正式版本、后审待办与幂等确认
+      description: |
+        B1 私有测试。PUBLICATION_ENABLED=false 时返回 503 publication_disabled。所有读取为 no-store。
+        同一 mutation_id/载荷和已消费的同一 preview_id 不重复发布。超时沿用原请求。重放是原提交确认，不代表作品现在仍公开。
+        观察期及 B1 不支持的发布状态明确返回 409，不绕过前审；发布与后审任务同事务。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PublishPreview'}
+      responses:
+        '200':
+          description: 确定的业务结果；发布确认只在事务提交后返回
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicationResult'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/works/{id}:
+    get:
+      operationId: readWork
+      tags: [阅读]
+      summary: 读取当前正常公开正式版本
+      security: []
+      description: |
+        B1 私有测试。PUBLICATION_ENABLED=false 时返回 503 publication_disabled。所有读取为 no-store。
+        隐藏、限制、未授权历史版本及不存在统一 404，不返回标题或正文。版本权限在服务端校验，不依赖前端隐藏。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 确定的业务结果；发布确认只在事务提交后返回
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicWork'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/works/{id}/versions/{number}:
+    get:
+      operationId: readWorkVersion
+      tags: [阅读]
+      summary: 仅在展示或历史授权允许时读取正常正式版本
+      security: []
+      description: |
+        B1 私有测试。PUBLICATION_ENABLED=false 时返回 503 publication_disabled。所有读取为 no-store。
+        隐藏、限制、未授权历史版本及不存在统一 404，不返回标题或正文。版本权限在服务端校验，不依赖前端隐藏。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: number
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 确定的业务结果；发布确认只在事务提交后返回
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicWork'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
 components:
   securitySchemes:
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    PublicationTags:
+      type: array
+      minItems: 1
+      maxItems: 3
+      uniqueItems: true
+      items: {type: string, enum: [幻想, 冒险, 日常, 情感, 悬疑, 科幻]}
+    PreparePublication:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, draft_id, source_revision, introduction, tags, rights_confirmed]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        draft_id: {type: string, format: uuid}
+        source_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/PublicationTags'}
+        rights_confirmed: {type: boolean, enum: [true]}
+    PublishPreview:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, preview_id, expected_version]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        preview_id: {type: string, format: uuid}
+        expected_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+    PublicationPreview:
+      type: object
+      additionalProperties: false
+      required: [id, draft_id, source_revision, expected_version, title, content, introduction, tags, created_at, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        draft_id: {type: string, format: uuid}
+        source_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        expected_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+        title: {type: string, minLength: 1, maxLength: 200}
+        content: {type: string, minLength: 1, description: 纯文本，最多 1 MiB UTF-8 字节}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/PublicationTags'}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+    PublicationResult:
+      type: object
+      additionalProperties: false
+      required: [work_id, version, published_at, review_status]
+      properties:
+        work_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        published_at: {type: string, format: date-time}
+        review_status: {type: string, enum: [pending], description: 此次发布时的待后审确认，不代表当前审核状态}
+    PublicWork:
+      type: object
+      additionalProperties: false
+      required: [id, version, title, content, introduction, tags, author_nickname, published_at]
+      properties:
+        id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, minLength: 1, maxLength: 200}
+        content: {type: string, minLength: 1}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/PublicationTags'}
+        author_nickname: {type: string, maxLength: 64}
+        published_at: {type: string, format: date-time}
     Account:
       type: object
       additionalProperties: false
@@ -272,7 +493,7 @@ components:
       properties:
         error:
           type: string
-          enum: [invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error]
+          enum: [invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object
@@ -329,6 +550,11 @@ components:
         revision: {type: integer, minimum: 1, maximum: 9007199254740991}
         saved_at: {type: string, format: date-time, description: 幂等重放返回原确认时间，不能据此覆盖更高修订。旧数据迁移使用保存请求原记录时间。}
   responses:
+    PreviewExpired:
+      description: 未提交预览已过期，重新准备；不会删除草稿或已提交版本
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
     BadInput: &errorResponse
       description: 输入格式、字段约束或验证码不正确；不透露账号是否存在
       content:

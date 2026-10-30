@@ -6,8 +6,10 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"log/slog"
+	"os"
 	"time"
 	"writing.local/community/internal/ops"
+	"writing.local/community/internal/publication"
 )
 
 // ReadRevision is private-resource access for recovery tooling, not a public
@@ -95,6 +97,9 @@ func (s Store) RunMaintenance(ctx context.Context, logger *slog.Logger) {
 	for ctx.Err() == nil {
 		runCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		removed, err := s.CleanupRevisions(runCtx, time.Now().UTC())
+		if err == nil && os.Getenv("PUBLICATION_ENABLED") == "true" {
+			_, err = (publication.Store{DB: s.DB}).CleanupPreviews(runCtx, time.Now().UTC())
+		}
 		if err != nil {
 			_ = ops.Beat(runCtx, s.DB, "maintenance", false, 1)
 		} else {

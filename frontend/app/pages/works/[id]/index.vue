@@ -1,0 +1,1 @@
+<template><WorkReader /></template>
