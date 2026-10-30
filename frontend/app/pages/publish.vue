@@ -313,12 +313,22 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <main class="publication-page">
+  <main class="publication-page publish-page">
     <header class="publication-header">
-      <NuxtLink to="/workspace">← 写作空间</NuxtLink><strong>tako</strong><span>B1 · 私有测试</span>
+      <NuxtLink to="/" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
+      <nav aria-label="创作导航">
+        <NuxtLink to="/workspace">写作空间</NuxtLink><NuxtLink to="/my-works">作品管理</NuxtLink
+        ><span aria-current="page">准备发布</span>
+      </nav>
     </header>
-    <h1>准备发布</h1>
-    <p class="muted">确认这一份内容后再发布。工作稿的后续修改不会自动替换预览。</p>
+    <div class="publish-heading">
+      <h1>{{ result ? '发布结果' : preview ? '确认发布内容' : '准备发布' }}</h1>
+      <p>填写发布信息，检查预览，再确认公开。</p>
+      <ol v-if="!result" class="publish-steps" aria-label="发布步骤">
+        <li :aria-current="!preview ? 'step' : undefined">填写信息</li>
+        <li :aria-current="preview ? 'step' : undefined">预览与确认</li>
+      </ol>
+    </div>
     <p v-if="message" class="notice" role="status">{{ message }}</p>
     <div v-if="result" class="publication-result">
       <h2>发布已确认 · V{{ result.version }}</h2>
@@ -331,7 +341,11 @@ onUnmounted(() => {
       <NuxtLink :to="`/works/${result.work_id}`" class="primary">打开作品链接</NuxtLink
       ><button class="text-button" @click="reset">读取工作稿，准备下一次修订</button>
     </div>
-    <div v-if="ready && draft && !result" class="publication-grid">
+    <div
+      v-if="ready && draft && !result"
+      class="publication-grid"
+      :class="{ 'publication-grid--form': !preview }"
+    >
       <section>
         <template v-if="!preview"
           ><h2>{{ draft.title || '尚未填写标题' }}</h2>
@@ -379,7 +393,8 @@ onUnmounted(() => {
         >
       </section>
       <aside v-if="preview">
-        <h2>分享卡片预览</h2>
+        <h2>发布确认</h2>
+        <p class="fine">读者将看到这份标题、简介与正文。</p>
         <div class="publication-share">
           <small>TAKO / 中篇</small>
           <h3>{{ preview.title }}</h3>
@@ -412,3 +427,253 @@ onUnmounted(() => {
     </div>
   </main>
 </template>
+
+<style scoped>
+.publish-page {
+  max-width: 1120px;
+  padding: 0 32px 48px;
+}
+.publish-page .publication-header {
+  height: 80px;
+  margin: 0 0 32px;
+  justify-content: flex-start;
+  gap: 32px;
+}
+.publication-header nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+.publication-header nav span {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.publish-heading {
+  margin-bottom: 24px;
+}
+.publish-heading h1 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.publish-heading > p {
+  font-size: 14px;
+  color: var(--color-muted);
+  margin: 0;
+}
+.publish-steps {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  counter-reset: steps;
+}
+.publish-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  counter-increment: steps;
+}
+.publish-steps li:before {
+  content: counter(steps);
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: #fff;
+}
+.publish-steps li[aria-current='step'] {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+.publish-steps li[aria-current='step']:before {
+  border-color: var(--color-brand);
+}
+.publication-grid {
+  margin: 24px 0 0;
+  grid-template-columns: minmax(0, 1fr) 304px;
+  gap: 24px;
+  align-items: start;
+}
+.publication-grid--form {
+  display: block;
+  max-width: 760px;
+}
+.publication-grid > section,
+.publication-grid > aside,
+.publication-result {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 0;
+}
+.publication-grid > section h2,
+.publication-grid > aside h2 {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+.publication-grid > section > .fine {
+  margin: 0 0 24px;
+}
+.publication-grid label {
+  font-size: 14px;
+  margin: 24px 0 8px;
+}
+.publication-grid textarea {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 12px;
+  border-radius: 6px;
+}
+.publication-tags {
+  margin: 24px 0;
+  padding: 0;
+}
+.publication-tags legend {
+  font-size: 14px;
+  padding: 0;
+}
+.publication-tags label {
+  margin: 12px 16px 0 0;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.publication-tags input,
+.publication-rights input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-brand);
+  flex-shrink: 0;
+}
+.publication-grid .publication-rights {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 24px 0;
+  line-height: 24px;
+}
+.publication-grid .publication-rights input {
+  margin-top: 4px;
+}
+.publication-grid button {
+  font-size: 14px;
+}
+.publication-grid > aside {
+  position: sticky;
+  top: 24px;
+}
+.publication-share {
+  padding: 16px;
+  background: #f7f8fa;
+  border: 0;
+  border-radius: 6px;
+  margin: 16px 0;
+}
+.publication-share h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  margin: 8px 0;
+}
+.publication-share p {
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 8px 0 12px;
+}
+.publication-tag {
+  font-size: 12px;
+  background: transparent;
+  padding: 0;
+  margin-right: 12px;
+}
+.publication-grid .publication-body {
+  margin-top: 24px;
+  font-size: 16px;
+  line-height: 1.9;
+}
+.publish-page .notice {
+  margin: 16px 0;
+  font-size: 12px;
+}
+.publication-grid > aside > .fine {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 16px 0;
+}
+.publication-grid > aside > button:last-child {
+  display: block;
+  margin-top: 12px;
+  width: 100%;
+  white-space: normal;
+}
+.publication-result {
+  margin-top: 24px;
+}
+.publication-result h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.publication-result p {
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 16px 0;
+}
+.publication-result > a,
+.publication-result > button {
+  margin: 8px 12px 8px 0;
+  font-size: 14px;
+}
+.publish-page :focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .publish-page {
+    padding: 0 16px 32px;
+  }
+  .publish-page .publication-header {
+    height: 72px;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .publication-header nav {
+    gap: 12px;
+    font-size: 12px;
+  }
+  .publication-header nav > a:first-child {
+    display: none;
+  }
+  .publication-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .publication-grid > section,
+  .publication-grid > aside,
+  .publication-result {
+    padding: 24px 16px;
+  }
+  .publication-grid > aside {
+    position: static;
+  }
+  .publish-heading h1 {
+    font-size: 20px;
+  }
+  .publish-heading > p {
+    font-size: 12px;
+  }
+}
+</style>

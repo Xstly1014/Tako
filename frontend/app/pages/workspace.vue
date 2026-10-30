@@ -462,11 +462,11 @@ onUnmounted(() => {
 <template>
   <main class="workspace">
     <header class="topbar">
-      <NuxtLink to="/" class="brand">tako<span>●</span></NuxtLink>
-      <div class="row">
+      <NuxtLink to="/" class="brand-home" aria-label="Tako 首页"><TakoLogo /></NuxtLink>
+      <div class="workspace-account-nav">
         <NuxtLink v-if="publicationEnabled && account" to="/my-works" class="text-button"
           >作品管理</NuxtLink
-        ><span class="muted">{{ account?.nickname || '写作空间' }}</span
+        ><span class="workspace-account-name">{{ account?.nickname || '写作空间' }}</span
         ><button v-if="account" class="text-button" @click="logout">退出登录</button>
       </div>
     </header>
@@ -504,9 +504,9 @@ onUnmounted(() => {
             :disabled="creating || needsLogin || !storageOK"
             @click="createDraft"
           >
-            {{ creating ? '正在创建…' : '＋ 新建草稿' }}
+            {{ creating ? '正在创建…' : '新建草稿' }}
           </button>
-          <p v-if="!drafts.length" class="fine">这里还很安静。<br />从第一句话开始吧。</p>
+          <p v-if="!drafts.length" class="fine">还没有草稿，点击上方按钮新建。</p>
           <button
             v-for="item in drafts"
             :key="item.id"
@@ -575,8 +575,7 @@ onUnmounted(() => {
             <p class="fine">退出不会删除本机草稿。暂不支持完全断网时重新打开网站。</p></template
           >
           <div v-else class="empty editor-empty">
-            <span class="eyebrow">LET’S WRITE</span>
-            <h2>新脑洞？开一份草稿。</h2>
+            <h2>选择草稿，继续写。</h2>
             <p>打开一份草稿，或新建一页。</p>
             <p class="fine">草稿不会公开发布。</p>
           </div>

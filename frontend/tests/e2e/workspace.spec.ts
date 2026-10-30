@@ -151,7 +151,7 @@ test.afterEach(async ({ page }) => {
 test('real public shell and anonymous login do not need a mail bypass', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('都可以开写')
-  await page.locator('.mascot-image').evaluate((image: HTMLImageElement) => image.decode())
+  await page.locator('.mascot-stage img').evaluate((image: HTMLImageElement) => image.decode())
   await page.screenshot({ path: 'test-results/landing.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/mobile-landing.png', fullPage: true })
