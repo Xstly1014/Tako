@@ -40,6 +40,8 @@ func TestPublicationHTTPContractAndAccess(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer func() {
+		db.Exec("DELETE FROM work_state_mutations WHERE owner_id=?", owner[:])
+		db.Exec("DELETE e FROM work_events e JOIN works w ON w.id=e.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE q FROM publication_review_tasks q JOIN works w ON w.id=q.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE FROM publication_mutations WHERE owner_id=?", owner[:])
 		db.Exec("DELETE v FROM work_versions v JOIN works w ON w.id=v.work_id WHERE w.owner_id=?", owner[:])
@@ -90,10 +92,25 @@ func TestPublicationHTTPContractAndAccess(t *testing.T) {
 	rec = call("POST", "/api/publications", publication.Publish{MutationID: uuid.New(), PreviewID: preview.ID}, true, 200)
 	var result publication.Result
 	json.Unmarshal(rec.Body.Bytes(), &result)
+	call("GET", "/api/publication-previews/"+preview.ID.String(), nil, true, 200)
 	path := "/api/works/" + result.WorkID.String()
 	call("GET", path, nil, false, 200)
 	call("GET", path+"/versions/1", nil, false, 200)
-	db.Exec("UPDATE works SET author_hidden=TRUE WHERE id=?", result.WorkID[:])
+	call("GET", "/api/my/works", nil, true, 200)
+	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions", nil, true, 200)
+	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions/1", nil, true, 200)
+	call("GET", path+"/timeline", nil, false, 200)
+	stateResponse := call("GET", "/api/my/works/"+result.WorkID.String(), nil, true, 200)
+	var state publication.State
+	if e = json.Unmarshal(stateResponse.Body.Bytes(), &state); e != nil {
+		t.Fatal(e)
+	}
+	change := publication.Change{MutationID: uuid.New(), ExpectedStateRevision: state.StateRevision, Action: "hide"}
+	call("POST", "/api/my/works/"+result.WorkID.String()+"/actions", change, true, 200)
+	call("POST", "/api/my/works/"+result.WorkID.String()+"/actions", change, true, 200)
+	call("GET", path+"/timeline", nil, false, 404)
+	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions", nil, true, 200)
+	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions/1", nil, true, 200)
 	blocked := call("GET", path, nil, false, 404)
 	if strings.Contains(blocked.Body.String(), "契约测试作品") {
 		t.Fatal("hidden title leaked")

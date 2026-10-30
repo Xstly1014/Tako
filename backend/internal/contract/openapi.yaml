@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由验证码登录建立，浏览器不得手动填写会话令牌。
@@ -413,10 +413,292 @@ paths:
         '429': {$ref: '#/components/responses/Limited'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/works:
+    get:
+      operationId: listAuthorWorks
+      tags: [发布]
+      summary: 列出本人的作品，按创建时间稳定分页
+      description: |
+        B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 经过服务端权限和状态校验的结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorWorkPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/works/{id}:
+    get:
+      operationId: readAuthorWorkState
+      tags: [发布]
+      summary: 本人读取独立可见性和展示状态
+      description: |
+        B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 经过服务端权限和状态校验的结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/works/{id}/versions:
+    get:
+      operationId: readAuthorTimeline
+      tags: [发布]
+      summary: 本人分页读取正式版本和管理记录
+      description: |
+        B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: before_version
+          in: query
+          required: false
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+        - name: before_event
+          in: query
+          required: false
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 经过服务端权限和状态校验的结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorTimeline'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/works/{id}/versions/{number}:
+    get:
+      operationId: readAuthorVersion
+      tags: [发布]
+      summary: 本人读取自己的正式版本，包含受限版本
+      description: |
+        B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: number
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 经过服务端权限和状态校验的结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicWork'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/works/{id}/actions:
+    post:
+      operationId: changeAuthorWorkState
+      tags: [发布]
+      summary: 幂等隐藏、恢复、展示切换与历史权限
+      description: |
+        B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+        expected_state_revision 必须匹配当前状态；成功重试返回原确认，客户端需重新读取现状。
+        恢复默认最新正式版本，受限最新版返回 version_unavailable，作者可明确选择正常旧版；作品级限制返回 work_restricted。
+        hide 不带额外字段；set_history 必带 history_open；switch_display 必带 version；restore 的 version 仅用于明确选择正常旧版。任何动作均不覆盖工作稿或解除平台限制。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WorkChange'}
+      responses:
+        '200':
+          description: 经过服务端权限和状态校验的结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/works/{id}/timeline:
+    get:
+      operationId: readPublicTimeline
+      tags: [阅读]
+      summary: 正常正式版本时间线，不包含标题正文和受限版本
+      security: []
+      description: |
+        B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+        历史关闭仍可见正常版本号/时间，但没有旧标题正文；受限版本及其目标事件被过滤，隐藏/作品受限统一 404。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: before_version
+          in: query
+          required: false
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+        - name: before_event
+          in: query
+          required: false
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 经过服务端权限和状态校验的结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicTimeline'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
 components:
   securitySchemes:
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    WorkState:
+      type: object
+      additionalProperties: false
+      required: [id, draft_id, last_version, display_version, author_hidden, history_open, platform_limited, state_revision]
+      properties:
+        id: {type: string, format: uuid}
+        draft_id: {type: string, format: uuid}
+        last_version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        display_version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        author_hidden: {type: boolean}
+        history_open: {type: boolean}
+        platform_limited: {type: boolean}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+    WorkChange:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, expected_state_revision, action]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        expected_state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        action: {type: string, enum: [hide, restore, switch_display, set_history]}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        history_open: {type: boolean}
+    TimelineEvent:
+      type: object
+      additionalProperties: false
+      required: [sequence, kind, version, created_at]
+      properties:
+        sequence: {type: integer, minimum: 1, maximum: 9007199254740991}
+        kind: {type: string, enum: [hidden, restored, display_changed, history_opened, history_closed]}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        created_at: {type: string, format: date-time}
+    PublicVersionEntry:
+      type: object
+      additionalProperties: false
+      required: [version, published_at, is_current, readable]
+      properties:
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        published_at: {type: string, format: date-time}
+        is_current: {type: boolean}
+        readable: {type: boolean}
+    AuthorVersionEntry:
+      type: object
+      additionalProperties: false
+      required: [version, title, published_at, platform_limited, review_status]
+      properties:
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, minLength: 1, maxLength: 200}
+        published_at: {type: string, format: date-time}
+        platform_limited: {type: boolean}
+        review_status: {type: string}
+    PublicTimeline:
+      type: object
+      additionalProperties: false
+      required: [history_open, versions, events, next_version_before, next_event_before]
+      properties:
+        history_open: {type: boolean}
+        versions: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/PublicVersionEntry'}}
+        events: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/TimelineEvent'}}
+        next_version_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+        next_event_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+    AuthorTimeline:
+      type: object
+      additionalProperties: false
+      required: [state, versions, events, next_version_before, next_event_before]
+      properties:
+        state: {$ref: '#/components/schemas/WorkState'}
+        versions: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/AuthorVersionEntry'}}
+        events: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/TimelineEvent'}}
+        next_version_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+        next_event_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+    AuthorWorkSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, draft_id, author_hidden, platform_limited, display_version, last_version]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 200}
+        draft_id: {type: string, format: uuid}
+        author_hidden: {type: boolean}
+        platform_limited: {type: boolean}
+        display_version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        last_version: {type: integer, minimum: 1, maximum: 9007199254740991}
+    AuthorWorkPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/AuthorWorkSummary'}}
+        next_cursor: {type: string}
     PublicationTags:
       type: array
       minItems: 1
@@ -457,6 +739,7 @@ components:
         tags: {$ref: '#/components/schemas/PublicationTags'}
         created_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
+        published: {allOf: [{$ref: '#/components/schemas/PublicationResult'}], description: 已消费预览的原发布确认，不代表当前可见状态}
     PublicationResult:
       type: object
       additionalProperties: false
@@ -493,7 +776,7 @@ components:
       properties:
         error:
           type: string
-          enum: [invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled]
+          enum: [invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

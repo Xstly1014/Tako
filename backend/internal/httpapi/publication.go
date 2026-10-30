@@ -23,6 +23,12 @@ func publicationError(c *gin.Context, e error) {
 		status, code = 409, "mutation_id_reused"
 	case errors.Is(e, publication.ErrSource):
 		status, code = 409, "source_revision_unavailable"
+	case errors.Is(e, publication.ErrStateConflict):
+		status, code = 409, "work_state_conflict"
+	case errors.Is(e, publication.ErrVersionUnavailable):
+		status, code = 409, "version_unavailable"
+	case errors.Is(e, publication.ErrWorkRestricted):
+		status, code = 409, "work_restricted"
 	case errors.Is(e, publication.ErrConflict):
 		status, code = 409, "publication_conflict"
 	case errors.Is(e, publication.ErrUnsupported):
@@ -119,4 +125,5 @@ func (a API) registerPublicationRoutes(api, protected *gin.RouterGroup) {
 	}
 	api.GET("/works/:id", read)
 	api.GET("/works/:id/versions/:number", read)
+	a.registerWorkManagement(api, protected, s, enabled)
 }

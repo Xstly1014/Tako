@@ -6,6 +6,7 @@ import {
   publicationTags,
   type PublicationPreview,
   type PublicationResult,
+  type WorkState,
 } from '../lib/publication'
 useHead({
   title: '准备发布 · Tako',
@@ -44,6 +45,7 @@ const short = computed(() =>
     : false,
 )
 const expired = ref(false)
+const publishedState = ref<WorkState | null>(null)
 let clock: ReturnType<typeof setInterval> | undefined
 function describe(e: unknown) {
   if (!(e instanceof APIError)) return '暂时无法完成，请保留当前页面并稍后重试。'
@@ -87,6 +89,7 @@ function invalidate() {
   draft.value = null
   preview.value = null
   result.value = null
+  publishedState.value = null
   introduction.value = ''
   tags.value = []
   rights.value = false
@@ -170,6 +173,12 @@ async function confirm() {
     })
     if (generation !== epoch) return
     result.value = out
+    try {
+      const state = await request<WorkState>(`/my/works/${out.work_id}`)
+      if (generation === epoch) publishedState.value = state
+    } catch {
+      /* Commit is confirmed even if current-state refresh is unavailable. */
+    }
     persist()
     checkExpiry()
   } catch (e) {
@@ -202,6 +211,8 @@ async function reset() {
     publishMutation = ''
     confirmAttempted = false
     result.value = null
+    publishedState.value = null
+    rights.value = false
     message.value = '已读取当前工作稿；这不会修改它的内容。'
     persist()
   } catch (e) {
@@ -266,7 +277,19 @@ onMounted(async () => {
             `/publication-previews/${encodeURIComponent(saved.previewId)}`,
           )
           if (initialEpoch !== epoch) return
-          preview.value = restored
+          if (restored.published && route.query.fresh === '1') {
+            pendingPrepare = null
+            publishMutation = ''
+            confirmAttempted = false
+            preview.value = null
+            publishedState.value = null
+            rights.value = false
+            sessionStorage.removeItem(key)
+            message.value = '上次发布已确认。现在可以基于当前工作稿准备新修订。'
+          } else {
+            preview.value = restored
+            if (restored.published) result.value = restored.published
+          }
         }
       }
     } catch (e) {
@@ -299,6 +322,11 @@ onUnmounted(() => {
     <p v-if="message" class="notice" role="status">{{ message }}</p>
     <div v-if="result" class="publication-result">
       <h2>发布已确认 · V{{ result.version }}</h2>
+      <p v-if="publishedState?.author_hidden" class="notice">新版本已发布，作品仍处于隐藏状态。</p>
+      <p v-if="publishedState?.platform_limited" class="notice">
+        新版本已保存，作品的平台限制仍生效。
+      </p>
+      <NuxtLink :to="{ path: '/my-works', query: { work: result.work_id } }">进入作品管理</NuxtLink>
       <p>正式版本和后审待办已一并保存。“已发布”不等于审核通过，也不代表作品当前一定可读。</p>
       <NuxtLink :to="`/works/${result.work_id}`" class="primary">打开作品链接</NuxtLink
       ><button class="text-button" @click="reset">读取工作稿，准备下一次修订</button>

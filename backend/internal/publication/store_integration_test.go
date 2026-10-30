@@ -32,6 +32,8 @@ func setup(t *testing.T) (Store, uuid.UUID, uuid.UUID, uuid.UUID) {
 		}
 	}
 	t.Cleanup(func() {
+		db.Exec("DELETE FROM work_state_mutations WHERE owner_id=?", owner[:])
+		db.Exec("DELETE e FROM work_events e JOIN works w ON w.id=e.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE q FROM publication_review_tasks q JOIN works w ON w.id=q.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE FROM publication_mutations WHERE owner_id=?", owner[:])
 		db.Exec("DELETE v FROM work_versions v JOIN works w ON w.id=v.work_id WHERE w.owner_id=?", owner[:])

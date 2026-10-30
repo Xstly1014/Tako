@@ -1,6 +1,6 @@
 # Tako 当前 HTTP 接口
 
-当前为私有测试阶段，A 核心链路已验收，B1 正在分段交付。所有业务响应禁止缓存。
+当前为私有测试阶段，A 核心链路及本机 B1/B2 已验收，B3 仍待交付。所有业务响应禁止缓存。
 
 机器可读契约以 `backend/internal/contract/openapi.yaml` 为准，此文件仅作补充。Swagger UI 在 http://localhost:3000/docs/，JSON 在 /openapi.json。本地资源不依赖外部 CDN。
 
@@ -36,7 +36,7 @@
 
 A 核心链路已完成真实邮箱、设备及恢复验收；真机粘贴与网络切换补测仍搁置。登录与草稿的运行证据见阶段复盘，不再沿用“前端尚未完成”的历史状态。
 
-B1 正式契约 0.4.0：新增固定预览、原子发布和稳定匿名读取。由 PUBLICATION_ENABLED 控制，默认关闭；本机已开启，ECS 未更新。B 的版本管理、作者隐藏入口、运营审核/处置/复核界面仍待 B2/B3，不能开放公众创作。
+B1 发布链路已交付；当前正式契约 0.5.0：新增固定预览、原子发布和稳定匿名读取。由 PUBLICATION_ENABLED 控制，默认关闭；本机已开启，ECS 未更新。B2 版本与隐藏入口已交付；运营审核/处置/复核界面仍待 B3，不能开放公众创作。
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
@@ -59,3 +59,16 @@ B1 正式契约 0.4.0：新增固定预览、原子发布和稳定匿名读取�
 修改被 Git 忽略的 `.env`，设置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`SMTP_FROM` 和 `SMTP_TLS_MODE`。支持强制 STARTTLS 或 implicit TLS，不支持明文 SMTP。不要把密码粘贴到源码、文档或提交中。
 
 `AUTH_PEPPER` 是稳定随机密钥，不随进程启动重新生成；切换会使未消费验证码失效。生产不得使用测试密钥。SMTP 与账号配置后重建／重启 API，再进行真实送达验收。
+
+## B2 作品管理与时间线
+
+- GET /api/my/works：本人作品列表，创建时间/ID 稳定分页，cursor。
+- GET /api/my/works/{id}：独立状态与 state_revision。
+- GET /api/my/works/{id}/versions：本人正式版本/事件，两种 before 游标独立，每页 20。
+- GET /api/my/works/{id}/versions/{number}：本人正文，受限版本也可本人查看导出。
+- POST /api/my/works/{id}/actions：hide/restore/switch_display/set_history，mutation_id 和 expected_state_revision 必填；目标版本/历史开关按动作提供。
+- GET /api/works/{id}/timeline：匿名安全版本/展示记录，无旧标题正文、处置版本或私有管理事件。
+
+409 work_state_conflict 要求重新读取并确认，不能自动套用旧操作；version_unavailable 要求明确选择正常旧版；work_restricted 不能由作者解除。成功重试返回原确认，界面随后获取现状。正式发布也推进状态号，防止隐藏期间新发布后旧页面恢复错版本。管理与事件写入失败一并回滚。
+
+预览可返回可选 published 原发布确认，用于识别已消费预览；新修订必须重新确认授权，未知提交结果不能被静默丢弃。详细证据见 [B2 复盘](reviews/2026-10-30-b2-review.md)。

@@ -51,6 +51,7 @@ type Preview struct {
 	Tags            []string  `json:"tags"`
 	CreatedAt       time.Time `json:"created_at"`
 	ExpiresAt       time.Time `json:"expires_at"`
+	Published       *Result   `json:"published,omitempty"`
 }
 type Publish struct {
 	MutationID      uuid.UUID `json:"mutation_id"`
@@ -146,12 +147,20 @@ func (s Store) ReadPreview(ctx context.Context, owner, id uuid.UUID) (Preview, e
 	if e != nil {
 		return out, e
 	}
-	var consumed bool
-	e = s.DB.QueryRowContext(ctx, "SELECT consumed_at IS NOT NULL FROM publication_previews WHERE id=? AND owner_id=?", id[:], owner[:]).Scan(&consumed)
+	var consumedID []byte
+	var consumedVersion sql.NullInt64
+	var consumedAt sql.NullTime
+	e = s.DB.QueryRowContext(ctx, "SELECT consumed_work_id,consumed_version,consumed_at FROM publication_previews WHERE id=? AND owner_id=?", id[:], owner[:]).Scan(&consumedID, &consumedVersion, &consumedAt)
 	if e != nil {
 		return Preview{}, e
 	}
-	if !consumed && !time.Now().UTC().Before(out.ExpiresAt) {
+	if consumedAt.Valid {
+		work, e := uuid.FromBytes(consumedID)
+		if e != nil {
+			return Preview{}, e
+		}
+		out.Published = &Result{WorkID: work, Version: uint64(consumedVersion.Int64), PublishedAt: consumedAt.Time, ReviewStatus: "pending"}
+	} else if !time.Now().UTC().Before(out.ExpiresAt) {
 		return Preview{}, ErrExpired
 	}
 	return out, nil
@@ -296,8 +305,8 @@ func (s Store) Publish(ctx context.Context, owner uuid.UUID, in Publish) (Result
 		}
 		var workBytes []byte
 		var last uint64
-		var limited bool
-		e = tx.QueryRowContext(ctx, "SELECT id,last_version,platform_limited FROM works WHERE source_draft_id=? AND owner_id=? FOR UPDATE", preview.DraftID[:], owner[:]).Scan(&workBytes, &last, &limited)
+		stateRevision := uint64(1)
+		e = tx.QueryRowContext(ctx, "SELECT id,last_version,state_revision FROM works WHERE source_draft_id=? AND owner_id=? FOR UPDATE", preview.DraftID[:], owner[:]).Scan(&workBytes, &last, &stateRevision)
 		if errors.Is(e, sql.ErrNoRows) {
 			result.WorkID = uuid.New()
 			_, e = tx.ExecContext(ctx, "INSERT INTO works (id,owner_id,source_draft_id,created_at) VALUES (?,?,?,?)", result.WorkID[:], owner[:], preview.DraftID[:], now)
@@ -307,12 +316,8 @@ func (s Store) Publish(ctx context.Context, owner uuid.UUID, in Publish) (Result
 		if e != nil {
 			return Result{}, e
 		}
-		if last != in.ExpectedVersion || last >= MaxSequence {
+		if last != in.ExpectedVersion || last >= MaxSequence || stateRevision >= MaxSequence {
 			return Result{}, ErrConflict
-		}
-		// Whole-work limitations need the B3 explicit review path. Never bypass it.
-		if limited {
-			return Result{}, ErrUnsupported
 		}
 		result.Version = last + 1
 		result.PublishedAt = now
@@ -321,7 +326,7 @@ func (s Store) Publish(ctx context.Context, owner uuid.UUID, in Publish) (Result
 		if e != nil {
 			return Result{}, e
 		}
-		_, e = tx.ExecContext(ctx, "UPDATE works SET last_version=?,display_version=? WHERE id=?", result.Version, result.Version, result.WorkID[:])
+		_, e = tx.ExecContext(ctx, "UPDATE works SET last_version=?,display_version=?,state_revision=state_revision+1 WHERE id=?", result.Version, result.Version, result.WorkID[:])
 		if e != nil {
 			return Result{}, e
 		}

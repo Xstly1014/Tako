@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   routeRules: {
     '/workspace': { ssr: false },
     '/publish': { ssr: false },
+    '/my-works': { ssr: false },
     '/works/**': { headers: { 'cache-control': 'no-store' } },
   },
   runtimeConfig: { publicationApiBase: 'http://api:8080', public: { publicationEnabled: false } },

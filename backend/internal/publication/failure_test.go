@@ -15,6 +15,9 @@ import (
 // Wrap a real MySQL connection only in this test. No elevated DB privileges,
 // global settings, production hooks or mocked transactions are needed.
 func reviewFailureDB(t *testing.T) *sql.DB {
+	return failureDB(t, "INSERT INTO publication_review_tasks ")
+}
+func failureDB(t *testing.T, prefix string) *sql.DB {
 	t.Helper()
 	cfg, e := mysql.ParseDSN(os.Getenv("TEST_MYSQL_DSN"))
 	if e != nil {
@@ -24,25 +27,31 @@ func reviewFailureDB(t *testing.T) *sql.DB {
 	if e != nil {
 		t.Fatal(e)
 	}
-	db := sql.OpenDB(faultConnector{c})
+	db := sql.OpenDB(faultConnector{Connector: c, prefix: prefix})
 	t.Cleanup(func() { db.Close() })
 	return db
 }
 
-type faultConnector struct{ driver.Connector }
+type faultConnector struct {
+	driver.Connector
+	prefix string
+}
 
 func (c faultConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	conn, e := c.Connector.Connect(ctx)
 	if e != nil {
 		return nil, e
 	}
-	return faultConn{conn}, nil
+	return faultConn{Conn: conn, prefix: c.prefix}, nil
 }
 
-type faultConn struct{ driver.Conn }
+type faultConn struct {
+	driver.Conn
+	prefix string
+}
 
 func (c faultConn) ExecContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Result, error) {
-	if strings.HasPrefix(q, "INSERT INTO publication_review_tasks ") {
+	if strings.HasPrefix(q, c.prefix) {
 		return nil, errors.New("injected_review_write_failure")
 	}
 	if x, ok := c.Conn.(driver.ExecerContext); ok {

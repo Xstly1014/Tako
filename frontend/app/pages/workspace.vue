@@ -213,7 +213,7 @@ async function preparePublication() {
     message.value = '请先等待当前内容获得服务端保存确认，再准备发布。'
     return
   }
-  await navigateTo({ path: '/publish', query: { draft: row.serverId } })
+  await navigateTo({ path: '/publish', query: { draft: row.serverId, fresh: '1' } })
 }
 const publicationEnabled = String(useRuntimeConfig().public.publicationEnabled) === 'true'
 async function setNickname() {
@@ -464,7 +464,9 @@ onUnmounted(() => {
     <header class="topbar">
       <NuxtLink to="/" class="brand">tako<span>●</span></NuxtLink>
       <div class="row">
-        <span class="muted">{{ account?.nickname || '写作空间' }}</span
+        <NuxtLink v-if="publicationEnabled && account" to="/my-works" class="text-button"
+          >作品管理</NuxtLink
+        ><span class="muted">{{ account?.nickname || '写作空间' }}</span
         ><button v-if="account" class="text-button" @click="logout">退出登录</button>
       </div>
     </header>

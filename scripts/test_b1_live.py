@@ -2,7 +2,9 @@
 Requires: scripts/test_backend.py and docker compose build api web completed.
 No real mail is sent; no source volumes or real user accounts are removed.
 """
+import argparse
 import hashlib
+import importlib.util
 import json
 import secrets
 import subprocess
@@ -15,6 +17,9 @@ def run(args, data=None):
     result = subprocess.run(args, input=data, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode:
         # Do not surface generic Docker/DB errors that might contain credentials.
+        if args and str(args[-1]).endswith("browser_smoke.cjs"):
+            # Only synthetic writing_test browser assertions; never print SQL/provider errors.
+            print(result.stderr.decode(errors="replace")[-1800:])
         raise RuntimeError("b1_command_failed")
     return result.stdout
 
@@ -22,7 +27,7 @@ def sql(text):
     return run(["docker", "compose", "exec", "-T", "mysql", "sh", "-c",
                 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot -N -B --default-character-set=utf8mb4 writing_test'], text.encode())
 
-def main():
+def main(b2=False, restore_check=False):
     config = {}
     for line in (ROOT / ".env").read_text(encoding="utf-8-sig").splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
@@ -63,14 +68,33 @@ def main():
                    "-v", str(ROOT) + ":/materials", "-v", "writing-community_frontend_modules:/app/node_modules", "-w", "/app"]
         image_command = ["mcr.microsoft.com/playwright:v1.56.1-noble", "node", "/materials/scripts/b1_browser_smoke.cjs"]
         print(run(browser + image_command).decode().strip())
-        result = json.loads((folder / "result.json").read_text())
+        result = json.loads((folder / "result.json").read_text(encoding="utf-8"))
         work = uuid.UUID(result["work_id"]).hex
         counts = sql("SELECT (SELECT COUNT(*) FROM work_versions WHERE work_id=X'" + work + "'),(SELECT COUNT(*) FROM publication_review_tasks WHERE work_id=X'" + work + "');")
         if counts.strip() != b"1\t1":
             raise RuntimeError("b1_duplicate_publication")
+        if b2:
+            b2_command = ["mcr.microsoft.com/playwright:v1.56.1-noble", "node", "/materials/scripts/b2_browser_smoke.cjs"]
+            print(run(browser + b2_command).decode().strip())
+            sql("UPDATE work_versions SET platform_limited=TRUE WHERE work_id=X'" + work + "' AND version=3; UPDATE works SET author_hidden=TRUE,state_revision=state_revision+1 WHERE id=X'" + work + "';")
+            print(run(browser + ["-e", "B2_CHECK_RESTRICTED=true"] + b2_command).decode().strip())
         sql("UPDATE works SET author_hidden=TRUE WHERE id=X'" + work + "';")
         print(run(browser + ["-e", "B1_CHECK_HIDDEN=true"] + image_command).decode().strip())
-        print("PASS: one formal version and review task; fixture cleanup follows.")
+        print("PASS: B1 original publication remained unique; fixture cleanup follows.")
+        if restore_check:
+            spec = importlib.util.spec_from_file_location("recovery", ROOT / "scripts" / "recovery.py")
+            recovery = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(recovery)
+            original = recovery.run
+            def test_source(args, data=None, env=None):
+                if args[:5] == ["docker", "compose", "exec", "-T", "mysql"]:
+                    args = args[:4] + ["-e", "MYSQL_DATABASE=writing_test"] + args[4:]
+                return original(args, data, env)
+            recovery.run = test_source
+            try:
+                recovery.restore(recovery.backup())
+            finally:
+                recovery.run = original
     finally:
         for name in reversed(created):
             # A failed docker run may have created a stopped container. Remove only
@@ -82,6 +106,8 @@ def main():
         if seeded:
             value = "X'" + owner.hex + "'"
             sql(";".join([
+                "DELETE FROM work_state_mutations WHERE owner_id=" + value,
+                "DELETE e FROM work_events e JOIN works w ON w.id=e.work_id WHERE w.owner_id=" + value,
                 "DELETE q FROM publication_review_tasks q JOIN works w ON w.id=q.work_id WHERE w.owner_id=" + value,
                 "DELETE FROM publication_mutations WHERE owner_id=" + value,
                 "DELETE v FROM work_versions v JOIN works w ON w.id=v.work_id WHERE w.owner_id=" + value,
@@ -95,8 +121,12 @@ def main():
                 path.unlink()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--b2", action="store_true", help="Include B2 management/browser checks; requires migration 8")
+    parser.add_argument("--restore", action="store_true", help="Also encrypt/restore this synthetic DB in a separate MySQL container")
     try:
-        main()
-    except Exception:
-        print("B1 live test failed; inspect test logs and owned temporary resources without exposing credentials.")
+        args = parser.parse_args()
+        main(args.b2, args.restore)
+    except Exception as error:
+        print("B1/B2 live test failed (" + type(error).__name__ + "); inspect synthetic fixture logs without exposing credentials.")
         raise SystemExit(1)
