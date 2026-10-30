@@ -467,7 +467,7 @@ onUnmounted(() => {
           ><NuxtLink to="/account" :title="account.nickname">{{
             account.nickname || '账号设置'
           }}</NuxtLink
-          ><button class="text-button" type="button" @click="logout">退出登录</button></template
+          ><button class="app-logout" type="button" @click="logout">退出登录</button></template
         ></template
       ></AppHeader
     >

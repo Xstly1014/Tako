@@ -218,6 +218,18 @@ h3 {
   border: 1px solid var(--border);
   border-radius: 10px;
 }
+.app-header .app-logout {
+  padding: 8px 0;
+  color: var(--color-muted);
+  background: transparent;
+  border: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  white-space: nowrap;
+}
+.app-header .app-logout:hover { color: var(--color-ink); }
+.app-header .app-logout:disabled { opacity: .5; cursor: wait; }
 .work-layout {
   display: grid;
   align-items: start;

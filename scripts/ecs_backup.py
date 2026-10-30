@@ -10,9 +10,11 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from recovery import ROOT, restore
 import oss_backup
+STAGE = "configuration"
 
 
 def main():
+    global STAGE
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--identity", type=Path, required=True)
@@ -30,10 +32,19 @@ def main():
             values[name.strip()] = value.strip().strip('"').strip("'")
     if len(bytes.fromhex(values.get("BACKUP_ENCRYPTION_KEY", ""))) != 32:
         raise RuntimeError("matching_ecs_backup_key_required")
+    STAGE = "remote_backup"
     result = subprocess.run(["ssh", "-i", identity, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15",
                              "root@"+args.host, "cd /opt/tako && python3 scripts/recovery.py backup"],
                             capture_output=True, timeout=180)
     if result.returncode:
+        for line in result.stdout.decode(errors="replace").splitlines():
+            try:
+                failure = json.loads(line)
+                code = failure.get("failure_code")
+                if code in {"container_operation_failed", "backup_key_required", "database_changed_retry_during_quiet_period"}:
+                    print(json.dumps({"event": "remote_backup_rejected", "reason": code}))
+            except (ValueError, AttributeError):
+                pass
         raise RuntimeError("remote_backup_failed")
     events = [json.loads(line) for line in result.stdout.decode().splitlines()]
     event = next(e for e in events if e.get("event") == "encrypted_backup_created")
@@ -43,6 +54,7 @@ def main():
     directory = ROOT / "backups/ecs"
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / filename
+    STAGE = "encrypted_download"
     result = subprocess.run(["scp", "-q", "-i", identity, "-o", "BatchMode=yes",
                              "root@"+args.host+":/opt/tako/backups/"+filename, str(path)],
                             capture_output=True, timeout=180)
@@ -54,8 +66,10 @@ def main():
     if values.get("OSS_BACKUP_PREFIX"):
         os.environ["OSS_BACKUP_PREFIX"] = values["OSS_BACKUP_PREFIX"]
     try:
+        STAGE = "isolated_restore"
         restore(path)
         if args.oss:
+            STAGE = "oss_roundtrip_restore"
             oss_backup.main(path)
     finally:
         if previous is None:
@@ -74,5 +88,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        print(json.dumps({"event": "ecs_backup_failed", "hint": "Check SSH, matching secret config, backup status and optional OSS credentials."}))
+        print(json.dumps({"event": "ecs_backup_failed", "stage": STAGE, "hint": "Check SSH, matching secret config, backup status and optional OSS credentials."}))
         raise SystemExit(1)

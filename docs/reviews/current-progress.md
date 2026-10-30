@@ -30,8 +30,8 @@
 | 环境 | 当前事实 |
 |---|---|
 | 本机 localhost:3000 | schema 11、OpenAPI 0.8.0，AUTH_MODE=password、PUBLICATION_ENABLED=true；运营 /ops/reviews，作者 /moderation |
-| 代码提交 | 本地 492f756 包含社区发现、精选、共享导航与环境隔离；最后已知远程 main 为 B2 67d425b，本轮未推送 |
-| ECS 正式数据环境 | 镜像 492f756/schema 11；通过 SSH localhost:3100 访问，原业务表迁移前后摘要一致。暂保留邮箱模式供原账号本人设密 |
+| 代码提交 | 本地 4576a58 包含社区发现、精选、共享导航与环境隔离及退出入口修复；最后已知远程 main 为 B2 67d425b，本轮未推送 |
+| ECS 正式数据环境 | 镜像 4576a58/schema 11；通过 SSH localhost:3100 访问，原业务表迁移前后摘要一致。原账号已自主设密，AUTH_MODE=password，运营 UUID 取自 ECS |
 | 本机测试环境 | 127.0.0.1:3300，独立库 tako_sandbox / Compose tako-local-test，1000 合成账号、20000 中篇；测试 Cookie 与环境标记独立 |
 
 B1/B2 有真实 MySQL/race/契约、真实 API 浏览器和独立恢复证据，用户已分别确认发布/无痕阅读与版本/隐藏恢复操作。B2 的 17 表恢复是本机独立容器，不是新增数据已在 ECS/OSS 验证。

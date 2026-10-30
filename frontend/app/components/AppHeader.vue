@@ -188,16 +188,6 @@ nav a.router-link-exact-active {
 .app-account-nav {
   margin-left: auto;
 }
-.app-logout {
-  padding: 8px 0;
-  color: var(--color-muted);
-  background: transparent;
-  border: 0;
-  font-size: 14px;
-  white-space: nowrap;
-}
-.app-logout:hover { color: var(--color-ink); }
-.app-logout:disabled { opacity: .5; cursor: wait; }
 .app-account-nav > a {
   max-width: 160px;
   overflow: hidden;
