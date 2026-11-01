@@ -35,6 +35,8 @@ func TestDiscoveryHTTPContractAndOperatorBoundary(t *testing.T) {
 		}
 	}
 	defer func() {
+		db.Exec("DELETE FROM favorite_mutations WHERE account_id IN (?,?)", owner[:], other[:])
+		db.Exec("DELETE f FROM work_favorites f JOIN works w ON w.id=f.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE FROM work_state_mutations WHERE owner_id=?", owner[:])
 		db.Exec("DELETE e FROM work_events e JOIN works w ON w.id=e.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE q FROM publication_review_tasks q JOIN works w ON w.id=q.work_id WHERE w.owner_id=?", owner[:])
@@ -101,6 +103,16 @@ func TestDiscoveryHTTPContractAndOperatorBoundary(t *testing.T) {
 		return res
 	}
 	call("GET", "/api/community", nil, "", 200)
+	url := "/api/my/favorites/" + published.WorkID.String()
+	call("GET", "/api/my/favorites", nil, "", 401)
+	call("GET", url, nil, token, 200)
+	favorite := publication.FavoriteChange{MutationID: uuid.New(), ExpectedAccountID: other, Favorite: true}
+	call("POST", url, favorite, otherToken, 200)
+	call("POST", url, favorite, otherToken, 200)
+	call("POST", url, favorite, token, 409)
+	call("POST", url, map[string]any{"mutation_id": uuid.NewString(), "expected_revision": 0}, otherToken, 400)
+	call("GET", "/api/my/favorites", nil, otherToken, 200)
+	call("GET", "/api/my/favorites?cursor=bad", nil, otherToken, 400)
 	call("GET", "/api/community?cursor=invalid", nil, "", 400)
 	call("GET", "/api/me/access", nil, "", 401)
 	access := call("GET", "/api/me/access", nil, otherToken, 200)
@@ -136,6 +148,14 @@ func TestDiscoveryHTTPContractAndOperatorBoundary(t *testing.T) {
 		t.Fatal(e)
 	}
 	hidden := call("GET", "/api/community", nil, "", 200)
+	privateFavorites := call("GET", "/api/my/favorites", nil, otherToken, 200)
+	if strings.Contains(privateFavorites.Body.String(), "发现契约作品") || !strings.Contains(privateFavorites.Body.String(), `"work":null`) {
+		t.Fatal("favorite metadata leaked")
+	}
+	favorite.MutationID = uuid.New()
+	favorite.ExpectedRevision = 1
+	favorite.Favorite = false
+	call("POST", url, favorite, otherToken, 200)
 	if strings.Contains(hidden.Body.String(), "发现契约作品") || strings.Contains(hidden.Body.String(), "仅由作者提供") {
 		t.Fatal("hidden metadata leaked")
 	}

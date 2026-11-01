@@ -90,6 +90,7 @@ onUnmounted(() => {
     <div id="app-navigation" class="app-navigation" :class="{ 'is-expanded': expanded }">
       <nav class="app-main-nav" aria-label="主导航">
         <NuxtLink v-if="publishing" to="/community">社区</NuxtLink>
+        <NuxtLink v-if="publishing" to="/favorites">我的收藏</NuxtLink>
         <NuxtLink to="/workspace">写作空间</NuxtLink>
         <NuxtLink v-if="publishing" to="/my-works">作品管理</NuxtLink>
       </nav>
@@ -109,9 +110,11 @@ onUnmounted(() => {
           <summary>更多</summary>
           <div>
             <NuxtLink to="/moderation">处理结果</NuxtLink>
+            <NuxtLink to="/my-comments">我的评论与处置</NuxtLink>
             <template v-if="operator"
               ><NuxtLink to="/ops/reviews">内容治理</NuxtLink
               ><NuxtLink to="/ops/curation">精选编排</NuxtLink></template
+            ><template v-if="operator"><NuxtLink to="/ops/comments">评论治理</NuxtLink></template
             >
           </div>
         </details>

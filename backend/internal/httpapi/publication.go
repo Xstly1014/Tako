@@ -13,6 +13,13 @@ import (
 func publicationError(c *gin.Context, e error) {
 	status, code := 503, "service_unavailable"
 	switch {
+	case errors.Is(e, publication.ErrCommentLimited):
+		status, code = 429, "rate_limited"
+		c.Header("Retry-After", "60")
+	case errors.Is(e, publication.ErrCommentConflict):
+		status, code = 409, "comment_conflict"
+	case errors.Is(e, publication.ErrFavoriteConflict):
+		status, code = 409, "favorite_conflict"
 	case errors.Is(e, publication.ErrCurationConflict):
 		status, code = 409, "curation_conflict"
 	case errors.Is(e, publication.ErrReviewConflict):
@@ -129,6 +136,7 @@ func (a API) registerPublicationRoutes(api, protected *gin.RouterGroup) {
 			publicationError(c, e)
 			return
 		}
+		out.CommentContext = a.signCommentContext(out.ID, out.Version)
 		c.JSON(200, out)
 	}
 	api.GET("/works/:id", read)

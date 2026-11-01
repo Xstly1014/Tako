@@ -1,12 +1,12 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.9.0
+  version: 0.12.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
     部署可通过 SESSION_COOKIE_NAME 隔离会话；运行时文档使用该环境实际 Cookie 名，默认 tako_session。API 返回 X-Tako-Environment 标识 local/test/production。
-    所有写操作需同源 Origin 和 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
+    浏览器写操作需同源 Origin；原生 App 使用专用 Bearer，不带 Origin/Cookie。所有写操作需 application/json。Swagger 通过 http://localhost:3000/docs/ 调试。
     验证码持久化入队，由独立 worker 处理；sent 仅表示邮件服务接受，不保证收件箱送达。
 servers:
   - url: /
@@ -17,7 +17,373 @@ tags:
   - name: 阅读
 security:
   - session: []
+  - appSession: []
 paths:
+  /api/app/auth/register:
+    post:
+      operationId: registerAppPassword
+      tags: [身份]
+      security: []
+      summary: App 密码注册并建立独立会话
+      description: 不验证邮箱；沿用账号与密码规则。拒绝 Origin、Cookie 和 Authorization。无 Set-Cookie；令牌仅写系统安全存储。响应未确认时不自动重试注册，可用密码登录确认。
+      requestBody:
+        $ref: '#/paths/~1api~1auth~1register/post/requestBody'
+      responses:
+        '200':
+          description: 七天原生会话；独立于浏览器，只保存令牌散列
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AppSession'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/app/auth/login:
+    post:
+      operationId: loginAppPassword
+      tags: [身份]
+      security: []
+      summary: App 密码登录并建立独立会话
+      description: 不验证邮箱；沿用账号与密码规则。拒绝 Origin、Cookie 和 Authorization。无 Set-Cookie；令牌仅写系统安全存储。响应未确认时不自动重试注册，可用密码登录确认。
+      requestBody:
+        $ref: '#/paths/~1api~1auth~1register/post/requestBody'
+      responses:
+        '200':
+          description: 七天原生会话；独立于浏览器，只保存令牌散列
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AppSession'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/app/auth/logout:
+    post:
+      operationId: logoutApp
+      tags: [身份]
+      security: [{appSession: []}]
+      summary: 撤销当前 App 会话
+      description: 同一令牌重复注销安全；不退出其他 App/Web 会话，不删用户内容。数据库失败不虚报成功。拒绝 Cookie/Origin 混用。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
+      responses:
+        '204': {description: 当前会话已撤销或先前已撤销}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/works/{id}/comments:
+    parameters:
+    - &id002
+      name: id
+      in: path
+      required: true
+      schema: &id001
+        type: string
+        format: uuid
+    get:
+      operationId: listWorkComments
+      summary: listWorkComments
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security: []
+      parameters:
+      - &id003
+        name: cursor
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      - name: root
+        in: query
+        schema: *id001
+    post:
+      operationId: publishComment
+      summary: publishComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+  /api/comments/{id}/actions:
+    parameters:
+    - *id002
+    post:
+      operationId: deleteComment
+      summary: deleteComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentAction'
+  /api/my/comments:
+    get:
+      operationId: myCommentsAndReasons
+      summary: myCommentsAndReasons
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - *id003
+  /api/ops/comments:
+    get:
+      operationId: reviewComments
+      summary: reviewComments
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - *id003
+  /api/ops/comments/{id}/actions:
+    parameters:
+    - *id002
+    post:
+      operationId: moderateComment
+      summary: moderateComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentAction'
+  /api/my/favorites:
+    get:
+      operationId: listFavorites
+      summary: 我的收藏；不可访问作品不返回元数据
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 512}
+      responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FavoritePage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/favorites/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    get:
+      operationId: getFavoriteState
+      summary: 当前账号对作品的收藏状态，不包含作品信息
+      responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FavoriteState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: changeFavorite
+      summary: 显式收藏或取消；同一请求重放只确认原结果
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FavoriteChange'}
+      responses:
+        '200':
+          description: 原操作确认；界面需重新读取当前状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FavoriteState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/community:
     get:
       operationId: discoverWorks
@@ -26,6 +392,7 @@ paths:
       - 阅读
       security: []
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: 成功；不缓存访问权限与正文
           content:
@@ -98,6 +465,7 @@ paths:
       tags:
       - 身份
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: 成功；不缓存访问权限与正文
           content:
@@ -295,6 +663,7 @@ paths:
       security: []
       summary: 获取当前启用的登录方式
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: password 模式关闭验证码登录和发送接口；不表示邮箱已经验证
           content:
@@ -389,6 +758,7 @@ paths:
       tags: [身份]
       summary: 查询自己的密码设置状态
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: 仅返回是否已设置，不返回散列或密码
           content:
@@ -533,6 +903,7 @@ paths:
       tags: [身份]
       summary: 当前账号
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: 账号信息，不返回邮箱或会话令牌
           content:
@@ -582,6 +953,7 @@ paths:
           in: query
           schema: {type: string, maxLength: 512}
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: 仅当前账号的元数据；next_cursor 为空表示结束
           content:
@@ -610,6 +982,7 @@ paths:
           required: true
           schema: {type: string, format: uuid}
       responses:
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '200':
           description: 当前服务端草稿，不表示本机无未同步修改
           content:
@@ -1694,8 +2067,190 @@ paths:
     }
 components:
   securitySchemes:
+    appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    AppSession:
+      type: object
+      additionalProperties: false
+      required: [account, access_token, token_type, expires_in]
+      properties:
+        account: {$ref: '#/components/schemas/Account'}
+        access_token: {type: string, pattern: '^tako_app_[0-9a-f]{64}$'}
+        token_type: {type: string, enum: [Bearer]}
+        expires_in: {type: integer, enum: [604800]}
+    Comment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - work_id
+      - author_id
+      - nickname
+      - root_id
+      - reply_to
+      - reply_name
+      - content
+      - sequence
+      - revision
+      - replies
+      - can_delete
+      - created_at
+      - deleted
+      - blocked
+      - reason
+      properties:
+        id: &id001
+          type: string
+          format: uuid
+        work_id: *id001
+        author_id: *id001
+        nickname:
+          type: string
+        root_id:
+          type: string
+          format: uuid
+          nullable: true
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+        reply_name:
+          type: string
+        content:
+          type: string
+        sequence: &id002
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        revision: *id002
+        replies: *id002
+        can_delete:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted:
+          type: boolean
+        blocked:
+          type: boolean
+        reason:
+          type: string
+    CommentPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Comment'
+        next: *id002
+    CommentResult:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - revision
+      - state
+      properties:
+        id: *id001
+        revision: *id002
+        state:
+          type: string
+          enum:
+          - published
+          - deleted
+          - blocked
+    CommentCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_account_id
+      - content
+      - context
+      properties:
+        mutation_id: *id001
+        expected_account_id: *id001
+        content:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        context:
+          type: string
+          minLength: 1
+          maxLength: 512
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+    CommentAction:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_account_id
+      - expected_revision
+      - action
+      - reason
+      properties:
+        mutation_id: *id001
+        expected_account_id: *id001
+        expected_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        action:
+          type: string
+          enum:
+          - delete
+          - block
+          - unblock
+        reason:
+          type: string
+          maxLength: 500
+    FavoriteState:
+      type: object
+      additionalProperties: false
+      required: [work_id, favorite, revision]
+      properties:
+        work_id: {type: string, format: uuid}
+        favorite: {type: boolean}
+        revision: {type: integer, minimum: 0, maximum: 9007199254740991}
+    FavoriteChange:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, expected_account_id, expected_revision, favorite]
+      properties:
+        expected_account_id: {type: string, format: uuid}
+        mutation_id: {type: string, format: uuid}
+        expected_revision: {type: integer, minimum: 0, maximum: 9007199254740990}
+        favorite: {type: boolean}
+    FavoritePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: {type: string, maxLength: 512}
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [work_id, revision, saved_at, work]
+            properties:
+              work_id: {type: string, format: uuid}
+              revision: {type: integer, minimum: 1}
+              saved_at: {type: string, format: date-time}
+              work:
+                nullable: true
+                allOf:
+                - {$ref: '#/components/schemas/DiscoveryCard'}
     DiscoveryCard:
       type: object
       additionalProperties: false
@@ -2281,6 +2836,7 @@ components:
       additionalProperties: false
       required: [id, version, title, content, introduction, tags, author_nickname, published_at]
       properties:
+        comment_context: {type: string, maxLength: 512, description: 仅用于提交时权限校验，不持久记录评论版本}
         id: {type: string, format: uuid}
         version: {type: integer, minimum: 1, maximum: 9007199254740991}
         title: {type: string, minLength: 1, maxLength: 200}
@@ -2303,7 +2859,7 @@ components:
       properties:
         error:
           type: string
-          enum: [curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

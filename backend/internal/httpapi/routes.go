@@ -92,8 +92,20 @@ func (a API) Register(r *gin.Engine) error {
 		c.Header("X-Tako-Environment", environment)
 		c.Header("Cache-Control", "no-store")
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
+		appEntry := strings.HasPrefix(c.Request.URL.Path, "/api/app/auth/")
+		native := c.GetHeader("Authorization") != ""
+		// Native credentials never mix with browser authority. A header is not
+		// authentication: protected routes still verify the token against MySQL.
+		if (appEntry || native) && (c.GetHeader("Origin") != "" || c.GetHeader("Cookie") != "") {
+			respondError(c, 403, "origin_rejected")
+			return
+		}
+		if native && strings.HasPrefix(c.Request.URL.Path, "/api/auth/") {
+			respondError(c, 403, "origin_rejected")
+			return
+		}
 		if c.Request.Method != "GET" && c.Request.Method != "HEAD" {
-			if c.GetHeader("Origin") != a.Origin {
+			if !appEntry && !native && c.GetHeader("Origin") != a.Origin {
 				respondError(c, 403, "origin_rejected")
 				return
 			}
@@ -190,8 +202,7 @@ func (a API) Register(r *gin.Engine) error {
 	})
 	protected := api.Group("")
 	protected.Use(func(c *gin.Context) {
-		token, _ := c.Cookie(a.sessionCookieName())
-		account, err := a.Identity.Authenticate(c.Request.Context(), token)
+		account, err := a.authenticate(c)
 		if err != nil {
 			if errors.Is(err, identity.ErrInvalid) {
 				respondError(c, 401, "authentication_required")
@@ -204,6 +215,7 @@ func (a API) Register(r *gin.Engine) error {
 		c.Next()
 	})
 	a.registerPasswords(api, protected)
+	a.registerAppPasswords(api)
 	protected.GET("/me", func(c *gin.Context) { c.JSON(200, c.MustGet("account")) })
 	protected.PATCH("/me", func(c *gin.Context) {
 		var in struct {
@@ -282,6 +294,8 @@ func (a API) Register(r *gin.Engine) error {
 	}
 	a.registerPublicationRoutes(api, protected)
 	a.registerDiscovery(api, protected)
+	a.registerFavorites(protected)
+	a.registerComments(api, protected)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {

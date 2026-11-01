@@ -11,6 +11,7 @@ import (
 )
 
 type Work struct {
+	CommentContext string    `json:"comment_context,omitempty"`
 	ID             uuid.UUID `json:"id"`
 	Version        uint64    `json:"version"`
 	Title          string    `json:"title"`

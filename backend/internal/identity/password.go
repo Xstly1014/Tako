@@ -57,18 +57,29 @@ func (s *Service) passwordRate(ctx context.Context, action, email, ip string) er
 	return s.rate(ctx, "password:email:"+action+":"+email, 10, time.Minute)
 }
 
-func createPasswordSession(ctx context.Context, tx *sql.Tx, account Account) (string, error) {
+func createPasswordSession(ctx context.Context, tx *sql.Tx, account Account, native bool) (string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", err
 	}
 	token := hex.EncodeToString(raw)
+	if native {
+		token = "tako_app_" + token
+	}
 	hash := sha256.Sum256([]byte(token))
 	_, err := tx.ExecContext(ctx, "INSERT INTO sessions (token_hash,account_id,expires_at) VALUES (?,?,?)", hash[:], account.ID[:], time.Now().UTC().Add(7*24*time.Hour))
 	return token, err
 }
 
 func (s *Service) RegisterPassword(ctx context.Context, email, password, ip string) (Account, string, error) {
+	return s.registerPassword(ctx, email, password, ip, false)
+}
+
+func (s *Service) RegisterAppPassword(ctx context.Context, email, password, ip string) (Account, string, error) {
+	return s.registerPassword(ctx, email, password, ip, true)
+}
+
+func (s *Service) registerPassword(ctx context.Context, email, password, ip string, native bool) (Account, string, error) {
 	email, err := NormalizeEmail(email)
 	if err != nil {
 		return Account{}, "", ErrInvalid
@@ -96,7 +107,7 @@ func (s *Service) RegisterPassword(ctx context.Context, email, password, ip stri
 	if _, err = tx.ExecContext(ctx, "INSERT INTO account_passwords (account_id,password_hash) VALUES (?,?)", account.ID[:], hash); err != nil {
 		return Account{}, "", err
 	}
-	token, err := createPasswordSession(ctx, tx, account)
+	token, err := createPasswordSession(ctx, tx, account, native)
 	if err != nil {
 		return Account{}, "", err
 	}
@@ -111,6 +122,14 @@ func (s *Service) RegisterPassword(ctx context.Context, email, password, ip stri
 var dummyPasswordHash = []byte("$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW")
 
 func (s *Service) LoginPassword(ctx context.Context, email, password, ip string) (Account, string, error) {
+	return s.loginPassword(ctx, email, password, ip, false)
+}
+
+func (s *Service) LoginAppPassword(ctx context.Context, email, password, ip string) (Account, string, error) {
+	return s.loginPassword(ctx, email, password, ip, true)
+}
+
+func (s *Service) loginPassword(ctx context.Context, email, password, ip string, native bool) (Account, string, error) {
 	email, err := NormalizeEmail(email)
 	if err != nil {
 		return Account{}, "", ErrLogin
@@ -148,7 +167,7 @@ func (s *Service) LoginPassword(ctx context.Context, email, password, ip string)
 		return Account{}, "", err
 	}
 	defer tx.Rollback()
-	token, err := createPasswordSession(ctx, tx, account)
+	token, err := createPasswordSession(ctx, tx, account, native)
 	if err != nil {
 		return Account{}, "", err
 	}

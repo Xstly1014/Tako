@@ -2,6 +2,8 @@
 
 [返回 Tako](../README.md)
 
+> 2026-11-01：新电脑请先按 [本机独立测试环境启动](handoff/02-engineering-and-setup.md)，使用 3300。下方根 Compose / 3000 / ECS 是历史流程，不是本轮默认启动方案。当前 App 优先，ECS 已停机，切勿照历史说明连接生产。
+
 ## 本机开发
 
 需要 Docker Desktop（Linux containers）/Compose。宿主不要求安装 Go/Node；运维脚本需要 Python，备份加密依赖见 scripts/requirements.txt。

@@ -176,6 +176,20 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Account, erro
 	if len(token) != 64 {
 		return Account{}, ErrInvalid
 	}
+	return s.authenticateSession(ctx, token)
+}
+
+func (s *Service) AuthenticateApp(ctx context.Context, token string) (Account, error) {
+	if len(token) != 73 || !strings.HasPrefix(token, "tako_app_") {
+		return Account{}, ErrInvalid
+	}
+	if _, err := hex.DecodeString(token[9:]); err != nil {
+		return Account{}, ErrInvalid
+	}
+	return s.authenticateSession(ctx, token)
+}
+
+func (s *Service) authenticateSession(ctx context.Context, token string) (Account, error) {
 	hash := sha256.Sum256([]byte(token))
 	var raw []byte
 	var name string

@@ -91,6 +91,7 @@ useHead(() => ({
           <p class="reader-byline">{{ work.author_nickname }}</p>
         </header>
         <article class="publication-body">{{ work.content }}</article>
+        <FavoriteButton :work-id="id" />
         <footer class="reader-footer">本次阅读保持当前加载内容；再次访问按最新权限判断。</footer>
       </section>
       <section v-else class="reader-unavailable">
@@ -99,6 +100,7 @@ useHead(() => ({
         <NuxtLink v-if="number" :to="`/works/${id}`">尝试阅读当前版本</NuxtLink
         ><NuxtLink v-else to="/community">返回社区</NuxtLink>
       </section>
+      <CommentSection v-if="work" :key="id+':'+number" :work-id="id" :context="work.comment_context||''"/>
       <section v-if="timeline" class="reader-timeline">
         <h2>版本记录</h2>
         <p class="fine">

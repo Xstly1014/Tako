@@ -1,0 +1,33 @@
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
+// The local network returns 403 for Maven Central. Preserve coordinates/versions;
+// use Alibaba's public Maven mirrors for tooling only, never for application traffic.
+def mapRepositories = { repos ->
+    repos.all { repo ->
+        if (repo instanceof MavenArtifactRepository) {
+            def host = repo.url.host
+            if (host in ['repo.maven.apache.org', 'repo1.maven.org']) {
+                repo.url = uri('https://maven.aliyun.com/repository/public')
+            } else if (host == 'plugins.gradle.org') {
+                repo.url = uri('https://maven.aliyun.com/repository/gradle-plugin')
+            } else if (host in ['dl.google.com', 'maven.google.com']) {
+                repo.url = uri('https://maven.aliyun.com/repository/google')
+            }
+        }
+    }
+}
+beforeSettings { settings ->
+    mapRepositories(settings.pluginManagement.repositories)
+    mapRepositories(settings.dependencyResolutionManagement.repositories)
+    // An empty plugin repository container otherwise falls back to an implicit
+    // Gradle Plugin Portal which cannot be observed by repositories.all.
+    settings.pluginManagement.repositories {
+        maven { url = uri('https://maven.aliyun.com/repository/gradle-plugin') }
+        maven { url = uri('https://maven.aliyun.com/repository/google') }
+        maven { url = uri('https://maven.aliyun.com/repository/public') }
+    }
+}
+beforeProject { project ->
+    mapRepositories(project.buildscript.repositories)
+    mapRepositories(project.repositories)
+}

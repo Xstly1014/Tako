@@ -19,6 +19,7 @@ export interface PublicationResult {
   review_status: 'pending'
 }
 export interface PublicWork {
+  comment_context?: string
   id: string
   version: number
   title: string
