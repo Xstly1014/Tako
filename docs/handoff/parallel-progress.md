@@ -18,7 +18,8 @@
 ## 状态与下一步
 
 - M1/C2 本端原提交的 Mobile/Backend CI 已通过；新 main 集成提交 `df4a5fb` 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41407759602) 四个作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41407759570) 也全部 success，不借用旧绿灯。
-- 本轮本机类型/lint、契约一致性、53 项模型、10 项顺序真实服务、3 项门禁与四套组件通过，零 skip/todo；本轮远程结果待本轮推送后记录。SQLite 的两平台支持已有 df4a5fb 实跑证据，不用跳过解决运行条件；没有重跑 APK 或设备检查。
+- 本轮适配 `f041ef5` 已推送独立分支，推送前 fetch/核对/pull main 仍 de49a17，无冲突。[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41410502057) 四作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41410501956) 全部 success；[Frontend 审计](https://github.com/Xstly1014/Tako/actions/runs/41410502037) 仍失败，未自行改锁。后续证据文档提交不改变被验源码。
+- 本轮本机类型/lint、契约一致性、53 项模型、10 项顺序真实服务、3 项门禁与四套组件通过，零 skip/todo。SQLite 的两平台支持亦由本轮远程实跑确认，不用跳过解决运行条件；没有重跑 APK 或设备检查。
 - 待对方互审本端 M1/C2 与 C1→C2 交接；对方未确认前记录为待审，不把本端自查算独立审查。技能行为测试也不算对方代码审查。
 - 技能阶段已收口，快照助手五项行为测试通过，见 `docs/reviews/tako-collab-skill-review.md`；本轮集成自查见 `docs/reviews/c1-c2-integration-review.md`。P1：主开发按约定接入 C1→C2 调用点，尤其检查 recovered 仍 dirty 的情况；后续互审及整合业务分支后冻结源码构建。
 - P0，真实移动作者前：C1 存储/锁定、C2 标识恢复、输入/返回/生命周期真机验收；现有工程证据不能关闭设备门槛。

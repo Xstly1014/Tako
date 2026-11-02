@@ -14,7 +14,8 @@
 - Node 24.19.0，Windows：typecheck、lint、OpenAPI 生成语法一致性通过；53 项模型（包含 Node 内置 SQLite/WebCrypto）、3 项门禁全部通过，零 skip/todo。
 - 同一真实回环 API/MySQL 环境顺序执行 10 项服务组通过，零 skip/todo。服务组 runner 保留 --test-concurrency=1；本轮未遇认证限频，未清计数或放宽保护。
 - Linux Docker 断网四套真实产品组件夹具（评论、版本、作者管理、发布）全部通过。发布夹具为路由/组件与模拟 HTTP/存储，不冒充真实服务或原生存储。
-- 已集成 `df4a5fb` 的 Windows/Linux CI 及真实服务、组件四个作业成功，链接见本端证据文件。本轮源码远程结果需绑定本轮推送 SHA，不能套用旧绿灯；结果发布后追加。
+- 本轮适配提交 `f041ef5` 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41410502057) 四个作业全部 success，含 Windows/Linux 实际 Node SQLite 模型、组件和真实 MySQL/API；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41410501956) success。推送前 fetch、核对双方进度并 pull main（仍 de49a17），无冲突。后续证据文档提交不改变已验源码。
+- [Frontend](https://github.com/Xstly1014/Tako/actions/runs/41410502037) 在既有 npm audit --audit-level=moderate 步骤 failure；不是全仓库绿灯。保留基线证据与修复门槛，未改依赖锁。
 
 ## 边界与退出条件
 

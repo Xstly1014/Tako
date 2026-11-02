@@ -8,7 +8,11 @@ CI 分类已在 `df4a5fb` 更新：模型 drafts-storage.test.ts、drafts-sync.t
 
 本轮修复发布交接不完整时自动采用最新修订的问题，并为原发布恢复优先于新入口增加明确提示。参数必须是完整服务器 ID/修订对；完全无参数才手动选稿。旧修订不自动换新，C2 不触及 C1 本机正文。编辑页需要遵守的返回、旧修订、未确认发布恢复规则见 [C1/C2 接口约定](c1-c2-interface.md)，集成自查见 [阶段复盘](../reviews/c1-c2-integration-review.md)。
 
-本轮本机实际通过：类型、lint、契约一致性、53 项模型、10 项真实服务组（顺序执行）、3 项门禁与四套 Linux 断网组件；零 skip/todo。没有认证限频，本轮没有清计数或放宽保护。四套组件不等于真机或完整外部服务验收。上述旧远程绿灯只覆盖 df4a5fb；本轮远程结果在推送后记录。
+本轮本机实际通过：类型、lint、契约一致性、53 项模型、10 项真实服务组（顺序执行）、3 项门禁与四套 Linux 断网组件；零 skip/todo。没有认证限频，本轮没有清计数或放宽保护。四套组件不等于真机或完整外部服务验收。
+
+适配提交 **`f041ef5`** 已推送到 `codex/mobile-publication`；推送前再次 fetch、核对双方进度并 pull main，仍为 `de49a17`，无需新合并，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41410502057) 的 Windows/Linux 静态与模型、四套组件、真实 MySQL/API 四个作业全部 success；[本轮 Backend](https://github.com/Xstly1014/Tako/actions/runs/41410501956) success。这些结果绑定 f041ef5，不套用旧提交。后续只补此证据的文档提交不改变被验源码；未合入 main。
+
+[本轮 Frontend](https://github.com/Xstly1014/Tako/actions/runs/41410502037) 仍在 `npm audit --audit-level=moderate` 步骤 failure；不是移动集成通过就可忽略。共享依赖未改，历史 main 同步失败证据、只读审计数量和主开发修复/验证退出条件见下文 P1；本轮没有重新宣称审计数量或擅自升级锁文件。
 
 主开发需配合：按接口约定从当前已确认记录传 serverId/baseRevision；不能单凭 recovered 状态允许发布，须同时确认 dirty=false、pending=null 及没有新编辑/进行中保存。实际编辑页导航与返回待其实现后整合验证。未改 `mobile/src/drafts/**`、认证会话、依赖锁、构建配置或主开发进度；没有推进 ECS、真机和新业务。前端审计尾项的基线链接、错误步骤和退出条件保留在下文。
 
