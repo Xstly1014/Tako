@@ -1,5 +1,8 @@
 # 主开发工作进度
 
+> 最新收口：C1-C 已完成工程接线，Mobile 冻结 9653d74，整合 APK 构建/签名/路由与校验标识检查通过；85 模型、11 服务、新 C1→C2 页面和四套旧夹具通过。当前源码远程 Mobile/Backend success，Frontend audit failure。详见 mobile-draft-publication-review.md；此前“C1-C 待接”和旧包指纹是历史阶段。
+
+
 > 最新收口：C1-B 已交付源码及整合 APK，Mobile 冻结 b2cea9d。78 模型、11 服务、新路由/四套原夹具与门禁通过；该源码远程 Mobile/Backend success，Frontend audit failure。包 SHA-256、设备与 C1-C 尾项见 mobile-draft-editor-review.md。以下保留阶段过程，旧冻结 SHA 和“构建中”不作为最终产物。
 
 
@@ -80,3 +83,6 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 新增 DraftEditor.preparePublication/publicationPath/resume；只改本端 workspace、EditorScreen、C1 测试和 scripts/mobile-drafts-ui 夹具/CLI，不改对方 C2/CI。票据绑定当前输入/seq/代次且消费一次；HTTP 只读复验，返回不覆写，返回本机读取晚于新保存时不回滚。当前 85 模型、11 真实服务、新 C1→实际 C2 路由与四套原夹具、类型/lint通过；源码/包与远程结果在阶段收口记录。
 
 本次检查点再 fetch 后远程 main仍47510be、对方5f153c3，无新增差异；未推送工作未知。请并行端继续在其 workflow 里接入 `node scripts/check_mobile_drafts.cjs`（不需要直接改我的路由夹具），并独立审查 C1-B/C 及共用 Session 的消费条件。原 c1-c2-interface 未更改，C2 不需 import C1。设备门槛、前端审计和真正用户结果仍不关闭。
+
+
+C1-C 最终包为源码 9653d74，60,024,858 字节，SHA-256 `5d1349ae8db62f409cf1da9b4f52225e6b96f37d796733ba62d808a7fe267748`，标准构建5m11s通过；Mobile运行源码/配置相对冻结提交无差异。该源码远程 Mobile/Backend成功，Frontend的失败步骤已确认为audit moderate。无新存储格式迁移、无USB/生产操作。下一步优先收口：并行端接新C1路由CI/复核C1-B/C；主开发处理既有frontend审计与后续集成。未获得新的用户方向前不扩大到新频道/B3.2/商业化。发布本文件不表示对方已收到或认领。

@@ -31,3 +31,13 @@
 
 
 补充失败入口：编辑页“重试”按状态选择本机暂存、原同步或只读恢复；不能在读取失败时仅执行一个无变化的 save。实际路由夹具注入一次交接读取失败，点击重试后 GET 增加、路由不变且正式发布数仍为零；丢回执场景也改由该重试按钮确认原同步。
+
+
+## 最终源码与产物
+
+- 冻结 Mobile 源码 `9653d743a14ed5ba93da34bf560b5e0870a35ba9`；构建期间源码未变，后续只改文档，不修改 C2 所有权。契约一致性与 5 项门禁失败/脱敏检查通过；85 项模型、11 项真实服务、新 C1→C2 路由及四套既有组件通过，零 skip/todo。
+- 标准 Android 构建通过：5m11s，581 项任务（37 执行、544 缓存）；构建入口再次执行类型/lint，签名验证通过。个人测试包采用模板 debug 签名，不是商店正式包。
+- `.runtime/mobile/artifacts/tako-test-0.1.0.apk`：60,024,858 字节；SHA-256 `5d1349ae8db62f409cf1da9b4f52225e6b96f37d796733ba62d808a7fe267748`；Hermes bundle 2,527,440 字节。直接核对草稿列表/编辑/发布路由及两个新 handoff 校验代码标识存在，两种 ARM ABI 均有 SQLite 库。没有安装、连接手机或启动 ECS，原生体验 P0 不关闭。
+- 该源码 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41443851385) 与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41443851534) success；[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41443851197) failure，已读取实际失败步骤 `Run npm audit --audit-level=moderate`。不是全仓库绿灯；新 C1 路由脚本仍待并行端接入远程，不能以旧四套组件的 CI 代替它。
+
+本轮关闭 C1-C 工程接线：已确认草稿→固定预览→正式发布→匿名阅读→返回续写都有分层证据。真实设备体验、独立审查、前端审计与新路由 CI 门槛保留，真实用户结果没有因这些测试变为已完成。
