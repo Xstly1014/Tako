@@ -1,5 +1,7 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+项目规划盘点更新：见 [业务线与下一步评审](../reviews/2026-11-02-business-roadmap-and-next-step.md)。远程 main 仍 `3a17e22`，本端 M1/CI 尚未合入；同事继续 C1，本端建议下一条为原生固定预览/正式发布，待明确与 C1 的交接及文件范围后实施。该报告提出“先验证中篇 App 小规模私测”的建议，未擅自改变三频道正式首发范围或开放生产。
+
 后续业务分工更新：用户明确本端开发作者作品管理，同事继续 C1。新分支 `codex/mobile-author-works`，实现与证据见 [M1 规格](../mobile-author-works-spec.md) 和 [阶段复盘](../reviews/mobile-author-works-review.md)。本端仅替换个人中心顶部“作品”入口并新增独立管理页面/客户端/测试；草稿箱、C1 存储同步、会话、依赖、后端仍由同事维护。CI 分类已扩为 29 项模型、8 项服务组及三套组件夹具；下文 24/7 及两套夹具是上一阶段证据。
 
 M1 实现提交 `9d54df2` 已推送上述独立分支；推送前再次拉取 main，最新仍为 `3a17e22`，未发生冲突。[远程 Mobile CI](https://github.com/Xstly1014/Tako/actions/runs/41396408967) 四个作业与 [Backend 检查](https://github.com/Xstly1014/Tako/actions/runs/41396408942) 全部 success。本阶段不包含新 APK 或真机，整合 C1 后下一轮安装包前须冻结源码构建及核对；共享前端审计问题仍按下文门槛跟进。
