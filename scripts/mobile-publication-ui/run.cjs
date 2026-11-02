@@ -59,6 +59,7 @@ let stage = "bundle";
     b = "33333333-3333-4333-8333-333333333333",
     draft = "44444444-4444-4444-8444-444444444444",
     previewId = "55555555-5555-4555-8555-555555555555",
+    nextPreviewId = "88888888-8888-4888-8888-888888888888",
     work = "66666666-6666-4666-8666-666666666666";
   let prepares = 0,
     publishes = 0,
@@ -67,6 +68,8 @@ let stage = "bundle";
     publicationRequests = 0,
     offline = false,
     published = false,
+    nextReadFails = true,
+    nextJournalVisible = false,
     preparedBody,
     errors = [];
   const result = {
@@ -159,6 +162,19 @@ let stage = "bundle";
         previewReads++;
         return json(route, snapshot());
       }
+      if (pathname === "/api/publication-previews/" + nextPreviewId) {
+        if (nextReadFails) {
+          nextReadFails = false;
+          return json(route, { error: "service_unavailable" }, 503);
+        }
+        return json(route, {
+          ...snapshot(),
+          id: nextPreviewId,
+          expected_version: 1,
+          content: "后续发布快照正文",
+          published: { ...result, version: 2 },
+        });
+      }
       if (pathname === "/api/publications") {
         publishes++;
         published = true;
@@ -169,7 +185,7 @@ let stage = "bundle";
         return json(route, {
           id: work,
           draft_id: draft,
-          last_version: 1,
+          last_version: nextJournalVisible ? 2 : 1,
           display_version: 1,
           state_revision: 2,
           author_hidden: true,
@@ -344,6 +360,53 @@ let stage = "bundle";
     await page.getByText("已确认正式版本 V1", { exact: true }).waitFor();
     assert.equal(previewReads, beforeOfflineReads + 1);
     assert.equal(publishes, 1);
+    stage = "replacement-read-failure";
+    const replacement = JSON.stringify({
+      v: 1,
+      account_id: a,
+      draft_id: draft,
+      source_revision: 1,
+      request: {
+        mutation_id: "99999999-9999-4999-8999-999999999999",
+        preview_id: nextPreviewId,
+        expected_version: 1,
+      },
+    });
+    // Model tests drive two real flows; this injects the other page's minimal
+    // journal to verify the actual old component cannot acknowledge it early.
+    await page.evaluate((value) => {
+      const key = [...window.publishUi.journal.keys()][0];
+      window.publishUi.journal.set(key, value);
+    }, replacement);
+    nextJournalVisible = true;
+    await page.getByRole("button", { name: "读取已保留的发布记录" }).click();
+    await page
+      .getByText("暂时无法完成，请重试读取或检查原操作。", { exact: true })
+      .waitFor();
+    await page.getByText("确认本人稿件与发布记录", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByText("已确认正式版本 V1", { exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "确认结果并选择其他稿件" })
+        .count(),
+      0,
+    );
+    assert.equal(
+      await page.evaluate(() => [...window.publishUi.journal.values()][0]),
+      replacement,
+    );
+    assert.equal(publishes, 1);
+    stage = "replacement-read-retry";
+    await page.getByRole("button", { name: "重新加载", exact: true }).click();
+    await page.getByText("已确认正式版本 V2", { exact: true }).waitFor();
+    assert.equal(
+      await page.evaluate(() => [...window.publishUi.journal.values()][0]),
+      replacement,
+    );
+    assert.equal(publishes, 1);
     stage = "account-switch";
     await page.evaluate(async () => {
       window.publishUi.params = {};
@@ -366,9 +429,13 @@ let stage = "bundle";
       0,
     );
     assert.equal(publishes, 1);
+    assert.equal(
+      await page.getByText("已确认正式版本 V2", { exact: true }).count(),
+      0,
+    );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS publication fixtures: session envelope compatibility, rejected incomplete/unconfirmed handoff, old revision and return, explicit rights, storage failure prevents POST, unknown result, prior journal precedence, offline draft grant cannot restore/publish, online read-only restoration, current hidden state, and account isolation. Not native-storage evidence.",
+      "PASS publication fixtures: session envelope, strict handoff, explicit rights, durable unknown result, offline grant isolation, read-only recovery, failed replacement read hides old success and cannot acknowledge the new journal, explicit retry and account isolation. Not native-storage evidence.",
     );
   } catch (error) {
     console.error("Publication fixture failed at " + stage + ": " + error.name);

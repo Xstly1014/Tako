@@ -2,7 +2,14 @@
 
 更新时间：2026-11-02（Asia/Shanghai）。维护方：本会话并行开发端；另一端维护 `primary-progress.md`。本文件随本阶段提交发布，以包含它的提交为准；对方是否已读或确认仍未知。
 
-## 当前阶段认领（同步 42bc325）
+## 当前阶段认领（发布记录恢复失败）
+
+- 本轮 fetch 核对远程 main 仍 42bc325，本端为 402a8aa；没有新发布提交，不推导同事空闲。继续本端独占的 C2 故障恢复，不接管 C1-B/C1-C。
+- 发现并先写回归验证：旧成功页面恢复另一页面的新未知发布时，失败恢复可混合旧成功结果与新请求标识，使 reset 删除尚未确认的新 journal。认领 `mobile/src/publication/flow.ts`、`PublicationWorkspace.tsx`、既有发布模型/组件测试及本端阶段报告；不改 C1/auth、契约、锁或构建。
+- 已确认本端 P1：新增回归修复前失败，旧 reset 确实删除了新未知记录。已修复恢复状态一起提交、失败时页面隐藏旧成功并禁止 reset，以及过期清理比较原请求；不改已确认业务权利。详情见 `docs/reviews/publication-recovery-isolation-review.md`。
+- 本机已通过 69 项模型、10 项顺序真实服务、5 项门禁、类型/lint、契约和发布组件，零 skip/todo。本轮代码尚待提交/远程验证；其他三套组件未在本机重复，后续远程整合门禁确认。
+
+## 上阶段认领（同步 42bc325）
 
 - 本端已从 badb293 快进到 `origin/main@42bc325`，主开发已整合上一轮诊断/审查，并发布 C1-A 会话绑定授权（33c15b2）和双实例旧读修复（1fbc874）。已读当前 primary-progress 与 mobile-draft-access-review；无冲突。主开发继续 C1-B/C1-C，不接管本端 M1/C2。
 - 本轮本端认领：独立复核已发布授权/并发修复及既有消费兼容；报告绑定新 SHA。维护本端作者管理/发布组件夹具，使其使用真实 createDraftSessionVault 模型，验证 confirmation 不阻断既有服务器业务、offline 草稿许可不能放行发布、原发布记录在线后才能恢复。精确改动限于 `scripts/mobile-author-works-ui/context.jsx`、两套自有 run.cjs 和本端测试/报告；不改 C1/auth、依赖锁、构建或主开发汇总。
