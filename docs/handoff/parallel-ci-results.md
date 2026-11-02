@@ -1,6 +1,16 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
-## 最新：C1-A 授权与双实例修复独立复核
+## 最新：C2 失败恢复不能清除另一未确认发布
+
+本端基线 402a8aa，fetch 观察 main 仍 42bc325，无新发布增量，不推导主开发空闲。本轮在本端 C2 范围确认并修复 P1：旧成功页面读取另一页面的新未知 journal 失败时，原 restore 提前更换请求标识却保留旧成功，导致 reset 能删除新未知记录。先加回归，修复前 68 项中该项失败；修复后通过。
+
+恢复现在完整校验后一起替换请求/快照/结果，失败时页面隐藏旧成功并禁止发布/清除；过期清理核对原请求标识，记录已换人时保持保护。新增实际页面夹具验证 503 后旧 V1 和确认按钮消失、journal 不变，手动重试只读显示正确 V2，零新增发布 POST。[阶段复盘](../reviews/publication-recovery-isolation-review.md) 说明准确触发、影响和证据，不扩大为正文丢失或跨账号问题。
+
+本机本轮实际通过：69 项模型、10 项顺序真实服务、5 项门禁、类型/lint、契约一致性及发布组件，零 skip/todo。没有改 C1/auth、HTTP 契约、锁文件、构建或主开发进度。其他组件本机未重复，远程四套整合门禁另行验证。ECS、APK、真机及既有前端审计退出条件不变。
+
+修复提交 **`03f2d0b`** 已推送 codex/mobile-publication，推送前 fetch、核对并 pull main 仍 42bc325，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41433032243) success，包含 Windows/Linux 静态/模型、四套组件和真实 MySQL/API；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41433032280) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41433032252) 仍失败在既有 moderate audit。查询期间 GitHub 公共 API 触发限额，停止该接口查询后通过对应公开运行页面确认最终 Success，没有拿限额错误当作测试失败或成功。后续证据文档提交不改变被验源码；本轮修复尚未合入 main/进入 APK。
+
+## 上阶段：C1-A 授权与双实例修复独立复核
 
 本端从 badb293 快进到 `origin/main@42bc325`，主开发已整合全部上一轮本端成果，并发布授权 33c15b2、并发修复 1fbc874。无冲突。继续各自边界，主开发 C1-B/C1-C，本端 CI/M1/C2。
 

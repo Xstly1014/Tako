@@ -63,6 +63,9 @@ export class PublicationFlow {
   private uuid: () => string;
   private clock: () => number;
   private blocked = true;
+  get recoveryBlocked() {
+    return this.blocked;
+  }
   constructor(
     api: PublicationsApi,
     store: JournalStore,
@@ -89,6 +92,7 @@ export class PublicationFlow {
   async restore() {
     this.enter();
     this.blocked = true;
+    let restoring: Readonly<Publish> | null = null;
     try {
       const raw = await this.store.get();
       this.check();
@@ -97,11 +101,12 @@ export class PublicationFlow {
         return;
       }
       const data = parseJournal(raw, this.account);
-      this.pendingPublish = Object.freeze({
+      const request = Object.freeze({
         mutation_id: data.request.mutation_id,
         preview_id: data.request.preview_id,
         expected_version: data.request.expected_version,
       });
+      restoring = request;
       const preview = checkedPreview(
         await this.api.read(data.request.preview_id),
         {
@@ -113,12 +118,20 @@ export class PublicationFlow {
       this.check();
       if (preview.expected_version !== data.request.expected_version)
         throw new ApiError("recovery_invalid");
+      // Commit the request, snapshot and result together. A failed read must
+      // never pair another page's new request with this page's old success.
+      this.pendingPublish = request;
       this.preview = preview;
       this.result = preview.published ?? null;
       this.blocked = false;
       // Restore reads only. Resubmission always requires another explicit press.
     } catch (e) {
-      if (e instanceof ApiError && e.code === "preview_expired") {
+      if (
+        e instanceof ApiError &&
+        e.code === "preview_expired" &&
+        e.status === 410 &&
+        restoring
+      ) {
         if (writers.has(this.account)) throw new ApiError("operation_pending");
         writers.add(this.account);
         try {
@@ -126,12 +139,15 @@ export class PublicationFlow {
           this.check();
           if (
             raw &&
-            parseJournal(raw, this.account).request.mutation_id ===
-              this.pendingPublish?.mutation_id
+            parseJournal(raw, this.account).request.mutation_id !==
+              restoring.mutation_id
           )
-            await this.store.remove();
+            throw new ApiError("another_publication_pending");
+          if (raw) await this.store.remove();
           this.check();
           this.pendingPublish = null;
+          this.preview = null;
+          this.result = null;
           this.blocked = false;
         } finally {
           writers.delete(this.account);
@@ -256,7 +272,11 @@ export class PublicationFlow {
     }
     writers.add(this.account);
     try {
-      if (this.pendingPrepare || (this.pendingPublish && !this.result))
+      if (
+        this.blocked ||
+        this.pendingPrepare ||
+        (this.pendingPublish && !this.result)
+      )
         throw new ApiError("operation_pending");
       const raw = await this.store.get();
       this.check();

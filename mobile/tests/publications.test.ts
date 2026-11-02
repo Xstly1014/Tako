@@ -344,3 +344,86 @@ test("发布未知后会话失效仍保留标识，原账号重登只读确认",
   assert.equal(restored.result?.version, 1);
   assert.equal(posts, 2);
 });
+
+test("旧成功页恢复新记录失败，不能用旧结果确认并删除新未知请求", async () => {
+  const store = vault(),
+    nextPreview = { ...preview(), id: randomUUID(), expected_version: 1 };
+  let prepares = 0,
+    posts = 0,
+    allowRead = false;
+  const client = api(async (path) => {
+    if (path === "/publication-previews")
+      return ++prepares === 1 ? preview() : nextPreview;
+    if (path === "/publication-previews/" + previewId)
+      return { ...preview(), published: result() };
+    if (path === "/publication-previews/" + nextPreview.id) {
+      if (!allowRead) throw new ApiError("network");
+      return nextPreview;
+    }
+    if (++posts === 1) return result();
+    throw new ApiError("network");
+  });
+  const oldPage = flow(client, store),
+    nextPage = flow(client, store);
+  await oldPage.restore();
+  await oldPage.prepare(draft, 1, "简介", ["日常"], true);
+  await oldPage.publish();
+  await nextPage.restore();
+  await nextPage.reset();
+  await nextPage.prepare(draft, 1, "简介", ["日常"], true);
+  await assert.rejects(nextPage.publish());
+  const saved = store.value();
+  await assert.rejects(oldPage.restore());
+  await assert.rejects(
+    oldPage.reset(),
+    (e: unknown) => e instanceof ApiError && e.code === "operation_pending",
+  );
+  assert.equal(store.value(), saved);
+  assert.equal(oldPage.recoveryBlocked, true);
+  assert.equal(oldPage.pendingPublish?.preview_id, previewId);
+  allowRead = true;
+  await oldPage.restore();
+  assert.equal(oldPage.recoveryBlocked, false);
+  assert.equal(oldPage.pendingPublish?.preview_id, nextPreview.id);
+  assert.equal(oldPage.result, null);
+  await assert.rejects(oldPage.reset());
+  assert.equal(store.value(), saved);
+  assert.equal(posts, 2);
+});
+
+test("确认过期期间记录已换成另一请求，不能清理或解除恢复保护", async () => {
+  const store = vault();
+  const original = flow(
+    api(async (path) =>
+      path === "/publication-previews"
+        ? preview()
+        : Promise.reject(new ApiError("network")),
+    ),
+    store,
+  );
+  await original.restore();
+  await original.prepare(draft, 1, "简介", ["日常"], true);
+  await assert.rejects(original.publish());
+  const replacement = JSON.parse(store.value()!);
+  replacement.request = {
+    ...replacement.request,
+    mutation_id: randomUUID(),
+    preview_id: randomUUID(),
+  };
+  const saved = JSON.stringify(replacement);
+  const reopened = flow(
+    api(async () => {
+      await store.set(saved);
+      throw new ApiError("preview_expired", "", 410);
+    }),
+    store,
+  );
+  await assert.rejects(
+    reopened.restore(),
+    (e: unknown) =>
+      e instanceof ApiError && e.code === "another_publication_pending",
+  );
+  assert.equal(reopened.recoveryBlocked, true);
+  await assert.rejects(reopened.reset());
+  assert.equal(store.value(), saved);
+});

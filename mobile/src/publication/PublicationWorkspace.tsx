@@ -246,7 +246,8 @@ export function PublicationWorkspace({
             {publicationMessage(error)}
           </Text>
         ) : null}
-        {flow.preview &&
+        {!flow.recoveryBlocked &&
+        flow.preview &&
         targetId &&
         (flow.preview.draft_id !== targetId ||
           flow.preview.source_revision !== targetRevision) ? (
@@ -269,10 +270,15 @@ export function PublicationWorkspace({
             }
           />
         ) : null}
-        {!ready ? (
+        {!ready || flow.recoveryBlocked ? (
           <Status
             loading={busy}
             title="确认本人稿件与发布记录"
+            message={
+              flow.recoveryBlocked
+                ? "请先读取原发布记录；结果未确认前不能开始或清除其他发布。"
+                : undefined
+            }
             onRetry={() => void initialize()}
           />
         ) : flow.result ? (
