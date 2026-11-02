@@ -13,7 +13,7 @@ Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日
 
 App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.md)：按作者授权切换正文，失败保留当前阅读，切版本不丢评论输入；[本轮复盘与验收边界](docs/reviews/mobile-version-reading-review.md)。下一条是 App 中篇创作规格，草稿允许加密本机暂存恢复，评论仍仅内存。
 
-[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 已核对能力、验收与未完成约束；当前进入 [App 私密草稿 C1](docs/mobile-drafts-spec.md) 规格和契约预检，尚未接入 App 创作页面。
+[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 已核对能力、验收与未完成约束；[App 私密草稿 C1](docs/mobile-drafts-spec.md) 已实现加密仓储/同步核心，45 项回归及 Android 新依赖兼容构建通过，尚未接入 App 创作页面与离线授权。双 agent 分工与进度见 [协作入口](docs/handoff/03-parallel-work.md)。
 
 ![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
 

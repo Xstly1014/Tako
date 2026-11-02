@@ -1,0 +1,152 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { DraftRepository } from "../src/drafts/storage.ts";
+import { DraftSynchronizer, type DraftIdentity } from "../src/drafts/sync.ts";
+import { ApiError } from "../src/api/client.ts";
+import { DraftError } from "../src/drafts/model.ts";
+import { fixture, TestApi } from "./helpers/drafts.ts";
+
+async function setup(ctx: { after(fn: () => void): void }) {
+  const f = await fixture(); ctx.after(f.close);
+  const owner = randomUUID(), key = randomUUID(), api = new TestApi(owner);
+  let identity: DraftIdentity = { owner, generation: 1, online: true };
+  const worker = (repo = f.repo) => new DraftSynchronizer(repo, api, () => identity, randomUUID);
+  await f.repo.create(owner, key, "合成", "首份草稿");
+  return { ...f, owner, key, api, worker, changeIdentity: (v: DraftIdentity) => { identity = v; } };
+}
+
+test("先持久化原请求再发；丢响应重开后只创建一份，新输入不被旧回执确认", async (ctx) => {
+  const f = await setup(ctx);
+  f.api.dropNext = true;
+  assert.equal((await f.worker().sync(f.owner, f.key)).state, "pending");
+  const old = (await f.repo.load(f.owner, f.key))!;
+  assert.ok(old.pending);
+  await f.repo.edit(f.owner, f.key, old.seq, "合成", "首次请求后继续写");
+  const reopened = new DraftRepository(f.rows, f.cipher);
+  const result = await f.worker(reopened).sync(f.owner, f.key);
+  assert.equal(result.state, "pending");
+  assert.equal(f.api.receipts.size, 1);
+  assert.equal(f.api.calls[0].body.mutation_id, f.api.calls[1].body.mutation_id);
+  assert.ok(result.record?.content === "首次请求后继续写");
+  assert.equal((await f.worker().sync(f.owner, f.key)).state, "saved");
+  assert.equal(f.api.drafts.size, 1);
+});
+
+test("原请求落盘失败不发网络；服务确认后本机提交失败重试不重复写", async (ctx) => {
+  const f = await setup(ctx);
+  f.db.failBeforeCommit = true;
+  await assert.rejects(f.worker().sync(f.owner, f.key), DraftError);
+  assert.equal(f.api.calls.length, 0);
+  f.api.beforeReceipt = async () => { f.db.failBeforeCommit = true; f.api.beforeReceipt = null; };
+  await assert.rejects(f.worker().sync(f.owner, f.key), DraftError);
+  assert.ok((await f.repo.load(f.owner, f.key))?.pending);
+  assert.equal((await f.worker().sync(f.owner, f.key)).state, "saved");
+  assert.equal(f.api.receipts.size, 1);
+});
+
+test("保存期间远端先改，409 后持久化唯一恢复请求，副本丢响应仍唯一", async (ctx) => {
+  const f = await setup(ctx), sync = f.worker();
+  await sync.sync(f.owner, f.key);
+  const initial = (await f.repo.load(f.owner, f.key))!;
+  await f.repo.edit(f.owner, f.key, initial.seq, "合成", "手机离线内容");
+  const originalRead = f.api.read.bind(f.api);
+  f.api.read = async (id) => {
+    const old = await originalRead(id);
+    f.api.drafts.set(id, { ...old, revision: old.revision + 1, content: "远端新文字" });
+    return old;
+  };
+  f.api.dropNext = true;
+  assert.equal((await sync.sync(f.owner, f.key)).state, "pending");
+  assert.equal((await f.repo.load(f.owner, f.key))?.pending?.kind, "recover");
+  f.api.read = originalRead;
+  const result = await sync.sync(f.owner, f.key);
+  assert.equal(result.state, "recovered");
+  assert.notEqual(result.record?.serverId, initial.serverId);
+  assert.ok(f.api.drafts.get(initial.serverId!)?.content === "远端新文字");
+  assert.equal(f.api.drafts.size, 2);
+  assert.equal(f.api.calls.filter((x) => x.kind === "recover")[0].body.mutation_id,
+    f.api.calls.filter((x) => x.kind === "recover")[1].body.mutation_id);
+});
+
+test("已知远端新版直接另存；恢复期间新增输入保留且副本可继续同步", async (ctx) => {
+  const f = await setup(ctx), sync = f.worker();
+  await sync.sync(f.owner, f.key);
+  const old = (await f.repo.load(f.owner, f.key))!;
+  await f.repo.edit(f.owner, f.key, old.seq, "合成", "手机版本");
+  const remote = f.api.drafts.get(old.serverId!)!;
+  f.api.drafts.set(old.serverId!, { ...remote, revision: remote.revision + 1, content: "电脑版本" });
+  f.api.beforeReceipt = async () => {
+    const current = (await f.repo.load(f.owner, f.key))!;
+    await f.repo.edit(f.owner, f.key, current.seq, "合成", "恢复请求后继续写");
+    f.api.beforeReceipt = null;
+  };
+  const result = await sync.sync(f.owner, f.key);
+  assert.equal(result.state, "recovered");
+  assert.equal(result.record?.dirty, true);
+  assert.ok(result.record?.content === "恢复请求后继续写");
+  assert.equal((await sync.sync(f.owner, f.key)).state, "saved");
+  assert.equal(f.api.drafts.size, 2);
+});
+
+test("离线/账号不符不发送，切号后的迟到回执不能确认或清空原输入", async (ctx) => {
+  const f = await setup(ctx), sync = f.worker();
+  f.changeIdentity({ owner: f.owner, generation: 1, online: false });
+  assert.equal((await sync.sync(f.owner, f.key)).state, "login-required");
+  assert.equal(f.api.calls.length, 0);
+  f.changeIdentity({ owner: randomUUID(), generation: 2, online: true });
+  assert.equal((await sync.sync(f.owner, f.key)).state, "account-mismatch");
+  f.changeIdentity({ owner: f.owner, generation: 3, online: true });
+  f.api.beforeReceipt = async () => { f.changeIdentity({ owner: randomUUID(), generation: 4, online: true }); };
+  assert.equal((await sync.sync(f.owner, f.key)).state, "account-mismatch");
+  const preserved = (await f.repo.load(f.owner, f.key))!;
+  assert.ok(preserved.pending && preserved.dirty && preserved.content === "首份草稿");
+  f.api.beforeReceipt = null;
+  f.changeIdentity({ owner: f.owner, generation: 5, online: true });
+  assert.equal((await sync.sync(f.owner, f.key)).state, "saved");
+  assert.equal(f.api.receipts.size, 1);
+});
+
+test("401/503/限频保留冻结请求，明确输入拒绝后允许修改再提交", async (ctx) => {
+  const f = await setup(ctx), sync = f.worker();
+  for (const [error, state] of [[new ApiError("authentication_required", "", 401), "login-required"],
+    [new ApiError("service_unavailable", "", 503), "pending"], [new ApiError("rate_limited", "", 429), "pending"]] as const) {
+    f.api.fail = error;
+    assert.equal((await sync.sync(f.owner, f.key)).state, state);
+    assert.ok((await f.repo.load(f.owner, f.key))?.pending);
+  }
+  f.api.fail = new ApiError("invalid_input", "", 400);
+  assert.equal((await sync.sync(f.owner, f.key)).state, "rejected");
+  assert.equal((await f.repo.load(f.owner, f.key))?.pending, null);
+  f.api.fail = null;
+  assert.equal((await sync.sync(f.owner, f.key)).state, "saved");
+});
+
+test("错误修订回执不确认保存；提交互斥阻止同实例重复发送", async (ctx) => {
+  const f = await setup(ctx), sync = f.worker();
+  const write = f.api.write.bind(f.api);
+  f.api.write = async (pending) => ({ ...await write(pending), revision: 7 });
+  assert.equal((await sync.sync(f.owner, f.key)).state, "pending");
+  assert.ok((await f.repo.load(f.owner, f.key))?.pending);
+  f.api.write = write;
+  let release!: () => void, arrived!: () => void;
+  const ready = new Promise<void>((resolve) => { arrived = resolve; });
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  f.api.beforeReceipt = async () => { arrived(); await gate; };
+  const operation = sync.sync(f.owner, f.key);
+  await ready;
+  assert.equal((await sync.sync(f.owner, f.key)).state, "busy");
+  release();
+  assert.equal((await operation).state, "saved");
+  assert.equal(f.api.drafts.size, 1);
+});
+
+test("401 同时使会话失效时仍返回重新登录，保留私稿不读取另一账号", async (ctx) => {
+  const f = await setup(ctx), sync = f.worker();
+  f.api.write = async () => {
+    f.changeIdentity({ owner: null, generation: 2, online: false });
+    throw new ApiError("authentication_required", "", 401);
+  };
+  assert.equal((await sync.sync(f.owner, f.key)).state, "login-required");
+  assert.ok((await f.repo.load(f.owner, f.key))?.pending);
+});

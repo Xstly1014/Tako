@@ -35,7 +35,8 @@
       "expo-router",
       "expo-status-bar",
       "./plugins/withLocalTestNetwork.cjs",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite"
     ]
   }
 }
