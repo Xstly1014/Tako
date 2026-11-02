@@ -140,6 +140,14 @@ export default function Account() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              onPress={() => router.push("/my-comments")}
+              style={s.row}
+            >
+              <Text style={s.rowTitle}>我的评论</Text>
+              <Text style={s.meta}>评论与处置原因</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 setEdit(!edit);
                 setName(account?.nickname ?? "");

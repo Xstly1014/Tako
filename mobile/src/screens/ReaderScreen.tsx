@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  usePreventRemove,
+} from "expo-router";
 import {
   Alert,
   BackHandler,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +25,7 @@ import { Brand, Status } from "../components/Ui";
 import { FutureAction, Icon, unavailable } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
 import { FavoriteButton } from "../components/FavoriteButton";
+import { CommentsPanel } from "../components/CommentsPanel";
 export default function Reader() {
   const params = useLocalSearchParams<{ id: string }>();
   return (
@@ -31,6 +36,25 @@ export default function Reader() {
   );
 }
 function ReaderContent({ id }: { id: string }) {
+  const [comments, setComments] = useState(false),
+    [dirty, setDirty] = useState(false);
+  usePreventRemove(dirty, ({ repeat }) => {
+    Alert.alert(
+      "离开阅读页？",
+      "未发表文字将丢弃；离开不会取消服务端已经收到的请求。",
+      [
+        { text: "继续编辑", style: "cancel" },
+        {
+          text: "丢弃并离开",
+          style: "destructive",
+          onPress: () => {
+            setDirty(false);
+            repeat();
+          },
+        },
+      ],
+    );
+  });
   const [work, setWork] = useState<PublicWork>(),
     [error, setError] = useState<unknown>(),
     [retry, setRetry] = useState(0);
@@ -123,18 +147,14 @@ function ReaderContent({ id }: { id: string }) {
               </Pressable>
               <Text style={s.metadata}>当前阅读版本 · 历史版本尚未接入</Text>
             </View>
-            <View style={s.comments}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setComments(true)}
+              style={s.comments}
+            >
               <Text style={s.commentsTitle}>评论</Text>
-              <View style={s.commentsPending}>
-                <Image
-                  source={require("../../assets/tako-chibi.png")}
-                  style={s.chibi}
-                  resizeMode="contain"
-                  accessible={false}
-                />
-                <Text style={s.metadata}>评论功能尚未开放</Text>
-              </View>
-            </View>
+              <Text style={s.metadata}>打开评论，看看大家的想法。</Text>
+            </Pressable>
           </ScrollView>
         ) : error ? (
           <Status
@@ -158,17 +178,35 @@ function ReaderContent({ id }: { id: string }) {
       <View style={s.bottom}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="评论输入，尚未开放"
-          onPress={() => unavailable("评论")}
+          accessibilityLabel="打开评论输入"
+          disabled={!work}
+          onPress={() => setComments(true)}
           style={s.commentInput}
         >
           <Text style={s.inputHint}>说点友好的…</Text>
         </Pressable>
-        <FutureAction name="评论" icon="message" />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="查看评论"
+          disabled={!work}
+          onPress={() => setComments(true)}
+          style={s.back}
+        >
+          <Icon name="message" size={20} />
+        </Pressable>
         <FutureAction name="赞" icon="heart" />
         <FavoriteButton workId={id} disabled={!work} />
         <FutureAction name="更多操作" icon="more" />
       </View>
+      {work ? (
+        <CommentsPanel
+          workId={id}
+          context={work.comment_context ?? ""}
+          visible={comments}
+          onClose={() => setComments(false)}
+          onDirtyChange={setDirty}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
