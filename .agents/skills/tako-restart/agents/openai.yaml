@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tako 本机重启"
+  short_description: "恢复本机测试服务，保留数据库与配置并检查真实社区接口可用"
+  default_prompt: "使用 $tako-restart 恢复当前本机测试环境并验证服务可用。"

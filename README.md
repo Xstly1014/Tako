@@ -9,6 +9,8 @@ Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日
 
 **新电脑 / Codex 接手：[工作交接文档](docs/handoff/README.md)。** 当前优先独立 Android App，常规回归由开发者执行；源码在 `mobile/`，沿用用户手机原型。Web/API 已具备收藏与两级评论，App 已接入账号、收藏与评论页面；电脑工程验证与真机体验分开记账，设备条件恢复后补验，不据此宣称已在用户手机上通过。ECS 已停机，本轮不连接生产。
 
+**Docker 清理后恢复：[本机重启手册](docs/restart/README.md)。** `$tako-restart` 恢复本机服务，`$tako-handoff` 整理或读取工作交接。技能随仓库保存；删除容器/镜像时保留数据卷、`.runtime/` 与 `backups/`。
+
 ![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
 
 > 官网视觉截图，三类内容卡片展示产品方向。独立社区首页已支持中篇发现与人工精选；短内容、长篇仍是规划方向。

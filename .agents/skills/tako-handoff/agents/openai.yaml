@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tako 工作交接"
+  short_description: "整理或读取项目交接，核对业务进度、验证证据与并行开发边界"
+  default_prompt: "使用 $tako-handoff 核对当前项目状态并整理或读取工作交接。"
