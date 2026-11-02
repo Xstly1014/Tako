@@ -16,6 +16,7 @@
 - 本机 Node 24.19.0/Windows：5 项门禁行为测试通过，零 skip/todo；包括真实子 CLI 的预检故障、断言/名称/路径哨兵脱敏、已知/未知组件阶段、缺 Docker 和超时的注入验证。注入测试不依赖或冒充真实 Docker/API。
 - 生产入口正常回归：契约一致性、53 项模型、10 项顺序真实 MySQL/API 服务组、四套 Linux Docker 断网组件均通过；零 skip/todo。本轮没有修改 App 源码，未在本机重复类型/lint或 APK/设备检查；远程执行结果另绑定提交记录。
 - C1 独立审查在隔离 de49a17 worktree 运行 13 项仓储/同步模型并复现两个同步器产生多余恢复副本的 P2 边界，见 `cross-review-parallel-de49a17.md`。没有写回或接管 C1。
+- 实现提交 a0d4cea 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41428997743) 四作业全部 success，含 Windows/Linux 类型/lint/契约/门禁/模型及 Linux 真实 API/组件；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41428997687) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41428997693) 仍失败在 moderate audit。后续证据文档提交不改变该源码；没有套用其他 SHA 的绿灯。
 
 ## 未完成项与退出条件
 
