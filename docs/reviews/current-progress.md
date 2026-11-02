@@ -1,3 +1,5 @@
+> S2当前：App搜索源码ce1670a已接入，86模型、18读者/服务组及五套页面、本机3300真实搜索初验通过；打包/安装/真机按用户新分工交并行端，任务见 [设备队列](../handoff/device-requests.md)。同事42517be已合入S1并独立关闭710d04a另存问题，其部分设备结果已同步。详见 [搜索App复盘](mobile-search-app-review.md)。
+
 > 最新业务：用户已确认搜索标题、笔名和简介。S1公开中篇搜索API/契约与失败验证已完成，见 [搜索复盘](public-search-api-review.md) 和 [业务盘点](business-inventory-after-c1.md)。App搜索入口及3300升级尚未执行；同事已有USB条件（用户告知），设备验收待其发布结果。以下为前阶段快照。
 
 > 当前整合：C1 副本持续输入竞争已修复；已合入并行端 a2905e8 的 C1 CI 接入和发布确认/现状读取隔离。86 模型、11 服务、五套页面/6门禁通过；Frontend 中危门禁本机及4c63ad0远程通过（仍有7 low），9浏览器回归通过。2cfd6fb整合APK构建及签名/标识检查通过，4c63ad0三条远程CI全success。详细结果见 [本轮复验](cross-review-primary-a2905e8.md) 与 [主开发进度](../handoff/primary-progress.md)；下面旧快照不作当前状态。
