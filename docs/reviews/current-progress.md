@@ -1,3 +1,5 @@
+> 2026-11-02 C1-A：Session 已接入同项持久授权与无 owner 参数的仓储门面；64 模型、10 服务及四套既有组件通过。草稿列表/编辑与发布调用仍待 C1-B/C，不宣称 App 创作完成。见 [授权复盘](mobile-draft-access-review.md)。
+
 # Tako 当前进度 · 2026-10-30
 
 2026-11-02 协作整合：主开发通过用户指定代理获取并快进至对方 c905d7a，双方 C1/CI/M1/C2 历史保留。按 tako-collab 独立交叉审查，53 模型/10 服务、类型/lint/契约、3 门禁/5 快照行为及四套组件最终通过，首轮瞬时失败留档；见 [审查](cross-review-primary-c905d7a.md)。无整合 APK 或新设备验收。主开发继续 C1 授权/编辑，另一端维护 M1/C2/CI；[下一步规格](../mobile-draft-access-spec.md) 与双方 progress 分开维护，推送前重新 fetch 核对。

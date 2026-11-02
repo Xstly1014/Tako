@@ -1,6 +1,7 @@
 import { ApiError } from "../api/client.ts";
 import { UUID } from "../api/reader.ts";
 import type { components } from "../api/contract";
+import { lockedDraftAccess, type DraftAccess, type DraftGrantVault } from "../drafts/access.ts";
 export type Account = components["schemas"]["Account"];
 export type Snapshot = {
   phase: "loading" | "guest" | "ready" | "offline";
@@ -8,6 +9,7 @@ export type Snapshot = {
   busy: boolean;
   error: unknown;
   generation: number;
+  drafts: DraftAccess;
 };
 export type Transport = <T>(
   path: string,
@@ -19,6 +21,7 @@ export type Transport = <T>(
   },
 ) => Promise<T>;
 export type Vault = {
+  drafts?: DraftGrantVault;
   get: () => Promise<string | null>;
   set: (token: string) => Promise<void>;
   remove: () => Promise<void>;
@@ -38,6 +41,7 @@ export class Session {
   private transport: Transport;
   private token = "";
   private epoch = 0;
+  private unsafeStorage = false;
   private listeners = new Set<() => void>();
   private state: Snapshot = {
     phase: "loading",
@@ -45,6 +49,7 @@ export class Session {
     busy: false,
     error: null,
     generation: 0,
+    drafts: lockedDraftAccess(),
   };
   constructor(vault: Vault, transport: Transport) {
     this.vault = vault;
@@ -70,7 +75,9 @@ export class Session {
       busy: true,
       error: null,
       generation: epoch,
+      drafts: lockedDraftAccess(),
     });
+    let localGrant: Awaited<ReturnType<DraftGrantVault["read"]>> = null;
     try {
       const token = await this.vault.get();
       if (epoch !== this.epoch) return;
@@ -85,15 +92,27 @@ export class Session {
         return;
       }
       this.token = token;
+      if (!this.unsafeStorage) localGrant = await this.vault.drafts?.read(token) ?? null;
+      if (epoch !== this.epoch) return;
       const account = await this.transport<Account>("/me", { token });
       if (epoch !== this.epoch) return;
       if (!validAccount(account)) throw new ApiError("contract");
-      this.update({ phase: "ready", account });
+      const grant = await this.vault.drafts?.bind(token, account.id);
+      if (epoch !== this.epoch) return;
+      this.unsafeStorage = false;
+      this.update({ phase: "ready", account, drafts: grant ? { owner: account.id, phase: grant.confirmed ? "online" : "confirmation" } : lockedDraftAccess() });
     } catch (e) {
       if (epoch !== this.epoch) return;
       if (e instanceof ApiError && e.status === 401) {
-        await this.forget();
-      } else this.update({ phase: "offline", error: e });
+        // restore is a fire-and-observe API used by existing screens. Persist
+        // errors remain in snapshot.error; do not introduce an unhandled reject.
+        await this.forget().catch(() => undefined);
+      } else {
+        const network = e instanceof ApiError && (e.code === "network" || e.status >= 500);
+        this.update({ phase: "offline", error: e, drafts:
+          network && localGrant?.confirmed && !this.unsafeStorage
+            ? { owner: localGrant.owner, phase: "offline" } : lockedDraftAccess() });
+      }
     } finally {
       if (epoch === this.epoch) this.update({ busy: false });
     }
@@ -122,20 +141,26 @@ export class Session {
         throw new ApiError("contract");
       try {
         await this.vault.set(result.access_token);
+        await this.vault.drafts?.bind(result.access_token, result.account.id);
       } catch {
         await this.transport("/app/auth/logout", {
           method: "POST",
           body: {},
           token: result.access_token,
         }).catch(() => undefined);
+        this.unsafeStorage = true;
+        await this.vault.remove().catch(() => undefined);
+        this.update({ drafts: lockedDraftAccess() });
         throw new ApiError("storage");
       }
       if (epoch !== this.epoch) return;
+      this.unsafeStorage = false;
       this.token = result.access_token;
       this.update({
         phase: "ready",
         account: result.account,
         generation: epoch,
+        drafts: this.vault.drafts ? { owner: result.account.id, phase: "confirmation" } : lockedDraftAccess(),
       });
     } finally {
       if (epoch === this.epoch) this.update({ busy: false });
@@ -160,6 +185,29 @@ export class Session {
       throw e;
     }
   }
+  async confirmDraftAccess() {
+    if (!this.vault.drafts || this.state.phase !== "ready" || !this.state.account)
+      throw new ApiError("authentication_required", "", 401);
+    if (this.state.busy) throw new ApiError("session_busy");
+    const epoch = this.epoch, token = this.token, owner = this.state.account.id;
+    this.update({ busy: true, drafts: lockedDraftAccess() });
+    try {
+      const account = await this.transport<Account>("/me", { token });
+      if (epoch !== this.epoch) throw new ApiError("stale_session");
+      if (!validAccount(account) || account.id !== owner) throw new ApiError("contract");
+      await this.vault.drafts.confirm(token, owner);
+      if (epoch !== this.epoch) throw new ApiError("stale_session");
+      this.update({ drafts: { phase: "online", owner }, error: null });
+    } catch (error) {
+      if (epoch === this.epoch) {
+        if (error instanceof ApiError && error.status === 401) await this.forget();
+        else this.update({ error, drafts: lockedDraftAccess() });
+      }
+      throw error;
+    } finally {
+      if (epoch === this.epoch) this.update({ busy: false });
+    }
+  }
   async setNickname(nickname: string) {
     const epoch = this.epoch;
     const account = await this.authorized<Account>("/me", {
@@ -175,8 +223,10 @@ export class Session {
     if (!this.token) return;
     const epoch = this.epoch,
       token = this.token;
-    this.update({ busy: true, error: null });
+    this.update({ busy: true, error: null, drafts: lockedDraftAccess() });
     try {
+      await this.vault.drafts?.lock(token);
+      if (epoch !== this.epoch) return;
       await this.transport("/app/auth/logout", {
         method: "POST",
         body: {},
@@ -185,14 +235,19 @@ export class Session {
       if (epoch !== this.epoch) return;
       await this.forget();
     } catch (e) {
-      if (epoch !== this.epoch) return;
-      this.update({ error: e });
+      if (epoch !== this.epoch) {
+        if (e instanceof ApiError && e.code === "storage") throw e;
+        return;
+      }
+      if (e instanceof ApiError && e.code === "storage") this.unsafeStorage = true;
+      this.update({ error: e, drafts: lockedDraftAccess() });
       throw e;
     } finally {
       if (epoch === this.epoch) this.update({ busy: false });
     }
   }
   private async forget() {
+    const token = this.token;
     this.token = "";
     this.epoch++;
     const epoch = this.epoch;
@@ -201,11 +256,21 @@ export class Session {
       account: null,
       generation: this.epoch,
       busy: true,
+      drafts: lockedDraftAccess(),
     });
     try {
+      // Best-effort lock plus credential deletion: either persisted outcome
+      // prevents offline access. Neither failure is reported as safe logout.
+      if (this.vault.drafts && token) {
+        await this.vault.drafts.lock(token).catch(() => undefined);
+      }
       await this.vault.remove();
+      this.unsafeStorage = false;
     } catch {
-      this.update({ error: new ApiError("storage") });
+      this.unsafeStorage = true;
+      const error = new ApiError("storage");
+      this.update({ error });
+      throw error;
     } finally {
       if (epoch === this.epoch) this.update({ busy: false });
     }

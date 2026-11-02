@@ -4,6 +4,7 @@ import * as SQLite from "expo-sqlite";
 import { DraftError } from "./model";
 import { DraftRepository, type DraftCipher } from "./storage";
 import { SqliteCipherRows } from "./sqlite";
+import { AuthorizedDrafts, type LocalIdentity } from "./authorized";
 
 const pendingKeys = new Map<string, Promise<string>>();
 async function key(owner: string, allowNew: boolean) {
@@ -38,7 +39,7 @@ export const nativeDraftCipher: DraftCipher = {
 };
 // Private app database; never use a shared/cache directory. Not opened until drafting is connected.
 let repository: Promise<DraftRepository> | undefined;
-export function openNativeDraftRepository(): Promise<DraftRepository> {
+function openNativeDraftRepository(): Promise<DraftRepository> {
   if (!repository) {
     repository = (async () => {
       const db = await SQLite.openDatabaseAsync("tako-test-private-drafts-v1.db");
@@ -53,4 +54,8 @@ export function openNativeDraftRepository(): Promise<DraftRepository> {
     })().catch((e) => { repository = undefined; throw e; });
   }
   return repository;
+}
+
+export function nativeAuthorizedDrafts(current: () => LocalIdentity) {
+  return new AuthorizedDrafts(openNativeDraftRepository, current);
 }

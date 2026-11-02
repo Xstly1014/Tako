@@ -6,6 +6,8 @@
 
 c905d7a 已整合原生作品管理 M1 与固定预览发布 C2，包含独立作者入口、正式版本/公开设置和发布恢复流程；C1 编辑器及其发布跳转尚未接入。当前本机 APK 仍为 de49a17 阶段，不能据源码整合声称手机已有这些页面。独立复验与边界见 `../docs/reviews/cross-review-primary-c905d7a.md`，下一步见 `../docs/mobile-draft-access-spec.md`。
 
+C1-A 会话层现已接入同项安全凭据/草稿许可与受保护仓储，支持确认后的同会话离线授权、退出锁定和跨账号拒绝；确认页面及编辑器尚未接入。`Session.snapshot().drafts` 与 `confirmDraftAccess()` 为加法接口，证据见 `../docs/reviews/mobile-draft-access-review.md`。不将这些源码改动描述为手机已更新。
+
 ## 当前范围
 
 - 按用户原型恢复开屏、Q 版游客入口、形态选择、中篇首页与整页阅读。首页保持频道栏＋搜索位＋全宽文字行＋图标底栏，不再展示首包自行添加的精选/标签工具栏。

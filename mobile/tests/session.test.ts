@@ -236,3 +236,179 @@ test("旧注销响应迟到，不能清除已重新登录的新账号", async ()
   assert.equal(s.snapshot().phase, "ready");
   assert.notEqual(s.snapshot().account?.id, account.id);
 });
+
+
+// C1-A: persistent vault model; native SecureStore behavior is a separate gate.
+function secureItem(initial: string | null = null) {
+  let value = initial;
+  const state = { failSet: false, failRemove: false };
+  return { state, raw: () => value,
+    get: async () => value,
+    set: async (next: string) => { if (state.failSet) throw new Error("injected_storage"); value = next; },
+    remove: async () => { if (state.failRemove) throw new Error("injected_storage"); value = null; },
+  };
+}
+const accessModule = await import("../src/drafts/access.ts");
+const makeSecureVault = accessModule.createDraftSessionVault;
+const networkDown = transport(async () => { throw new ApiError("network"); });
+
+test("草稿授权：旧原始令牌必须联网确认，首次/未确认会话不获得离线私稿权限", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  const offline = new Session(v, networkDown);
+  await offline.restore();
+  assert.equal(offline.snapshot().drafts.phase, "locked");
+  const online = new Session(v, transport(async () => account));
+  await online.restore();
+  assert.equal(online.snapshot().drafts.phase, "confirmation");
+  const notConfirmed = new Session(makeSecureVault(item), networkDown);
+  await notConfirmed.restore();
+  assert.equal(notConfirmed.snapshot().drafts.owner, null);
+  await online.confirmDraftAccess();
+  const reopened = new Session(makeSecureVault(item), networkDown);
+  await reopened.restore();
+  assert.equal(reopened.snapshot().phase, "offline");
+  assert.equal(reopened.snapshot().account, null);
+  assert.deepEqual(reopened.snapshot().drafts, { phase: "offline", owner: account.id });
+  await assert.rejects(reopened.authorized("/drafts"));
+});
+
+test("草稿授权：503 保留同会话离线权利，契约/环境错误不自动解锁", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  const online = new Session(v, transport(async () => account));
+  await online.restore(); await online.confirmDraftAccess();
+  for (const error of [new ApiError("service_unavailable", "", 503), new ApiError("contract"), new ApiError("environment")]) {
+    const s = new Session(makeSecureVault(item), transport(async () => { throw error; }));
+    await s.restore();
+    assert.equal(s.snapshot().drafts.phase, error.status === 503 ? "offline" : "locked");
+  }
+});
+
+test("草稿授权：401 且令牌删除失败，预先落盘的锁定阻止断网重启解锁", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  const online = new Session(v, transport(async () => account));
+  await online.restore(); await online.confirmDraftAccess();
+  item.state.failRemove = true;
+  const denied = new Session(makeSecureVault(item), transport(async () => { throw new ApiError("authentication_required", "", 401); }));
+  await denied.restore();
+  assert.equal((denied.snapshot().error as ApiError).code, "storage");
+  assert.equal(denied.snapshot().drafts.owner, null);
+  assert.equal(denied.snapshot().phase, "guest");
+  const reopened = new Session(makeSecureVault(item), networkDown);
+  await reopened.restore();
+  assert.equal(reopened.snapshot().drafts.phase, "locked");
+});
+
+test("草稿授权：退出先持久化锁；网络失败保留登录，断网重开不能读稿", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  let logoutCalls = 0;
+  const s = new Session(v, transport(async (path) => {
+    if (path === "/me") return account;
+    logoutCalls++; throw new ApiError("network");
+  }));
+  await s.restore(); await s.confirmDraftAccess();
+  await assert.rejects(s.logout());
+  assert.equal(logoutCalls, 1);
+  assert.equal(s.snapshot().phase, "ready");
+  assert.equal(s.snapshot().drafts.owner, null);
+  const reopened = new Session(makeSecureVault(item), networkDown);
+  await reopened.restore();
+  assert.equal(reopened.snapshot().drafts.owner, null);
+  await s.restore();
+  assert.equal(s.snapshot().drafts.phase, "confirmation");
+  await s.confirmDraftAccess();
+  assert.equal(s.snapshot().drafts.phase, "online");
+});
+
+test("草稿授权：锁定写失败不发送注销、不宣称成功；当前进程先拒绝私稿", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  let calls = 0;
+  const s = new Session(v, transport(async (path) => {
+    if (path === "/me") return account;
+    calls++;
+  }));
+  await s.restore(); await s.confirmDraftAccess();
+  item.state.failSet = true;
+  await assert.rejects(s.logout());
+  assert.equal(calls, 0);
+  assert.equal(s.snapshot().drafts.owner, null);
+  assert.equal(s.snapshot().phase, "ready");
+});
+
+test("草稿授权：注销成功但删除失败会明确报错，不能被会话代次变更吞掉", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  const s = new Session(v, transport(async (path) => path === "/me" ? account : undefined));
+  await s.restore(); await s.confirmDraftAccess();
+  item.state.failRemove = true;
+  await assert.rejects(s.logout(), (e: unknown) => e instanceof ApiError && e.code === "storage");
+  assert.equal(s.snapshot().phase, "guest");
+  const reopened = new Session(makeSecureVault(item), networkDown);
+  await reopened.restore();
+  assert.equal(reopened.snapshot().drafts.owner, null);
+});
+
+test("草稿授权：切换账号及原账号重登均不自动恢复；只确认当前账号", async () => {
+  const item = secureItem(), v = makeSecureVault(item);
+  let active = account;
+  const s = new Session(v, transport(async (path) => {
+    if (path === "/me") return active;
+    if (path.endsWith("logout")) return;
+    return { ...response, account: active };
+  }));
+  await s.restore();
+  await s.signIn("login", "a@example.test", "password"); await s.confirmDraftAccess();
+  await s.logout();
+  active = { ...account, id: "22222222-2222-4222-8222-222222222222" };
+  await s.signIn("login", "b@example.test", "password");
+  assert.deepEqual(s.snapshot().drafts, { phase: "confirmation", owner: active.id });
+  await s.confirmDraftAccess();
+  const reopened = new Session(makeSecureVault(item), networkDown);
+  await reopened.restore();
+  assert.equal(reopened.snapshot().drafts.owner, active.id);
+  await s.logout(); active = account;
+  await s.signIn("login", "a@example.test", "password");
+  assert.equal(s.snapshot().drafts.phase, "confirmation");
+});
+
+test("草稿授权：另一令牌不能复用或确认原绑定，损坏存储也不能退回自动授权", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  await v.drafts.bind(token, account.id); await v.drafts.confirm(token, account.id);
+  const otherToken = "tako_app_" + "b".repeat(64);
+  await v.set(otherToken);
+  await assert.rejects(v.drafts.read(token));
+  await assert.rejects(v.drafts.confirm(otherToken, account.id));
+  assert.equal(await v.drafts.read(otherToken), null);
+  await item.set('{"format":1,"token":"broken"}');
+  const s = new Session(makeSecureVault(item), networkDown);
+  await s.restore();
+  assert.equal(s.snapshot().drafts.owner, null);
+});
+
+test("草稿授权：确认写失败不产生持久许可；迟到确认响应不能越过 401 锁定", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  let finishConfirm: (value: unknown) => void = () => {};
+  let deny: (error: unknown) => void = () => {};
+  let deferConfirmation = false;
+  const s = new Session(v, transport(async (path) => {
+    if (path === "/private") return new Promise((_, reject) => { deny = reject; });
+    if (deferConfirmation) return new Promise(resolve => { finishConfirm = resolve; });
+    return account;
+  }));
+  await s.restore();
+  item.state.failSet = true;
+  await assert.rejects(s.confirmDraftAccess());
+  assert.equal(s.snapshot().drafts.owner, null);
+  item.state.failSet = false;
+  const privateRequest = s.authorized("/private");
+  const privateDenied = assert.rejects(privateRequest);
+  deferConfirmation = true;
+  const confirming = s.confirmDraftAccess();
+  const confirmDenied = assert.rejects(confirming);
+  deny(new ApiError("authentication_required", "", 401));
+  await privateDenied;
+  finishConfirm(account);
+  await confirmDenied;
+  assert.equal(s.snapshot().drafts.owner, null);
+  const reopened = new Session(makeSecureVault(item), networkDown);
+  await reopened.restore();
+  assert.equal(reopened.snapshot().drafts.owner, null);
+});

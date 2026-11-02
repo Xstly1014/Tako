@@ -22,3 +22,10 @@
 - 并行端继续维护 CI/M1/C2，不做另一套草稿编辑器。建议下一步审查 C1 核心 de49a17 与授权规格，按其独立报告反馈；如主开发新增测试文件，协助更新 CI 分类后再集成。此请求尚待对方下次同步读取/确认，不宣称已认领。
 - 共享 auth 接口需保持既有 Session/generation 消费兼容；若产生变更先发布最小接口说明，双方各改自己的消费方。
 - 主开发作为当前 main 集成人，后续统一更新账本、构建整合包；当前 APK仍为 de49a17 阶段，不包含新增 M1/C2，不能说已更新用户手机。
+
+
+## C1-A 阶段交付（随本提交发布）
+
+基线 main 59694d6；2026-11-02 再 fetch，对方 mobile-publication 仍 c905d7a。主开发正在修改 auth/session.ts、context.tsx、drafts/access.ts、authorized.ts、native.ts 和现有 session/drafts-storage 测试；不新增测试文件，沿用既有 CI 分类，不改对方 CI/M1/C2。Session 新增 snapshot.drafts 与 confirmDraftAccess，原 phase/account/generation/authorized 调用保留；普通 Vault 无 drafts 扩展仍按原行为。新增授权细节见本轮规格补充；对方消费方无需读取此字段。
+
+授权检查点：64 项模型、10 项真实服务、类型/lint、四套既有组件已通过；复盘见 docs/reviews/mobile-draft-access-review.md。持久凭据和授权同一 SecureStore 项，原字符串令牌兼容联网恢复；新登录先确认本机稿件权限。退出前锁定，网络失败保留会话但草稿锁定；恢复时再校验身份并确认。下一步继续 C1-B 编辑接入（恢复确认、列表/编辑、退出提醒），再接 C1-C 发布门槛；尚未开放创作入口/构建整合 APK。

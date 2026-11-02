@@ -90,3 +90,61 @@ test("真实子进程在 SQLite 提交前退出，重读仍保留已确认密文
   assert.ok((await f.rows.read(owner, key))?.ciphertext === before?.ciphertext);
   assert.ok((await f.repo.load(owner, key))?.content === "进程退出前的有效快照");
 });
+
+
+test("授权仓储：无授权不打开数据库、离线可读写本人、锁定及换号隐藏全部旧稿", async (ctx) => {
+  const { AuthorizedDrafts } = await import("../src/drafts/authorized.ts");
+  const { lockedDraftAccess } = await import("../src/drafts/access.ts");
+  const f = await fixture(); ctx.after(f.close);
+  const owner = randomUUID(), other = randomUUID(), localId = randomUUID();
+  let identity = { drafts: lockedDraftAccess(), generation: 1, busy: false };
+  let opens = 0;
+  const guarded = new AuthorizedDrafts(async () => { opens++; return f.repo; }, () => identity);
+  await assert.rejects(guarded.list());
+  assert.equal(opens, 0);
+  identity = { drafts: { phase: "offline", owner }, generation: 2, busy: false };
+  await guarded.create(localId, "离线合成稿", "中文😀");
+  const draft = await guarded.load(localId);
+  assert.equal(draft?.seq, 1);
+  await guarded.edit(localId, 1, "继续写", "续写合成正文");
+  identity = { drafts: lockedDraftAccess(), generation: 3, busy: false };
+  await assert.rejects(guarded.load(localId));
+  identity = { drafts: { phase: "online", owner: other }, generation: 4, busy: false };
+  assert.equal((await guarded.list()).length, 0);
+  assert.equal(await guarded.load(localId), null);
+  identity = { drafts: { phase: "confirmation", owner }, generation: 5, busy: false };
+  await assert.rejects(guarded.list());
+  identity = { drafts: { phase: "online", owner }, generation: 5, busy: false };
+  assert.equal((await guarded.load(localId))?.seq, 2);
+});
+
+test("授权仓储：打开/解密期间切换代次，迟到结果不得交给新视图", async (ctx) => {
+  const { AuthorizedDrafts } = await import("../src/drafts/authorized.ts");
+  const f = await fixture(); ctx.after(f.close);
+  const owner = randomUUID(), key = randomUUID();
+  await f.repo.create(owner, key, "合成", "保留的输入");
+  let generation = 1;
+  let finish: (value: DraftRepository) => void = () => {};
+  const guarded = new AuthorizedDrafts(() => new Promise(resolve => { finish = resolve; }),
+    () => ({ drafts: { phase: "online", owner }, generation, busy: false }));
+  const pending = guarded.load(key), denied = assert.rejects(pending);
+  generation++;
+  finish(f.repo);
+  await denied;
+  assert.equal((await f.repo.load(owner, key))?.content, "保留的输入");
+  const original = f.cipher.open.bind(f.cipher);
+  let finishDecrypt: () => void = () => {};
+  let started: () => void = () => {};
+  const decryptStarted = new Promise<void>(resolve => { started = resolve; });
+  f.cipher.open = async (...args) => {
+    const plain = await original(...args);
+    return new Promise(resolve => { finishDecrypt = () => resolve(plain); started(); });
+  };
+  const active = new AuthorizedDrafts(async () => f.repo,
+    () => ({ drafts: { phase: "online", owner }, generation, busy: false }));
+  const decrypting = active.load(key), stale = assert.rejects(decrypting);
+  await decryptStarted;
+  generation++;
+  finishDecrypt();
+  await stale;
+});

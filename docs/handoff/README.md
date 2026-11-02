@@ -1,3 +1,5 @@
+> C1-A 授权阶段已接入会话/安全存储，下一步 C1-B 编辑器；[实际证据与边界](../reviews/mobile-draft-access-review.md)。新页面和整合包尚未交付。
+
 # Tako 开发交接入口
 
 2026-11-02 当前协作：已拉取并快进整合并行端 `c905d7a`（包含 de49a17 的 C1 核心及对方 CI/M1/C2）。主开发独立复验 53 项模型、10 项服务、3 项门禁、5 项快照行为、类型/lint/契约及四套组件最终通过；首次瞬时失败与审查边界见 [交叉审查](../reviews/cross-review-primary-c905d7a.md)。新 M1/C2 源码未进入现有 APK，C1 页面仍缺。双方使用 `$tako-collab`，主开发下一步为 [离线授权和编辑接入](../mobile-draft-access-spec.md)，角色与待确认请求见 [primary-progress](primary-progress.md) / [parallel-progress](parallel-progress.md)。以下是先前快照。
