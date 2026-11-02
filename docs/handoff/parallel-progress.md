@@ -2,7 +2,26 @@
 
 更新时间：2026-11-02（Asia/Shanghai）。维护方：本会话并行开发端；另一端维护 `primary-progress.md`。本文件随本阶段提交发布，以包含它的提交为准；对方是否已读或确认仍未知。
 
-## 当前阶段认领（发布记录恢复失败）
+## 当前阶段认领（已确认发布与现状读取失败）
+
+- 本轮 fetch main仍0e1e60e，本端a814cf9；未见对方新发布进度，不视为无人进行工作。沿本端 C2 范围处理已确认发布被后续 GET 失败误报成未知的问题，不接管 C1 P2 或前端审计。
+- 改动范围：本端 `PublicationWorkspace.tsx`、发布组件夹具/白名单及本端记录。区分发布/记录恢复失败与作品现状 GET 失败，保留原确认并只重试 GET；不改 flow/journal、C1/auth、API/锁/构建。
+- 实际页面新回归在修复前 confirmed-state-read-retry 阶段失败，修复后通过。现状 GET 失败保留原发布确认，单独提示读取失败，重试不增加 publication 请求或 POST，成功后移除读取错误并显示真实状态。
+- 本机类型/lint、85 模型、11 顺序真实服务、6 门禁、发布组件与 C1→实际 C2 路由均通过，零 skip/todo；其他组件本机未重复，由本轮远程完整覆盖。复盘见 `docs/reviews/publication-state-read-review.md`。主开发旧9653d74包不包含本轮UI改动，整合后由其冻结构建。
+- 修复 2b2b952 已推送独立分支，推送前 fetch/核对/pull main 仍0e1e60e，无冲突。[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41452848999) 四作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41452849363) success，含五套组件；[Frontend audit](https://github.com/Xstly1014/Tako/actions/runs/41452849138) 仍 failure。后续证据文档不改变该源码；本轮未合入 main/入包。收口再 fetch main无新增变化，对方未发布工作未知。
+
+## 上阶段认领（同步 9653d74，C1-B/C 接入）
+
+- 本端从 5f153c3 快进到 origin/main@9653d74，无冲突。主开发已合入本端发布恢复 P1 修复并接通 C1-B 编辑/列表与 C1-C 发布票据/返回。已读其进度、编辑与发布阶段记录、规格和独立 CLI，不拿旧 C1-A 审查覆盖新代码。
+- 本轮认领：本端 `.github/workflows/mobile-checks.yml`、门禁行为检查/说明、独立审查及本端记录。将主开发提供的 `node scripts/check_mobile_drafts.cjs` 作为既有组件 job 的独立必跑步骤，不改其 CLI/路由夹具、C1/auth、锁文件或构建；独立复核新 Session 接口、发布门槛/票据消费和返回保留输入。
+- 新模型/服务仍在既有分类文件中，现有分类无需改名。工作流已加入必跑的独立 C1 路由步骤；新增 CLI 失败/脱敏检查，本机 6 项门禁、85 项模型、11 项顺序真实服务、类型/lint/契约、actionlint、原四组件及 C1 路由均通过。新增路由远程证据待本轮真实运行；未发布工作仍未知。
+- 独立审查见 `docs/reviews/cross-review-parallel-9653d74.md`：未确认新的 P0/P1，复现 P2“另存期间继续输入让旧保存任务打断副本切换”；原稿/副本/最新内存输入保留，显式重试可保存，不扩大为已丢稿。主开发在其范围回应/修复，本端不直接改其源码。
+- 预推送再 fetch 看到 main=0e1e60e，仅构建/交接文档，无 mobile/src/tests/scripts/workflow 新差异；已普通合并到 eb29eee，原实现/审查提交 f5bfb34 保留，无冲突。已读最新主开发进度：其声明 9653d74 最终 APK，下一步负责 frontend 审计与集成；本端未独立验证其另一台电脑产物。
+- 首次推送 303d657 的新 C1 CI step 失败，安全日志定位 EACCES：前四套 root 容器先建 .runtime 父目录，Linux runner 无权 mkdir C1 遮蔽子目录。已在首次容器前增加 runner 预建路径；Linux tmpfs/root 与 UID 1000 实验复现并验证修复，未用宽权限/跳过/原码重跑掩盖。详见 `docs/reviews/mobile-c1-ci-integration-review.md`。
+- 修复 099c36d 的 [Mobile 四作业及新增 C1 step](https://github.com/Xstly1014/Tako/actions/runs/41447328547) 均 success，[Backend](https://github.com/Xstly1014/Tako/actions/runs/41447328549) success；[Frontend audit](https://github.com/Xstly1014/Tako/actions/runs/41447328596) 仍 failure。新 C1 路由 CI 尾项关闭；最后 fetch main仍0e1e60e、peer为本端099c36d，无新增工作可见，不推导同事空闲。
+- 本轮待集成、尚未进 main；后续证据文档不改变被验 workflow/源码。P2 另存/输入竞争待主开发按独立报告修复、补回归后再复验；frontend 审计由其下一步维护，设备 P0 另行验收。本端不修改其进度或抢占范围。
+
+## 上阶段认领（发布记录恢复失败）
 
 - 本轮 fetch 核对远程 main 仍 42bc325，本端为 402a8aa；没有新发布提交，不推导同事空闲。继续本端独占的 C2 故障恢复，不接管 C1-B/C1-C。
 - 发现并先写回归验证：旧成功页面恢复另一页面的新未知发布时，失败恢复可混合旧成功结果与新请求标识，使 reset 删除尚未确认的新 journal。认领 `mobile/src/publication/flow.ts`、`PublicationWorkspace.tsx`、既有发布模型/组件测试及本端阶段报告；不改 C1/auth、契约、锁或构建。

@@ -59,11 +59,17 @@ $env:HTTP_PROXY = $taskProxy
 node scripts/check_mobile_components.cjs
 # 也可单独运行 comments、versions、author 或 publication：
 node scripts/check_mobile_components.cjs versions
+# 独立 C1 草稿编辑与实际发布/返回路由：
+node scripts/check_mobile_drafts.cjs
 ```
 
 新入口用空目录遮住宿主 mobile/node_modules，并让所有脚本统一从 Docker 的 /app/node_modules 解析依赖，解决宿主与容器重复 React 的 Hook 错误。四个夹具均在 `--network none` 下运行，失败返回非零且不输出可能含正文的断言。失败时 wrapper 从既有脚本输出中仅提取白名单阶段，例如 publication 的 remount-read-only；未知阶段为 unavailable，原始输出、页面错误和截图不转发。阶段白名单在 `diagnostics.cjs`，新增/改名阶段需同步维护。超时等没有阶段时仍报告安全的进程原因。生成的失败截图只在忽略目录。组件证据不等于真实权限或手机验收。
 
 作者管理/发布夹具使用产品 createDraftSessionVault 模型（安全项仍为内存适配器），验证本机草稿 confirmation 与服务器业务兼容，以及离线草稿许可不能放行管理/发布 HTTP。断网 restore 隐藏旧视图；联网后只读恢复原记录，不补发操作。业务请求在 abort 之前计数；这些是实际组件/Session 的消费兼容测试，不是 SecureStore 原生可靠性证明。
+
+组件 job 在原四套后独立执行主开发维护的 C1 CLI；两步都必须成功，无 continue-on-error 或条件跳过。C1 复用相同依赖卷并自行禁网/遮蔽宿主模块，覆盖原型入口、草稿恢复/编辑/退出与真实 C2 页面交接返回。该 CLI 原有白名单阶段/行号投影由子 CLI 故障注入验证；不修改其源码或输出原始子进程日志。`check_mobile_components.cjs` 单独执行仍是四套，完整 CI 组件验证需两条命令，不能混称。
+
+Linux CI 在首次容器前由 runner 预建 `.runtime/mobile/qa/empty-host-modules`。否则原四套 root 容器可能先建父目录，后续 C1 CLI 以 runner 身份 mkdir 会 EACCES；不通过扩大整仓库权限解决。Windows 主机卷不一定暴露相同所有权问题。
 
 `.github/workflows/mobile-checks.yml` 包含 Windows/Linux 静态与模型检查、Linux 断网组件检查、Linux 真实 MySQL/API 检查。现有 backend 工作流继续负责路由覆盖、请求/响应契约、race/MySQL 和 vet；本工作流不重复全量后端测试。不依赖原机 `.runtime`、密钥、SDK 或 npm 缓存，不跑邮件发送、ECS、手机安装或 Android native 编译。
 

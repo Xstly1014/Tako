@@ -26,7 +26,7 @@ const stages = {
   publication: ['bundle', 'session-envelope', 'incomplete-editor-handoff', 'unconfirmed-editor-revision', 'confirmed-old-editor-revision',
     'authorization-and-snapshot', 'storage-failure', 'unknown-result', 'remount-read-only',
     'offline-grant-blocks-publication', 'online-grant-restores-journal',
-    'replacement-read-failure', 'replacement-read-retry', 'account-switch'],
+    'replacement-read-failure', 'replacement-read-retry', 'confirmed-state-read-retry', 'account-switch'],
 };
 const markers = {
   comments: /^Stage ([a-z-]+);/m,

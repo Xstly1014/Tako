@@ -1,6 +1,32 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
-## 最新：C2 失败恢复不能清除另一未确认发布
+## 最新：发布已确认后的作品现状读取失败
+
+基线 a814cf9，本轮 fetch main仍0e1e60e，无新发布增量，不推导主开发空闲。修复本端 P2：已取得服务器 V1 确认后，作品现状 GET 断网原先仍显示发布“结果尚未确认”。现将现状读取失败单独呈现，原确认保留，只 GET 重试；没有新鲜状态时不提供公开阅读，不猜测隐藏或审核结论。没有改变 flow/journal、C1/auth、接口/锁/构建。
+
+新增实际发布页故障回归在修复前失败，修复后通过；断言重试前后 publication 请求数和正式 POST 数不变，仅状态读取增加，成功后错误消失。[阶段复盘](../reviews/publication-state-read-review.md) 记录准确触发和证据。本机类型/lint、85 项模型、11 项顺序真实服务、6 项门禁、发布组件及 C1→实际 C2 路由通过，零 skip/todo；其他三套组件本机未重复，远程结果待本轮提交绑定，不沿用旧绿灯。
+
+修复提交 **`2b2b952`** 已推送 codex/mobile-publication，推送前 fetch/核对/pull main 仍0e1e60e，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41452848999) 四作业 success，Windows/Linux 静态/模型、完整五套组件及真实 MySQL/API 均实际运行；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41452849363) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41452849138) 仍失败在 npm audit --audit-level=moderate，责任/退出条件未变。后续仅证据文档不改变该源码，不称全仓库绿灯。
+
+本轮 UI 源码变化尚未合入 main/进入已有 APK，最终集成冻结/包由主开发维护；设备 P0、frontend audit P1 和上一轮 C1 另存 P2 未因本轮改动关闭。
+
+## 上阶段：C1-B/C 路由接入远程门禁与独立审查
+
+本端从 5f153c3 快进到 origin/main@9653d74，无冲突。主开发已合入本端恢复修复，并发布 C1-B/C 列表/编辑、一次票据、实际 C2 路由和返回保护。本轮按其明确请求，在本端 workflow 的组件 job 中增加独立必跑 `node scripts/check_mobile_drafts.cjs`，复用既有依赖安装，不复制或修改其 CLI/路由夹具，不绕过失败。现有模型/服务分类已覆盖新增用例，无需改名。
+
+新增 C1 CLI 子进程失败与哨兵脱敏检查，失败/超时非零、已知阶段/行号安全投影、未知阶段 unavailable，成功也不转发任意子进程输出。本机实际通过：6 项门禁行为、85 项模型、11 项顺序真实 MySQL/API 服务、类型/lint、契约、actionlint、原四套组件和新 C1 路由；零 skip/todo。远程接入结果须绑定本轮实际步骤，待推送后记录。
+
+[独立审查](../reviews/cross-review-parallel-9653d74.md) 核对新 Session 接口及票据/返回，未确认新的 P0/P1；在隔离 worktree 确定复现 P2：另存期间继续输入，旧保存任务可让已切换副本的另存失败，最新输入尚未暂存；原稿/副本/内存输入均保留且显式重试能存。请主开发协调副本切换与输入保存、补确定顺序回归，未在本端接管编辑器。
+
+没有改 C1/auth、依赖、构建或主开发汇总。新夹具是产品路由与可控 HTTP/存储/导航适配，不冒充 Android 设备验收或新整合包；既有前端审计与设备门槛保持。
+
+预推送看到 main 新增 0e1e60e（仅构建/交接文档），已普通合并，无冲突；业务/测试/脚本与本轮已验的 9653d74 无新增差异。本端实现/审查提交 f5bfb34 保留。已读主开发最终包声明及下一步 frontend 审计认领，未伪称本端核验了另一台电脑 APK。
+
+首轮推送 303d657 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41446434106) 新 C1 step 实际失败：Linux EACCES mkdir `.runtime/mobile/qa/empty-host-modules`，发生于原四套 root 容器建父目录之后；C1 浏览器断言未启动。不是忽略失败或改业务来换通过。已由 runner 在首次容器前预建路径，Linux 独立 tmpfs 中 root/UID1000 的确定实验复现原失败并验证该顺序修复，actionlint通过；修复后远程结果待新提交核对。[CI 接入复盘](../reviews/mobile-c1-ci-integration-review.md) 保留首轮证据。
+
+修复提交 **`099c36d`** 已推送独立分支，推送前 fetch/核对/pull main 仍 0e1e60e，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41447328547) 四作业 success，已读取步骤结果并确认新增 `Draft editing and publication handoff routes (network disabled)` 为 success；原四套组件与该 C1 路由均远程真实执行，关闭新路由 CI 尾项。[Backend](https://github.com/Xstly1014/Tako/actions/runs/41447328549) success，[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41447328596) 仍失败在 moderate audit。后续仅证据文档不改变被验 workflow/源码，本轮尚未合入 main。P2 编辑竞争、设备和审计门槛不因 CI 绿灯关闭。
+
+## 上阶段：C2 失败恢复不能清除另一未确认发布
 
 本端基线 402a8aa，fetch 观察 main 仍 42bc325，无新发布增量，不推导主开发空闲。本轮在本端 C2 范围确认并修复 P1：旧成功页面读取另一页面的新未知 journal 失败时，原 restore 提前更换请求标识却保留旧成功，导致 reset 能删除新未知记录。先加回归，修复前 68 项中该项失败；修复后通过。
 

@@ -70,6 +70,7 @@ let stage = "bundle";
     published = false,
     nextReadFails = true,
     nextJournalVisible = false,
+    stateReads = 0,
     preparedBody,
     errors = [];
   const result = {
@@ -181,7 +182,9 @@ let stage = "bundle";
         if (publishes === 1) return route.abort();
         return json(route, result);
       }
-      if (pathname === "/api/my/works/" + work)
+      if (pathname === "/api/my/works/" + work) {
+        stateReads++;
+        if (stateReads === 1) return route.abort();
         return json(route, {
           id: work,
           draft_id: draft,
@@ -192,6 +195,7 @@ let stage = "bundle";
           history_open: false,
           platform_limited: false,
         });
+      }
       return json(route, { error: "resource_not_found" }, 404);
     });
     stage = "session-envelope";
@@ -319,9 +323,38 @@ let stage = "bundle";
     assert.equal(sourceReads, beforeRestoreReads);
     assert.equal(prepares, 1);
     assert.equal(publishes, 1);
+    stage = "confirmed-state-read-retry";
+    await page
+      .getByText("发布已确认，暂时无法读取作品当前状态，请重试读取。", {
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByText("结果尚未确认，请检查原请求，勿重复新建发布。", {
+          exact: true,
+        })
+        .count(),
+      0,
+    );
+    const beforeStateRetry = publicationRequests;
+    await page
+      .getByRole("button", { name: "重新读取作品现状", exact: true })
+      .click();
     await page
       .getByText("当前展示 V1 · 作者仍隐藏作品", { exact: true })
       .waitFor();
+    assert.equal(stateReads, 2);
+    assert.equal(publicationRequests, beforeStateRetry);
+    assert.equal(publishes, 1);
+    assert.equal(
+      await page
+        .getByText("发布已确认，暂时无法读取作品当前状态，请重试读取。", {
+          exact: true,
+        })
+        .count(),
+      0,
+    );
     assert.equal(
       await page.getByRole("button", { name: "读取当前展示版本" }).count(),
       0,
