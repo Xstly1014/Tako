@@ -19,6 +19,15 @@ let stage = "bundle";
     await page.route("**/*", route => route.fulfill({ status: 200, contentType: "text/html", body: '<div id="root"></div>' }));
     await page.goto("https://fixture.test"); await page.addScriptTag({ content: built.outputFiles[0].text, type: "module" });
     stage = "access-and-create";
+    // Account drawer entry and the original bottom creation sheet both land
+    // on the real draft route; unopened channels remain explicitly unavailable.
+    await page.getByRole("button", { name: "创作", exact: true }).click();
+    stage = "creation-sheet";
+    await page.getByText("开始创作", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "短内容创作，尚未开放", exact: true }).click();
+    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    await page.getByRole("button", { name: "关闭创作面板", exact: true }).click();
+    stage = "access-and-create";
     await page.getByText("草稿箱", { exact: true }).click();
     await page.getByRole("button", { name: "恢复并继续", exact: true }).click();
     await page.getByRole("button", { name: "新建中篇", exact: true }).click();
@@ -95,6 +104,10 @@ let stage = "bundle";
     await page.getByRole("button", { name: "恢复并继续", exact: true }).click();
     await page.getByText("还没有本机草稿", { exact: true }).waitFor();
     assert.equal(await page.getByText("合成 UI 草稿", { exact: true }).count(), 0);
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await page.getByRole("button", { name: "创作", exact: true }).click();
+    await page.getByRole("button", { name: "中篇创作", exact: true }).click();
+    await page.getByRole("button", { name: "新建中篇", exact: true }).waitFor();
     console.log("PASS mobile drafts route/component fixtures; native storage and lifecycle not claimed.");
   } finally { await browser.close(); }
 })().catch(error => { console.error("FAIL mobile drafts fixture stage=" + stage + " kind=" + (error?.name === "TimeoutError" ? "timeout" : "assertion_or_build")); process.exitCode = 1; });

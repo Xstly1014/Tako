@@ -1,4 +1,5 @@
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -128,8 +129,17 @@ export function BottomNavigation({
   onHome: () => void;
   active?: "home" | "me";
 }) {
+  const [creating, setCreating] = useState(false);
   return (
     <View style={s.bottom} accessibilityLabel="主导航">
+      <Modal visible={creating} transparent animationType="slide" onRequestClose={() => setCreating(false)}>
+        <View style={s.createOverlay}><View style={s.createSheet}>
+          <View style={s.createHeading}><Text style={s.createTitle}>开始创作</Text><Pressable accessibilityLabel="关闭创作面板" onPress={() => setCreating(false)} style={s.createOption}><Text style={s.createLink}>关闭</Text></Pressable></View>
+          <Pressable accessibilityLabel="短内容创作，尚未开放" onPress={() => unavailable("短内容创作")} style={s.createOption}><Text style={s.createTitle}>短内容</Text><Text style={s.createMeta}>尚未开放</Text></Pressable>
+          <Pressable accessibilityLabel="中篇创作" onPress={() => { setCreating(false); router.push("/drafts"); }} style={s.createOption}><Text style={[s.createTitle, { color: t.brand }]}>中篇</Text><Text style={s.createMeta}>新建或继续写完整的故事</Text></Pressable>
+          <Pressable accessibilityLabel="长文创作，尚未开放" onPress={() => unavailable("长文创作")} style={s.createOption}><Text style={s.createTitle}>长文</Text><Text style={s.createMeta}>尚未开放</Text></Pressable>
+        </View></View>
+      </Modal>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="首页"
@@ -158,12 +168,7 @@ export function BottomNavigation({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="创作"
-        onPress={() => Alert.alert("开始创作", "选择内容形式", [
-          { text: "短内容（尚未开放）", onPress: () => unavailable("短内容创作") },
-          { text: "中篇", onPress: () => router.push("/drafts") },
-          { text: "长文（尚未开放）", onPress: () => unavailable("长文创作") },
-          { text: "取消", style: "cancel" },
-        ])}
+        onPress={() => setCreating(true)}
         style={({ pressed }) => [s.fab, pressed && { opacity: 0.7 }]}
       >
         <Svg width={46} height={46} viewBox="0 0 46 46">
@@ -208,6 +213,11 @@ export function BottomNavigation({
   );
 }
 const s = StyleSheet.create({
+  createOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+  createSheet: { backgroundColor: t.surface, borderTopLeftRadius: 8, borderTopRightRadius: 8, padding: 24, gap: 8 },
+  createHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  createTitle: { fontSize: 16, fontWeight: "600", color: t.ink }, createMeta: { fontSize: 12, lineHeight: 20, color: t.muted },
+  createLink: { fontSize: 14, color: t.brand }, createOption: { minHeight: 48, paddingVertical: 12, gap: 4 },
   bottom: {
     flexDirection: "row",
     justifyContent: "space-around",
