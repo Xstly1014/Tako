@@ -160,9 +160,7 @@ function Workspace({
           <View style={s.header}>
             <Button
               label="返回我的"
-              onPress={() =>
-                router.canGoBack() ? router.back() : router.replace("/account")
-              }
+              onPress={() => router.dismissTo("/account")}
             />
             <Text style={s.heading}>作品管理</Text>
             <Button

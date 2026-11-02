@@ -210,7 +210,7 @@ let stage = "bundle";
     stage = "incomplete-editor-handoff";
     await page.evaluate((draft) => {
       window.publishUi.params = { draft_id: draft };
-      window.publishUi.navigate("/publish");
+      window.publishUi.navigate("/publish", "push");
     }, draft);
     await page.getByText("发布入口参数无效", { exact: true }).waitFor();
     assert.equal(sourceReads, 0);
@@ -220,7 +220,7 @@ let stage = "bundle";
     stage = "unconfirmed-editor-revision";
     await page.evaluate((draft) => {
       window.publishUi.params = { draft_id: draft, source_revision: "3" };
-      window.publishUi.navigate("/publish");
+      window.publishUi.navigate("/publish", "push");
     }, draft);
     await page
       .getByText("无法读取这份服务器修订，请回草稿箱确认保存后重新选择。", {
@@ -233,7 +233,7 @@ let stage = "bundle";
     stage = "confirmed-old-editor-revision";
     await page.evaluate((draft) => {
       window.publishUi.params = { draft_id: draft, source_revision: "1" };
-      window.publishUi.navigate("/publish");
+      window.publishUi.navigate("/publish", "push");
     }, draft);
     await page.getByText("采用服务器修订 R1", { exact: true }).waitFor();
     await page
@@ -310,7 +310,7 @@ let stage = "bundle";
         draft_id: "77777777-7777-4777-8777-777777777777",
         source_revision: "1",
       };
-      window.publishUi.navigate("/my-works");
+      window.publishUi.navigate("/my-works", "dismissTo");
     });
     await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
     await page.getByText("已确认正式版本 V1", { exact: true }).waitFor();
@@ -439,6 +439,29 @@ let stage = "bundle";
       await page.evaluate(() => [...window.publishUi.journal.values()][0]),
       replacement,
     );
+    assert.equal(publishes, 1);
+    stage = "management-return-target";
+    await page.getByRole("button", { name: "进入作品管理" }).click();
+    await page.getByText("作品管理", { exact: true }).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account", "/my-works"]);
+    stage = "management-account-stack";
+    // An existing duplicate must not determine the explicit account destination.
+    await page.evaluate(() => window.publishUi.navigate("/my-works", "push"));
+    await page.getByRole("button", { name: "返回我的", exact: true }).click();
+    await page.getByText("草稿箱", { exact: true }).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account"]);
+    assert.equal(publishes, 1);
+    // Direct-entry management has no account route: dismissTo must replace it.
+    stage = "management-direct-entry";
+    await page.evaluate(() => window.publishUi.navigate("/my-works", "replace"));
+    await page.getByText("作品管理", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "返回我的", exact: true }).click();
+    await page.getByText("草稿箱", { exact: true }).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account"]);
+    stage = "management-journal-return";
+    await page.getByRole("button", { name: "管理本人作品", exact: true }).click();
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
+    await page.getByText("已确认正式版本 V2", { exact: true }).waitFor();
     assert.equal(publishes, 1);
     stage = "account-switch";
     await page.evaluate(async () => {
