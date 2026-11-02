@@ -23,7 +23,7 @@ const object = (value: unknown): value is Record<string, unknown> =>
 const text = (value: unknown): value is string => typeof value === "string";
 const tags = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every(text);
-const card = (value: unknown): value is WorkCard =>
+export const isCard = (value: unknown): value is WorkCard =>
   object(value) &&
   text(value.id) &&
   UUID.test(value.id) &&
@@ -37,9 +37,9 @@ const card = (value: unknown): value is WorkCard =>
 export const isPage = (value: unknown): value is DiscoveryPage =>
   object(value) &&
   Array.isArray(value.items) &&
-  value.items.every(card) &&
+  value.items.every(isCard) &&
   Array.isArray(value.featured) &&
-  value.featured.every(card) &&
+  value.featured.every(isCard) &&
   text(value.next_cursor) &&
   Array.isArray(value.tags) &&
   value.tags.every(

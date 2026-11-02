@@ -99,12 +99,61 @@ let stage = 'bundle';
     paging = false;
     await page.getByRole('button', { name: '刷新修订记录' }).click();
     await page.waitForFunction(() => !document.querySelector('[aria-label="查看版本 1 信息"]'));
+
+    stage = 'search-reader';
+    const card=(suffix='111111111111')=>({id:'11111111-1111-4111-8111-'+suffix,version:2,title:suffix==='111111111111'?'正文标题2':'另一篇合成作品',introduction:'合成搜索简介',tags:['幻想'],author_nickname:'示例作者',first_published_at:'2026-11-02T00:00:00Z'});
+    const searches=[];let searchHeld,failPage=true;
+    await page.route('**/api/community?*',route=>json(route,{items:[card()],featured:[],tags:[{name:'幻想',count:1}],next_cursor:''}));
+    await page.route('**/api/search?*',async route=>{
+      const url=new URL(route.request().url()),q=url.searchParams.get('q'),cursor=url.searchParams.get('cursor');searches.push({q,cursor});
+      if(q==='慢'){searchHeld=route;return;}
+      if(q==='空')return json(route,{items:[],next_cursor:''});
+      if(q==='坏')return json(route,{items:[]});
+      if(q==='新')return json(route,{items:[card('222222222222')],next_cursor:''});
+      if(cursor&&failPage){failPage=false;return json(route,{error:'service_unavailable'},503);}
+      return json(route,{items:cursor?[card(),card('222222222222')]:[card()],next_cursor:cursor?'':'next'});
+    });
+    await page.evaluate(()=>window.readerTest.navigate('/community'));
+    await page.getByRole('button',{name:'搜索内容或作者',exact:true}).click();
+    await page.getByText('搜索中篇作品',{exact:true}).waitFor();
+    const searchInput=page.getByRole('textbox',{name:'搜索关键词'});
+    await searchInput.fill('中文%_!');assert.equal(searches.length,0);
+    await page.getByRole('button',{name:'搜索',exact:true}).click();
+    await page.getByRole('button',{name:'阅读 正文标题2',exact:true}).waitFor();
+    assert.equal(searches[0].q,'中文%_!');
+    await page.getByRole('button',{name:'加载更多',exact:true}).click();
+    await page.getByRole('button',{name:'重试加载更多',exact:true}).click();
+    await page.getByRole('button',{name:'阅读 另一篇合成作品',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'阅读 正文标题2',exact:true}).count(),1);
+    await page.getByRole('button',{name:'阅读 正文标题2',exact:true}).click();
+    await page.getByText('正文内容2',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'返回作品列表',exact:true}).click();
+    assert.equal(await searchInput.inputValue(),'中文%_!');
+    await page.getByRole('button',{name:'阅读 另一篇合成作品',exact:true}).waitFor();
+    await searchInput.fill('慢');await page.getByRole('button',{name:'搜索',exact:true}).click();
+    await page.waitForFunction(()=>document.body.textContent.includes('正在搜索'));
+    await searchInput.fill('新');await page.getByRole('button',{name:'搜索',exact:true}).click();
+    await page.getByRole('button',{name:'阅读 另一篇合成作品',exact:true}).waitFor();
+    if(searchHeld)await json(searchHeld,{items:[card()],next_cursor:''}).catch(()=>{});
+    assert.equal(await page.getByRole('button',{name:'阅读 正文标题2',exact:true}).count(),0);
+    await page.getByRole('button',{name:'清除搜索',exact:true}).click();
+    await page.getByText('搜索中篇作品',{exact:true}).waitFor();
+    await searchInput.fill('空');await page.getByRole('button',{name:'搜索',exact:true}).click();
+    await page.getByText('没有找到匹配作品',{exact:true}).waitFor();
+    await searchInput.fill('坏');await page.getByRole('button',{name:'搜索',exact:true}).click();
+    await page.getByText('搜索未完成',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'返回社区',exact:true}).click();
+    await page.getByRole('button',{name:'搜索内容或作者',exact:true}).waitFor();
+    await page.getByRole('button',{name:'搜索内容或作者',exact:true}).click();
+    await page.getByText('搜索中篇作品',{exact:true}).waitFor();
+    assert.equal(await searchInput.inputValue(),'');
     assert.deepEqual(errors, []);
     console.log('PASS actual reader component fixtures: metadata only; authorized swap updates body; comment input preserved; failed read keeps body; stale response ignored; paging retry deduplicated; restricted node absent. Not native-device evidence.');
   } catch (e) {
     fs.mkdirSync(path.join(root, '.runtime/mobile/qa'), { recursive: true });
     await page.screenshot({ path: path.join(root, '.runtime/mobile/qa/versions-component-failure.png') });
     console.error('Version component stage: ' + stage + '; page errors: ' + JSON.stringify(errors));
+    console.error('reader_fixture_line='+(String(e.stack).match(/run\.cjs:(\d+):/)?.[1] ?? '0'));
     throw e;
   } finally { await browser.close(); }
 })().catch((e) => { console.error('Version component failed: ' + e.name); process.exit(1); });
