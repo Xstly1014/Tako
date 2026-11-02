@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "prepare": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "test": "vitest run",
+    "test": "vitest run && node --test tests/dependency-compat.cjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -24,6 +24,8 @@
     "vue-tsc": "3.1.5"
   },
   "overrides": {
-    "rolldown": "1.2.15"
+    "rolldown": "1.2.15",
+    "glob": "14.0.2",
+    "readdir-glob": { "minimatch": "11.0.1" }
   }
 }
