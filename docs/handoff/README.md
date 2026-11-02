@@ -1,41 +1,44 @@
-> 当前整合：C1 副本持续输入竞争已修复；已合入并行端 a2905e8 的 C1 CI 接入和发布确认/现状读取隔离。86 模型、11 服务、五套页面/6门禁通过；Frontend 中危门禁本机通过（仍有7 low），9浏览器回归通过。整合包/远程结果见 [本轮复验](../reviews/cross-review-primary-a2905e8.md) 与 [主开发进度](primary-progress.md)；下面旧快照不作当前状态。
-
-> C1-B 草稿箱、编辑与恢复已接入源码；78 整合模型、11 真实服务和新路由夹具通过，C1-C 发布交接与原生设备门槛仍待完成。[当前阶段证据](../reviews/mobile-draft-editor-review.md) · [主开发认领](primary-progress.md)。下文历史快照不覆盖当前进度。 整合 APK 已按 b2cea9d 构建并核对签名/路由；设备未验收。
-
-> C1-C 最新：85 模型、11 真实服务、新 C1→实际 C2 路由通过；9653d74 整合包构建与签名校验完成。设备、独立审查、新夹具远程接入和前端审计仍需单独收口。先读 [发布交接复盘](../reviews/mobile-draft-publication-review.md) 与双方进度，下面旧快照不代表当前待开发项。
-
-
 # Tako 开发交接入口
 
-2026-11-02 当前协作：已拉取并快进整合并行端 `c905d7a`（包含 de49a17 的 C1 核心及对方 CI/M1/C2）。主开发独立复验 53 项模型、10 项服务、3 项门禁、5 项快照行为、类型/lint/契约及四套组件最终通过；首次瞬时失败与审查边界见 [交叉审查](../reviews/cross-review-primary-c905d7a.md)。新 M1/C2 源码未进入现有 APK，C1 页面仍缺。双方使用 `$tako-collab`，主开发下一步为 [离线授权和编辑接入](../mobile-draft-access-spec.md)，角色与待确认请求见 [primary-progress](primary-progress.md) / [parallel-progress](parallel-progress.md)。以下是先前快照。
+更新于 2026-11-02。当前优先独立 Android App；先读本页与双方进度，再读相关规格。历史阶段记录保留在 docs/reviews，旧包、旧测试数量与旧“未接入”措辞不覆盖下面的当前状态。
 
-2026-11-02 当前进度：C1.1 草稿加密仓储、原请求持久化和同步核心已实现，45 项 Node/真实 API 回归、类型/lint、Android 新依赖兼容构建通过，见 [核心复盘](../reviews/mobile-drafts-core-review.md)。尚未接入草稿页面或跨重启离线授权。主开发下一步先做会话/锁定保护再接页面，范围见 [primary-progress](primary-progress.md)。另一端正在启动项目；从下次常规推送起必须核对远程新工作及双方进度，本轮按用户例外免对比。
+## 当前已做到哪里
 
-2026-11-02 当前阶段：已完成 [项目总复盘](../reviews/2026-11-02-project-review.md)，进入 App 中篇私密草稿 C1。业务规格见 [C1](../mobile-drafts-spec.md)：用户确认退出保留密文、同账号重登恢复，未退出可断网重开续写，明确失效锁定。真实 3300 原生草稿契约预检已通过；加密仓储、同步和页面尚未实现，下一步由主开发推进。此前 App 账号/收藏/评论/历史阅读已接入，31 项与 APK 证据为上一阶段记录，并非本轮重跑。
+中篇私稿→加密本机暂存/离线续写→服务器确认修订→固定预览→正式发布→读者阅读/收藏/两级评论→作者修订/管理，已接入同一工程。C1 列表/编辑与 C2 发布不是待开发空白。
 
-2026-11-02 当前业务：App 历史版本时间线与授权切正文已接入实际阅读页，失败保留原文、切版本保留评论输入；31 项 Node/真实服务测试、阅读页组合夹具及类型/lint通过，最终包与真机边界见 [本轮复盘](../reviews/mobile-version-reading-review.md)。下一条为 App 创作规格，用户已确认草稿加密本机暂存/恢复与账号隔离，详见 [计划](../mobile-authoring-plan.md)。下列更早“未接评论”等是旧阶段快照，不能当现状。
+| 项目 | 当前证据与边界 |
+|---|---|
+| App 源码 | 已合入双方 C1/M1/C2；本轮整合 Mobile 冻结 2cfd6fb，含 C1 另存期间持续输入修复与 C2 发布确认/状态 GET 隔离 |
+| 自动化 | 86 模型、11 顺序真实 MySQL/API、五套页面夹具、契约一致性、6门禁检查通过；页面夹具的原生存储/导航仍是适配器 |
+| Web 依赖 | 原中危审计门禁本机及 4c63ad0 远程 Frontend CI 通过；12 原测试+2真实依赖兼容、生产构建与9浏览器回归通过，仍有7 low链报告 |
+| 远程与包 | 2cfd6fb整合APK构建/验签通过；4c63ad0三条CI全success。结果见 [整合复验](../reviews/cross-review-primary-a2905e8.md)，以其最终 SHA/指纹为准；构建成功不等于设备验收 |
+| 原生体验 | 用户暂无 USB，未验新包的输入/粘贴、后台/杀进程、切网、安全存储和发布返回；P0 在真实移动作者使用前补齐 |
+| 真实结果 | 无新增真实用户留存、创作或治理成效声明；合成规模和测试成功不代替运营样本 |
 
-2026-11-02 环境重启交接：新增 `$tako-restart`（恢复本机 3300）与 `$tako-handoff`（整理/读取交接）两个仓库技能。用户将删除容器和镜像、保留数据卷；不启动 ECS、旧 3000 或手机构建。启动与必须保留的文件见 [重启手册](../restart/README.md)，本机运行 `python scripts/local_restart.py start`；新电脑仍走下文首次安装。清理前备份及实际验证见 [重启阶段记录](../reviews/local-restart-review.md)。
+详细过程：[C1 编辑](../reviews/mobile-draft-editor-review.md)、[发布交接](../reviews/mobile-draft-publication-review.md)、[另存竞争](../reviews/mobile-draft-copy-concurrency-review.md)、[本端互审与整合](../reviews/cross-review-primary-a2905e8.md)、[Web 依赖审计](../reviews/frontend-dependency-audit-review.md)。
 
-更新：2026-11-02。本系列随代码维护；以本次提交及后续记录为准，不以聊天记忆或旧文档快照推断现状。
+## 两端如何继续
 
-2026-11-02 当前：评论已接入阅读页、原生输入面板和本人评论/处置原因页。26 项客户端/真实服务测试、类型/lint及断网夹具组件交互通过；最终 APK 构建、签名和源码一致性核对通过，指纹见复盘；设备体验仍未验收。为继续兑现业务，真机门槛改为体验交付门槛，不阻塞可独立验证的页面编码。详见 [页面接入复盘](../reviews/mobile-comments-ui-review.md)，不要将下面旧快照的“尚未接页面”当作现状。
+持续协作用 `$tako-collab`。实际进度分别是 [主开发](primary-progress.md) 与 [并行端](parallel-progress.md)，读远程实际分支的版本；文件发布不等于对方已读/确认。每次推送前 fetch、核对新增工作/接口/重叠，普通合并和推送，禁止覆盖并行工作。
 
-2026-11-02 最新：用户确认继续无手机依赖的开发。评论网络客户端及内存编辑逻辑已实现，26 项客户端测试、真实 3300 发表/回复/删除链路、类型/lint 通过；未接入 App 页面、未新增可体验 APK。见 [独立模块复盘](../reviews/mobile-comments-client-review.md)。手机门槛与并行任务未认领状态仍保留。
+- 主开发：C1/auth、共享锁/构建、最终集成与汇总；本轮修复 710d04a 待同事独立复验，不替其修改报告或宣称已认可。
+- 并行端：CI/M1/C2 及其测试/进度；主开发已集成 a2905e8。原“待接 C1 路由 CI”已由其完成，不要重复建设。
+- 暂不扩 B3.2、付费、推荐、短帖/长文或生产部署；先按工程/设备/真实结果分账收口中篇闭环。新增业务先核对规格与用户已确认权利。
 
-2026-11-02 续接：另一台 Codex 尚未启动，并行 CI 任务未认领。用户暂不能连接手机，现有账号/收藏新包设备门槛继续保留；独立完成评论业务规格及原生接口权限预检。用户选择评论输入全部仅在内存、关闭 App 不恢复。详见 [评论规格](../mobile-comments-spec.md) 与 [阶段复盘](../reviews/mobile-comments-planning-review.md)。
+## 按需阅读
 
-按顺序阅读：
+1. [项目与业务状态](01-product-and-status.md)：背景、已确认权利与交付边界。
+2. [工程与本机启动](02-engineering-and-setup.md)：新电脑创建自己的合成环境。
+3. [并行边界](03-parallel-work.md)：当前具体认领优先于历史建议表。
+4. [接手提示](04-codex-start.md)：可复制给另一台 Codex。
+5. [C1/C2 接口约定](c1-c2-interface.md)：只传已确认服务器 ID/修订，不传内存正文、不修改工作稿。
 
-1. [项目与业务状态](01-product-and-status.md)：为什么做、已确认权利、能力与证据、哪些还没交付。
-2. [工程与本机启动](02-engineering-and-setup.md)：目录、环境、干净电脑启动、检查命令、不能复制的内容。
-3. [并行开发边界](03-parallel-work.md)：另一端建议承担的任务、文件归属、协作与合并约定。
-4. [给另一台 Codex 的接手提示](04-codex-start.md)：可直接作为新会话的第一条消息。
+根 AGENTS.md、business-first 必读；移动端另读 mobile/AGENTS.md，UI 改动读 ui-deai。技能不能取代用户授权或扩大业务范围。
 
-必读约束：根目录 `AGENTS.md`、`.agents/skills/business-first/SKILL.md`；涉及 UI 再读 `.agents/skills/ui-deai/SKILL.md`；移动端还需读 `mobile/AGENTS.md`。技能是判断标准，不允许借此扩大业务范围或擅自重排用户认可的原型。
+## 服务恢复与不随 Git 交付的内容
 
-本批收口是**代码、契约、工程测试和可构建的个人测试包交接**。新增 App 登录/收藏尚未完成新包真机回归：用户已拔下 USB。不能将旧版匿名阅读真机证据算到新功能上；阶段门槛及恢复测试步骤见 [本批复盘](../reviews/mobile-reader-account-review.md)。不代表公开上线或真实运营有效。
+纯本机服务恢复用 `$tako-restart`，见 [重启手册](../restart/README.md)；跨电脑接手用 `$tako-handoff`。本机仅 3300 合成测试环境；ECS 已停，本轮不连接、不启动。没有 USB 时不反复要求用户做手机测试。
 
-最终 Android 复建与签名/内置 JS 检查已通过，包指纹在本批复盘；原生源码与最终 bundle 的关键文件也已核对一致。SDK/产物不随 Git 携带，另一台电脑需要本机重建。
+.env、数据库、SSH 私钥、OSS/邮件密钥、APK、SDK 和密码不提交。新电脑自行创建隔离合成库，不复制真实用户数据；保留原机数据卷、.runtime 与 backups。个人测试包使用模板 debug 签名，不是商店正式包。
 
-不要从 GitHub 寻找 `.env`、数据库、SSH 私钥、OSS/邮件密钥、APK、SDK 缓存或验收账号密码：它们不提交。另一台电脑自行创建隔离合成测试环境，不接 ECS，不复制真实用户数据。
+剩余约束必须按 [本轮复验](../reviews/cross-review-primary-a2905e8.md)、[依赖审计](../reviews/frontend-dependency-audit-review.md) 的优先级和退出条件处理；不能仅写成“已知限制”后永久搁置。

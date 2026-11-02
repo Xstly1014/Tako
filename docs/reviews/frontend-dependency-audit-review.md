@@ -24,3 +24,5 @@ P2：剩余 7 条 low 为 deepmerge 原型污染及其上游传播链，公告�
 临时 overrides 在上游依赖范围覆盖修复版本后逐个移除，以干净 npm ci、原审计阈值、这两项兼容测试和生产构建全部通过为退出条件。此记录不覆盖 Mobile 的独立审计基线。
 
 公告：[glob](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4)、[minimatch](https://github.com/advisories/GHSA-g3hv-75wg-m249)、[deepmerge](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)。
+
+远程收口：4c63ad0 的 [Frontend checks](https://github.com/Xstly1014/Tako/actions/runs/41455088475) completed/success，保留原 moderate 阈值；同提交 Mobile/Backend 亦成功。P1 依赖门禁阻塞关闭，P2 deepmerge 跟进仍按上文条件执行。

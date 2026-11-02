@@ -13,9 +13,9 @@ Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日
 
 App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.md)：按作者授权切换正文，失败保留当前阅读，切版本不丢评论输入；[本轮复盘与验收边界](docs/reviews/mobile-version-reading-review.md)。App 中篇草稿已接入加密本机暂存、离线续写与同步恢复；评论仍仅内存。发布调用与设备体验分别验收。
 
-[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 保留阶段背景；App 中篇现已接入私稿编辑、确认修订交接、固定预览、正式发布与返回续写。[最新接线复盘](docs/reviews/mobile-draft-publication-review.md) 记录 85 项模型、11 项真实服务及页面/包证据；设备体验和独立审查仍未完成。双 agent 分工见 [协作入口](docs/handoff/03-parallel-work.md)。
+[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 保留阶段背景；App 中篇现已接入私稿编辑、确认修订交接、固定预览、正式发布与返回续写。[最新整合复验](docs/reviews/cross-review-primary-a2905e8.md) 记录 86 项模型、11 项真实服务、页面及整合包证据；设备体验与最新修复的同事独立复验仍待完成。双 agent 分工见 [协作入口](docs/handoff/03-parallel-work.md)。
 
-M1 作品管理、C2 发布与 C1 创作已整合并构建 Android 测试包，指纹见最新复盘；源码 Mobile/Backend CI 通过，Frontend 仍未通过既有依赖审计。下一步收口新 C1 路由 CI 接入、审计及设备门槛，见 [当前协作进度](docs/handoff/primary-progress.md)。持续双端协作用 `$tako-collab`，每次推送前核对双方分支与进度。
+M1 作品管理、C2 发布与 C1 创作已整合并构建 Android 测试包，指纹见最新复盘；4c63ad0 的 Mobile/Frontend/Backend CI 全部通过，已含新 C1 路由门禁与前端依赖修复（仍有7条低危依赖链报告）。后续补设备与独立复验，见 [当前协作进度](docs/handoff/primary-progress.md)。持续双端协作用 `$tako-collab`，每次推送前核对双方分支与进度。
 
 ![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
 

@@ -1,4 +1,4 @@
-> 当前整合：C1 副本持续输入竞争已修复；已合入并行端 a2905e8 的 C1 CI 接入和发布确认/现状读取隔离。86 模型、11 服务、五套页面/6门禁通过；Frontend 中危门禁本机通过（仍有7 low），9浏览器回归通过。整合包/远程结果见 [本轮复验](cross-review-primary-a2905e8.md) 与 [主开发进度](../handoff/primary-progress.md)；下面旧快照不作当前状态。
+> 当前整合：C1 副本持续输入竞争已修复；已合入并行端 a2905e8 的 C1 CI 接入和发布确认/现状读取隔离。86 模型、11 服务、五套页面/6门禁通过；Frontend 中危门禁本机及4c63ad0远程通过（仍有7 low），9浏览器回归通过。2cfd6fb整合APK构建及签名/标识检查通过，4c63ad0三条远程CI全success。详细结果见 [本轮复验](cross-review-primary-a2905e8.md) 与 [主开发进度](../handoff/primary-progress.md)；下面旧快照不作当前状态。
 
 > C1-C 最新收口：85 模型、11 服务、真实页面交接与只读返回通过；9653d74 APK 构建/签名/路由标识通过，源码 Mobile/Backend CI success、Frontend audit failure。原生体验、独立审查及新 C1 夹具远程门禁未关闭，见 [最新复盘](mobile-draft-publication-review.md)。
 
