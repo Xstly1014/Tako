@@ -1,0 +1,101 @@
+name: Mobile checks
+on:
+  push:
+    paths:
+      - 'mobile/**'
+      - 'backend/**'
+      - 'scripts/**'
+      - 'infra/compose.local-test.yaml'
+      - '.github/workflows/mobile-checks.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'backend/**'
+      - 'scripts/**'
+      - 'infra/compose.local-test.yaml'
+      - '.github/workflows/mobile-checks.yml'
+permissions:
+  contents: read
+concurrency:
+  group: mobile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  static-and-model:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: |
+            mobile/package-lock.json
+            scripts/mobile-checks/package-lock.json
+      - run: npm ci --prefix mobile --no-audit --no-fund
+      - run: npm ci --prefix scripts/mobile-checks --no-audit --no-fund
+      - name: Generated contract matches OpenAPI
+        run: node scripts/check_mobile_contract.cjs
+      - name: Contract gate failure and no-write checks
+        run: node --test scripts/mobile-checks/checks.test.cjs
+      - run: npm run typecheck --prefix mobile
+      - run: npm run lint --prefix mobile
+        env:
+          CI: "1"
+      - name: Pure models (no service dependency)
+        run: node scripts/check_mobile_tests.cjs model
+      - name: No tracked generated changes
+        run: git diff --exit-code
+  component-fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Install locked fixture dependencies in isolated volumes
+        run: |
+          docker run --rm -v "$PWD/frontend:/app" -v writing-community_frontend_modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
+          docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
+      - name: Comment and historical reading fixtures (network disabled)
+        run: node scripts/check_mobile_components.cjs
+  real-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Create this runner's independent synthetic configuration
+        run: python scripts/local_test.py init
+      - name: Prepare existing Go cache volumes
+        run: |
+          docker volume create writing-community_go_modules
+          docker volume create writing-community_go_build
+      - name: Build API from this checkout
+        run: docker build -f backend/Dockerfile -t writing-community-api:local backend
+      - name: Migrate and seed a real MySQL sandbox
+        run: |
+          python scripts/local_test.py migrate
+          python scripts/local_test.py seed --users 10 --works 60
+      - name: Start only the real API on loopback
+        run: docker compose --project-directory "$PWD" --env-file .runtime/local-test/.env -f infra/compose.local-test.yaml -f scripts/mobile-checks/compose.ci.yaml up -d --wait --wait-timeout 180 api
+      - name: Wait for HTTP readiness without dumping response bodies
+        run: curl --fail --silent --output /dev/null --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:3300/health/ready
+      - name: Real reader and comment API tests (missing service is failure)
+        run: node scripts/check_mobile_tests.cjs service
+      - name: Real account and favorite acceptance
+        run: node scripts/mobile_account_acceptance.cjs
+      # Do not upload configurations, fixtures, API logs, or credentials.
+      - name: Stop this runner's isolated containers
+        if: always()
+        run: docker compose --project-directory "$PWD" --env-file .runtime/local-test/.env -f infra/compose.local-test.yaml -f scripts/mobile-checks/compose.ci.yaml down

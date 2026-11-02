@@ -1,0 +1,5 @@
+# Reuse the real local-test MySQL/API configuration without building the Web UI.
+# This override is only for isolated CI/test environments, not deployment.
+services:
+  api:
+    ports: ["127.0.0.1:3300:8080"]
