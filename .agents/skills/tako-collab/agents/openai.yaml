@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tako 双端协作"
+  short_description: "同步双端真实进度，管理任务与文件归属，交叉审查并协调分支集成和阶段交付"
+  default_prompt: "使用 $tako-collab 核对双方最新进度与文件边界，推进不冲突的业务开发，并对可审查的阶段提出有证据的批评与集成建议。"

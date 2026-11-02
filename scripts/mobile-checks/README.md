@@ -16,7 +16,7 @@ node scripts/check_mobile_tests.cjs model
 
 契约检查在系统临时目录重新生成声明，通过 TypeScript 语法树打印后比较，忽略换行、缩进和注释，不忽略类型差异。不写回源码；漂移、生成失败和依赖缺失均返回非零。工具测试验证漂移拒绝、坏规格拒绝、无写回，以及服务前置保护。前置保护的 fetch 夹具仅测试门禁失败，不计入真实服务结果。
 
-`model` 运行 session/comments/versions/author-works/publications 的 38 项纯模型测试。`service` 运行 reader/comments/versions/author-works/publications 的 9 项服务组检查，其中包括真实 HTTP 与读者失败响应测试。服务文件串行执行，遵守服务端两槽密码 CPU 限制，不通过调高业务限流来适配测试。新增 `.test.ts` 文件若未分类、或已分类文件缺失，命令会失败，避免遗漏新测试。两种命令都拒绝空测试、skip、todo 和失败；只输出计数，不打印可能带私有值的断言详情。调试失败时在本机分文件运行原测试，注意避免分享敏感输出。
+`model` 运行 session/comments/versions/author-works/publications/drafts 的 51 项模型与本机 SQLite/加密故障检查。`service` 运行 reader/comments/versions/author-works/publications/drafts 的 10 项服务组检查，其中包括真实 HTTP 与读者失败响应测试。服务文件串行执行，遵守服务端两槽密码 CPU 限制，不通过调高业务限流来适配测试。新增 `.test.ts` 文件若未分类、或已分类文件缺失，命令会失败，避免遗漏新测试。两种命令都拒绝空测试、skip、todo 和失败；只输出计数，不打印可能带私有值的断言详情。Node SQLite/WebCrypto 不等于 Expo 原生存储验收。调试失败时在本机分文件运行原测试，注意避免分享敏感输出。
 
 ## 真实 MySQL/API
 

@@ -16,4 +16,6 @@ description: Prepare or consume Tako's engineering handoff across computers or C
 
 本机测试入口 3300；旧 3000 保留数据但不启动，ECS 用户已停，手机当前无 USB 条件。以最新代码和记录核实这些状态，不能用聊天记忆或旧快照冒充当前证据。
 
+持续双端开发、范围协调与交叉审查转用 [tako-collab](../tako-collab/SKILL.md)，读取双方各自的进度文件；本技能仍负责接手与交出，不把旧并行快照当实时认领。
+
 技能调用不授权推送、部署、向其他聊天发消息或创建新代理；按用户已有授权范围执行。交接不应凭空增加功能规格。发现业务权利、数据丢失或跨账号行为未定时与用户 argue，常规工程细节自主处理。
