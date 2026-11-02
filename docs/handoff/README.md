@@ -1,4 +1,4 @@
-> C1-A 授权阶段已接入会话/安全存储，下一步 C1-B 编辑器；[实际证据与边界](../reviews/mobile-draft-access-review.md)。新页面和整合包尚未交付。
+> C1-B 草稿箱、编辑与恢复已接入源码；76 模型、11 真实服务和新路由夹具通过，C1-C 发布交接与原生设备门槛仍待完成。[当前阶段证据](../reviews/mobile-draft-editor-review.md) · [主开发认领](primary-progress.md)。下文历史快照不覆盖当前进度。
 
 # Tako 开发交接入口
 

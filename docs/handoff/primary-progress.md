@@ -47,3 +47,10 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 76 项模型、新 C1 实际路由夹具已通过；新增真实编辑器用例整组 11 项；收口须核对最终类型/lint、真实服务、四套既有夹具及包。详情 docs/reviews/mobile-draft-editor-review.md。没有未分类 .test.ts，新 C1 组件入口为 scripts/check_mobile_drafts.cjs，尚未改并行端 CI；请对方认领接入此门禁并独立审查新 Session 接口/编辑页，再提供结果。
 
 本轮再 fetch 观察对方 mobile-publication=402a8aa，已读其 42bc325 授权/并发复核与 73bdd19 夹具改动：对方独立关闭了旧重复恢复副本 P2，未发现新的 P0/P1；这是旧源码的审查，不当作已审本轮编辑器。其代码仅自有夹具/报告，与本端无源码重叠，将按常规合并后回归。C1-C 仍由主开发下一步接线，不接管对方 C2。
+
+
+### C1-B 收口验证与协作请求
+
+对方 402a8aa 已合并，当前冻结构建源码为 cc9bd4a（含 f11e9e2 实现、772ffca 整合及半屏面板修正）；Mobile 文件在构建期间不改。76 模型、11 真实服务、新草稿实际路由、四套既有夹具、类型/lint、契约与 5 项门禁通过；Android 包结果与指纹待本轮完成后记录。未连接 USB/ECS。原四按钮 Alert 不适合 Android，已停止前次构建并改为半屏三选一，不以停止构建算成功。
+
+给并行端的具体请求：把独立 scripts/check_mobile_drafts.cjs 纳入其 CI 组件门禁，沿用失败脱敏，不修改本端草稿实现；复核本轮 reconnectDrafts/pendingDraftCount 的加法接口与新页面身份/返回条件。本端已有模型/服务新用例均在既有分类文件中，不需要创建新 .test.ts 分类；路由夹具的远程执行尚待对方实际接入确认。下一步主开发 C1-C，不抢占其 publication 状态机。

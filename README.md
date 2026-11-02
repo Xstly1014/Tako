@@ -11,9 +11,9 @@ Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日
 
 **Docker 清理后恢复：[本机重启手册](docs/restart/README.md)。** `$tako-restart` 恢复本机服务，`$tako-handoff` 整理或读取工作交接。技能随仓库保存；删除容器/镜像时保留数据卷、`.runtime/` 与 `backups/`。
 
-App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.md)：按作者授权切换正文，失败保留当前阅读，切版本不丢评论输入；[本轮复盘与验收边界](docs/reviews/mobile-version-reading-review.md)。下一条是 App 中篇创作规格，草稿允许加密本机暂存恢复，评论仍仅内存。
+App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.md)：按作者授权切换正文，失败保留当前阅读，切版本不丢评论输入；[本轮复盘与验收边界](docs/reviews/mobile-version-reading-review.md)。App 中篇草稿已接入加密本机暂存、离线续写与同步恢复；评论仍仅内存。发布调用与设备体验分别验收。
 
-[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 已核对能力、验收与未完成约束；[App 私密草稿 C1](docs/mobile-drafts-spec.md) 已实现加密仓储/同步核心，45 项回归及 Android 新依赖兼容构建通过，尚未接入 App 创作页面与离线授权。双 agent 分工与进度见 [协作入口](docs/handoff/03-parallel-work.md)。
+[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 已核对能力、验收与未完成约束；[App 私密草稿 C1](docs/mobile-drafts-spec.md) 已接入授权、草稿箱和编辑页，具备暂存/服务器确认区分、原请求恢复与冲突另存；[编辑阶段复盘](docs/reviews/mobile-draft-editor-review.md) 记录 76 项模型、11 项真实服务及组件证据。公开发布交接 C1-C 与真机门槛仍待完成。双 agent 分工与进度见 [协作入口](docs/handoff/03-parallel-work.md)。
 
 CI、App 作品管理 M1 与固定预览发布 C2 已整合到主线源码，并通过独立工程复验；尚未构建包含这些页面的整合 APK。下一步接入草稿离线授权与编辑页，见 [当前协作进度](docs/handoff/primary-progress.md) 与 [交叉审查](docs/reviews/cross-review-primary-c905d7a.md)。持续双端协作用 `$tako-collab`，每次推送前核对双方分支与进度。
 
