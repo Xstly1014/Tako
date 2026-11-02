@@ -16,7 +16,7 @@
 
 在禁网 Node 24.19.0 Linux 容器的独立 tmpfs 中，使用 root 与 UID/GID 1000 确定验证两种顺序：root 先建父目录时普通用户 mkdir 复现 EACCES；普通用户预建后再由 root 创建另一夹具子目录，普通用户同一路径 mkdir 仍成功。该测试验证 Linux 所有权，不冒充 App 组件或原生验收。actionlint 与 diff 检查通过。
 
-修复后必须有新 CI SHA 的 C1 step success 才关闭远程门槛；不能只重跑首轮未修配置。最终结果见 parallel-ci-results。
+修复提交 **099c36d** 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41447328547) 四作业全部 success，并已独立核对 `Draft editing and publication handoff routes (network disabled)` 这个新增 step 为 success，关闭新 C1 路由远程执行尾项；不是只重跑首轮配置。[Backend](https://github.com/Xstly1014/Tako/actions/runs/41447328549) success，[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41447328596) 仍失败在 npm audit --audit-level=moderate。首轮失败和 Linux 所有权实验保留，后续只补证据的文档提交不改变被验 workflow/源码。
 
 ## 其他移交
 

@@ -38,3 +38,5 @@
 ## 证据边界与移交
 
 新增 C1 步骤是否已远程执行，以本轮实际 CI SHA/step 为准，不能用此前四套组件作业绿灯关闭该尾项；结果见 parallel-ci-results。预推送又合入主开发仅文档的 0e1e60e，已读其 9653d74 最终 APK 声明，但本端未独立核验另一台电脑产物，不将 b2cea9d 旧包说成新 C1-C。被审业务源码无新增差异。原生输入/返回/杀进程、账号/密钥恢复设备 P0 与既有 frontend moderate audit P1 仍由原责任方按原退出条件关闭，主开发已明确下一步处理审计。
+
+后续远程复核：首次接入 303d657 因 Linux runner/root 目录归属失败，修复于本端 099c36d；该提交 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41447328547) 四作业及新增 C1 step 均 success，[Backend](https://github.com/Xstly1014/Tako/actions/runs/41447328549) success。新路由 CI 尾项关闭，具体根因/修复见 mobile-c1-ci-integration-review.md；被审主开发源码仍为 9653d74，P2 另存竞争尚未修复，不因 CI 通过自动关闭。
