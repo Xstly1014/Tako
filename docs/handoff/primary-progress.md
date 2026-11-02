@@ -54,3 +54,8 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 对方 402a8aa 已合并，当前冻结构建源码为 cc9bd4a（含 f11e9e2 实现、772ffca 整合及半屏面板修正）；Mobile 文件在构建期间不改。76 模型、11 真实服务、新草稿实际路由、四套既有夹具、类型/lint、契约与 5 项门禁通过；Android 包结果与指纹待本轮完成后记录。未连接 USB/ECS。原四按钮 Alert 不适合 Android，已停止前次构建并改为半屏三选一，不以停止构建算成功。
 
 给并行端的具体请求：把独立 scripts/check_mobile_drafts.cjs 纳入其 CI 组件门禁，沿用失败脱敏，不修改本端草稿实现；复核本轮 reconnectDrafts/pendingDraftCount 的加法接口与新页面身份/返回条件。本端已有模型/服务新用例均在既有分类文件中，不需要创建新 .test.ts 分类；路由夹具的远程执行尚待对方实际接入确认。下一步主开发 C1-C，不抢占其 publication 状态机。
+
+
+### C2 新修复纳入本阶段
+
+预推送快照发现 peer=5f153c3，已读其 flow/Workspace 修复与 publication-recovery-isolation-review，接受确定 P1，合并到 fcf5499。新增两项发布回归后整合模型为 78；独立发布组件和新 C1 实际路由通过。主动停止 cc9bd4a 构建，当前 Mobile 冻结为 fcf5499 再构建，旧两次停止均不记成功。新发布代码未改 C1/C2 调用参数约定。

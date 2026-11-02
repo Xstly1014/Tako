@@ -1,4 +1,4 @@
-> C1-B 草稿箱、编辑与恢复已接入源码；76 模型、11 真实服务和新路由夹具通过，C1-C 发布交接与原生设备门槛仍待完成。[当前阶段证据](../reviews/mobile-draft-editor-review.md) · [主开发认领](primary-progress.md)。下文历史快照不覆盖当前进度。
+> C1-B 草稿箱、编辑与恢复已接入源码；78 整合模型、11 真实服务和新路由夹具通过，C1-C 发布交接与原生设备门槛仍待完成。[当前阶段证据](../reviews/mobile-draft-editor-review.md) · [主开发认领](primary-progress.md)。下文历史快照不覆盖当前进度。
 
 # Tako 开发交接入口
 
