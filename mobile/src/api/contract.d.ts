@@ -193,6 +193,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 按标题、笔名或简介搜索当前公开中篇
+     * @description 字面连续包含匹配，英文大小写不敏感；按首次正式发布时间与ID倒序，每页12条。仅当前可读展示版；不检索正文、历史版、评论或私稿。游标绑定规范化关键词，不是结果快照。
+     */
+    get: operations["searchPublicWorks"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/community": {
     parameters: {
       query?: never;
@@ -1885,6 +1905,37 @@ export interface operations {
       409: components["responses"]["Conflict"];
       413: components["responses"]["TooLarge"];
       415: components["responses"]["NotJSON"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  searchPublicWorks: {
+    parameters: {
+      query: {
+        /** @description 去除首尾空白后非空，不含控制字符；百分号、下划线等作为普通字符。不得重复参数。 */
+        q: string;
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 成功；无命中返回空items，无正文、邮箱或总数，访问权限不缓存 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            items: components["schemas"]["DiscoveryCard"][];
+            next_cursor: string;
+          };
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
       500: components["responses"]["InternalError"];
       503: components["responses"]["Unavailable"];
     };

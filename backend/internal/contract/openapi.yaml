@@ -384,6 +384,41 @@ paths:
         '415': {$ref: '#/components/responses/NotJSON'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/search:
+    get:
+      operationId: searchPublicWorks
+      summary: 按标题、笔名或简介搜索当前公开中篇
+      description: 字面连续包含匹配，英文大小写不敏感；按首次正式发布时间与ID倒序，每页12条。仅当前可读展示版；不检索正文、历史版、评论或私稿。游标绑定规范化关键词，不是结果快照。
+      tags: [阅读]
+      security: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 64}
+        description: 去除首尾空白后非空，不含控制字符；百分号、下划线等作为普通字符。不得重复参数。
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 成功；无命中返回空items，无正文、邮箱或总数，访问权限不缓存
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 12
+                    items: {$ref: '#/components/schemas/DiscoveryCard'}
+                  next_cursor: {type: string, maxLength: 512}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/community:
     get:
       operationId: discoverWorks
