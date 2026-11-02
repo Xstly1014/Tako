@@ -16,7 +16,9 @@ node scripts/check_mobile_tests.cjs model
 
 契约检查在系统临时目录重新生成声明，通过 TypeScript 语法树打印后比较，忽略换行、缩进和注释，不忽略类型差异。不写回源码；漂移、生成失败和依赖缺失均返回非零。工具测试验证漂移拒绝、坏规格拒绝、无写回，以及服务前置保护。前置保护的 fetch 夹具仅测试门禁失败，不计入真实服务结果。
 
-`model` 运行 session/comments/versions/author-works/publications/drafts 的 51 项模型与本机 SQLite/加密故障检查。`service` 运行 reader/comments/versions/author-works/publications/drafts 的 10 项服务组检查，其中包括真实 HTTP 与读者失败响应测试。服务文件串行执行，遵守服务端两槽密码 CPU 限制，不通过调高业务限流来适配测试。新增 `.test.ts` 文件若未分类、或已分类文件缺失，命令会失败，避免遗漏新测试。两种命令都拒绝空测试、skip、todo 和失败；只输出计数，不打印可能带私有值的断言详情。Node SQLite/WebCrypto 不等于 Expo 原生存储验收。调试失败时在本机分文件运行原测试，注意避免分享敏感输出。
+`model` 运行 session/comments/versions/author-works/publications/drafts 的模型与本机 SQLite/加密故障检查。`service` 运行 reader/comments/versions/author-works/publications/drafts 的服务组检查，其中包括真实 HTTP 与读者失败响应测试；当前文件分类以 runner 为准，实际数量以输出为准。服务文件串行执行，遵守服务端两槽密码 CPU 限制，不通过调高业务限流来适配测试。新增 `.test.ts` 文件若未分类、或已分类文件缺失，命令会失败，避免遗漏新测试。两种命令都拒绝空测试、skip、todo 和失败。Node SQLite/WebCrypto 不等于 Expo 原生存储验收。
+
+成功只输出计数；失败额外输出安全 `DIAG`：进程退出状态与固定原因（如 timeout、executable_missing），以及 TAP 中已分类测试文件的行列。不转发测试名称、原始路径、正文、错误消息、断言值或堆栈。服务预检区分 connect、environment、community-json、seed 阶段；只保留数字 HTTP 状态及 test/not_test 判定，不打印响应头值、响应正文或 URL 参数。预检失败仍不会启动业务测试，不会自动重试或降级 mock。诊断投影与哨兵脱敏通过真实 CLI 失败夹具验证；这些故障注入不是业务服务验收。
 
 ## 真实 MySQL/API
 
@@ -59,7 +61,7 @@ node scripts/check_mobile_components.cjs
 node scripts/check_mobile_components.cjs versions
 ```
 
-新入口用空目录遮住宿主 mobile/node_modules，并让所有脚本统一从 Docker 的 /app/node_modules 解析依赖，解决宿主与容器重复 React 的 Hook 错误。四个夹具均在 `--network none` 下运行，失败返回非零且不输出可能含正文的断言。生成的失败截图只在忽略目录。组件证据不等于真实权限或手机验收。
+新入口用空目录遮住宿主 mobile/node_modules，并让所有脚本统一从 Docker 的 /app/node_modules 解析依赖，解决宿主与容器重复 React 的 Hook 错误。四个夹具均在 `--network none` 下运行，失败返回非零且不输出可能含正文的断言。失败时 wrapper 从既有脚本输出中仅提取白名单阶段，例如 publication 的 remount-read-only；未知阶段为 unavailable，原始输出、页面错误和截图不转发。阶段白名单在 `diagnostics.cjs`，新增/改名阶段需同步维护。超时等没有阶段时仍报告安全的进程原因。生成的失败截图只在忽略目录。组件证据不等于真实权限或手机验收。
 
 `.github/workflows/mobile-checks.yml` 包含 Windows/Linux 静态与模型检查、Linux 断网组件检查、Linux 真实 MySQL/API 检查。现有 backend 工作流继续负责路由覆盖、请求/响应契约、race/MySQL 和 vet；本工作流不重复全量后端测试。不依赖原机 `.runtime`、密钥、SDK 或 npm 缓存，不跑邮件发送、ECS、手机安装或 Android native 编译。
 

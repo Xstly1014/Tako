@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { processState, fixtureStage } = require('./mobile-checks/diagnostics.cjs');
 const root = path.resolve(__dirname, '..');
 const selected = process.argv[2] ?? 'all';
 const fixtures = { comments: 'mobile-comments-ui', versions: 'mobile-versions-ui', author: 'mobile-author-works-ui', publication: 'mobile-publication-ui' };
@@ -23,7 +24,10 @@ try {
       '-v', directory + ':/materials/mobile/node_modules:ro',
       '-w', '/tools', 'mcr.microsoft.com/playwright:v1.56.1-noble', 'node', script],
     { cwd: root, encoding: 'utf8', timeout: 180000 });
-    if (result.error || result.status !== 0) throw new Error(mode + '_fixture_failed');
+    if (result.error || result.status !== 0) {
+      console.error('DIAG mobile fixture=' + mode + ' ' + processState(result) + ' stage=' + fixtureStage(mode, result.stderr));
+      throw new Error(mode + '_fixture_failed');
+    }
     console.log('PASS mobile ' + mode + ' component fixtures (network disabled; not device evidence).');
   }
 } catch (error) {
