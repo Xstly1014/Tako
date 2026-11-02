@@ -70,14 +70,23 @@ export function PublicationWorkspace({
     [rights, setRights] = useState(false),
     [nickname, setNickname] = useState("");
   const [tick, render] = useState(0),
-    [currentState, setCurrentState] = useState<WorkState | null>(null);
+    [currentState, setCurrentState] = useState<WorkState | null>(null),
+    [stateReadFailed, setStateReadFailed] = useState(false);
   void tick;
   const current = useCallback(() => mounted.current && valid(), [valid]);
   const refreshState = useCallback(async () => {
-    if (current()) setCurrentState(null);
+    if (current()) {
+      setCurrentState(null);
+      setStateReadFailed(false);
+    }
     if (!flow.result || !flow.preview) return;
-    const value = await api.state(flow.result.work_id, flow.preview.draft_id);
-    if (current()) setCurrentState(value);
+    try {
+      const value = await api.state(flow.result.work_id, flow.preview.draft_id);
+      if (current()) setCurrentState(value);
+    } catch {
+      // A current-state GET cannot undo the confirmed publication receipt.
+      if (current()) setStateReadFailed(true);
+    }
   }, [api, flow, current]);
   const initialize = useCallback(async () => {
     if (lock.current) return;
@@ -198,6 +207,7 @@ export function PublicationWorkspace({
       if (current()) {
         setSource(null);
         setCurrentState(null);
+        setStateReadFailed(false);
         setIntro("");
         setTags([]);
         setRights(false);
@@ -287,6 +297,11 @@ export function PublicationWorkspace({
             <Text style={s.note}>
               这是本次发布确认，不代表作品目前公开，也不代表平台审核通过。
             </Text>
+            {stateReadFailed ? (
+              <Text accessibilityLiveRegion="polite" style={s.error}>
+                发布已确认，暂时无法读取作品当前状态，请重试读取。
+              </Text>
+            ) : null}
             {currentState ? (
               <Text style={s.note}>
                 当前展示 V{currentState.display_version} ·{" "}

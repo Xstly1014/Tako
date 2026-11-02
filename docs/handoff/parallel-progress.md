@@ -2,7 +2,14 @@
 
 更新时间：2026-11-02（Asia/Shanghai）。维护方：本会话并行开发端；另一端维护 `primary-progress.md`。本文件随本阶段提交发布，以包含它的提交为准；对方是否已读或确认仍未知。
 
-## 当前阶段认领（同步 9653d74，C1-B/C 接入）
+## 当前阶段认领（已确认发布与现状读取失败）
+
+- 本轮 fetch main仍0e1e60e，本端a814cf9；未见对方新发布进度，不视为无人进行工作。沿本端 C2 范围处理已确认发布被后续 GET 失败误报成未知的问题，不接管 C1 P2 或前端审计。
+- 改动范围：本端 `PublicationWorkspace.tsx`、发布组件夹具/白名单及本端记录。区分发布/记录恢复失败与作品现状 GET 失败，保留原确认并只重试 GET；不改 flow/journal、C1/auth、API/锁/构建。
+- 实际页面新回归在修复前 confirmed-state-read-retry 阶段失败，修复后通过。现状 GET 失败保留原发布确认，单独提示读取失败，重试不增加 publication 请求或 POST，成功后移除读取错误并显示真实状态。
+- 本机类型/lint、85 模型、11 顺序真实服务、6 门禁、发布组件与 C1→实际 C2 路由均通过，零 skip/todo；其他组件本机未重复，待本轮远程覆盖。复盘见 `docs/reviews/publication-state-read-review.md`。本轮尚待提交推送；主开发旧9653d74包不包含本轮UI改动，整合后由其冻结构建。
+
+## 上阶段认领（同步 9653d74，C1-B/C 接入）
 
 - 本端从 5f153c3 快进到 origin/main@9653d74，无冲突。主开发已合入本端发布恢复 P1 修复并接通 C1-B 编辑/列表与 C1-C 发布票据/返回。已读其进度、编辑与发布阶段记录、规格和独立 CLI，不拿旧 C1-A 审查覆盖新代码。
 - 本轮认领：本端 `.github/workflows/mobile-checks.yml`、门禁行为检查/说明、独立审查及本端记录。将主开发提供的 `node scripts/check_mobile_drafts.cjs` 作为既有组件 job 的独立必跑步骤，不改其 CLI/路由夹具、C1/auth、锁文件或构建；独立复核新 Session 接口、发布门槛/票据消费和返回保留输入。
