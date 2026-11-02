@@ -5,3 +5,5 @@ export const ScrollView = forwardRef(function Scroll({ children }, ref) {
   useImperativeHandle(ref, () => ({ scrollTo: () => { window.readerTest.scrolls++; } }), []);
   return <div>{children}</div>;
 });
+
+export const Keyboard = { dismiss() {} };
