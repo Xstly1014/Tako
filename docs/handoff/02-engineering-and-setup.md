@@ -56,6 +56,8 @@ node scripts/mobile_account_acceptance.cjs
 
 第一条在独立 `tako_feedback_test` 迁移后执行全量 race/MySQL/契约和 vet；不在业务库跑清理测试。第二条需要 Node 24 与 3300 服务；第三条创建仅供设备验收的合成账号/作品，将随机凭据存入忽略目录，不打印、不发信。它们**不证明**手机 SecureStore、键盘或导航通过。
 
+C1 原生草稿契约预检：`node scripts/mobile_draft_preflight.cjs`，需当前真实 3300。它正常注册两个合成账号并保留自己的私密测试稿，验证创建/保存回执重放、跨账号拒绝、修订冲突、恢复副本与续写；不读取根 `.env`，不发信、不触碰已有用户草稿，也不证明本机加密或 App 页面可用。
+
 移动端类型/lint：安装 Node 24 后在 `mobile/` 执行 `npm ci`、`npm run typecheck`、`npm run lint`。SDK 新库用 `npx expo install`，按 `mobile/AGENTS.md` 先读 SDK 58 官方文档。API 变更后按 `mobile/README.md` 重新生成契约类型，不手工修改生成文件。
 
 ## Android 个人安装包
