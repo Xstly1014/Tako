@@ -1,5 +1,5 @@
-import { DraftError, id, text } from "./model.ts";
-import type { LocalDraft } from "./model.ts";
+import { DraftError, id, text, integer, date } from "./model.ts";
+import type { LocalDraft, ServerDraft } from "./model.ts";
 import type { DraftRepository } from "./storage.ts";
 import type { DraftAccess } from "./access.ts";
 
@@ -37,6 +37,17 @@ export class AuthorizedDrafts {
   load(localId: string) { return this.run((repo, owner) => repo.load(owner, localId)); }
   create(localId: string, title = "", content = "") {
     return this.run((repo, owner) => repo.create(owner, localId, title, content));
+  }
+  cacheServer(server: ServerDraft) {
+    if (!id(server.id) || !integer(server.revision, 1) || !date(server.saved_at) || !text(server.title, server.content))
+      return Promise.reject(new DraftError("invalid_input"));
+    return this.run((repo, owner, check) => repo.change(owner, server.id, (current) => {
+      check();
+      // Refresh/import NEVER replaces an existing local working copy.
+      return current ?? { format: 1, owner, id: server.id, seq: 1, serverId: server.id,
+        baseRevision: server.revision, title: server.title, content: server.content,
+        dirty: false, pending: null, savedAt: server.saved_at, recoveredFrom: null };
+    }));
   }
   edit(localId: string, seq: number, title: string, content: string) {
     if (!text(title, content)) return Promise.reject(new DraftError("invalid_input"));

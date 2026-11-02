@@ -39,6 +39,7 @@ const validAccount = (v: unknown): v is Account =>
 export class Session {
   private vault: Vault;
   private transport: Transport;
+  private readPendingDrafts?: () => Promise<number>;
   private token = "";
   private epoch = 0;
   private unsafeStorage = false;
@@ -51,9 +52,10 @@ export class Session {
     generation: 0,
     drafts: lockedDraftAccess(),
   };
-  constructor(vault: Vault, transport: Transport) {
+  constructor(vault: Vault, transport: Transport, readPendingDrafts?: () => Promise<number>) {
     this.vault = vault;
     this.transport = transport;
+    this.readPendingDrafts = readPendingDrafts;
   }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => {
@@ -207,6 +209,40 @@ export class Session {
       throw error;
     } finally {
       if (epoch === this.epoch) this.update({ busy: false });
+    }
+  }
+  // The app supplies a protected reader; ordinary server-only consumers do not
+  // import the native database just to render an account page.
+  async pendingDraftCount() {
+    const owner = this.state.drafts.owner, epoch = this.epoch;
+    if (!this.readPendingDrafts || !owner || this.state.busy || !["online", "offline"].includes(this.state.drafts.phase)) return 0;
+    const count = await this.readPendingDrafts();
+    if (epoch !== this.epoch || owner !== this.state.drafts.owner || this.state.busy) throw new ApiError("stale_session");
+    if (!Number.isSafeInteger(count) || count < 0) throw new ApiError("storage");
+    return count;
+  }
+  // Reconnect already-authorized drafts without changing editor generation.
+  // This cannot grant access to a locked account.
+  async reconnectDrafts() {
+    if (this.state.busy || !this.token || !this.state.drafts.owner ||
+        !["online", "offline"].includes(this.state.drafts.phase)) return false;
+    const epoch = this.epoch, token = this.token, owner = this.state.drafts.owner;
+    const current = () => epoch === this.epoch && token === this.token &&
+      this.state.drafts.owner === owner && !this.state.busy;
+    try {
+      const account = await this.transport<Account>("/me", { token });
+      if (!current()) return false;
+      if (!validAccount(account) || account.id !== owner) throw new ApiError("contract");
+      const grant = await this.vault.drafts?.bind(token, owner);
+      if (!current()) return false;
+      if (!grant?.confirmed) return false;
+      this.update({ phase: "ready", account, error: null, drafts: { phase: "online", owner } });
+      return true;
+    } catch (error) {
+      if (!current()) return false;
+      if (error instanceof ApiError && error.status === 401) await this.forget();
+      else this.update({ error });
+      return false;
     }
   }
   async setNickname(nickname: string) {

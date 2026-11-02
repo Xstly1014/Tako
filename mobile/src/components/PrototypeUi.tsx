@@ -157,8 +157,13 @@ export function BottomNavigation({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="发帖，尚未开放"
-        onPress={() => unavailable("创作")}
+        accessibilityLabel="创作"
+        onPress={() => Alert.alert("开始创作", "选择内容形式", [
+          { text: "短内容（尚未开放）", onPress: () => unavailable("短内容创作") },
+          { text: "中篇", onPress: () => router.push("/drafts") },
+          { text: "长文（尚未开放）", onPress: () => unavailable("长文创作") },
+          { text: "取消", style: "cancel" },
+        ])}
         style={({ pressed }) => [s.fab, pressed && { opacity: 0.7 }]}
       >
         <Svg width={46} height={46} viewBox="0 0 46 46">

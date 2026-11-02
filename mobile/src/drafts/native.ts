@@ -1,6 +1,10 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import * as SQLite from "expo-sqlite";
+import type { Session } from "../auth/session";
+import { DraftsApi } from "./api";
+import { DraftSynchronizer } from "./sync";
+import type { DraftTools } from "./workspace";
 import { DraftError } from "./model";
 import { DraftRepository, type DraftCipher } from "./storage";
 import { SqliteCipherRows } from "./sqlite";
@@ -58,4 +62,28 @@ function openNativeDraftRepository(): Promise<DraftRepository> {
 
 export function nativeAuthorizedDrafts(current: () => LocalIdentity) {
   return new AuthorizedDrafts(openNativeDraftRepository, current);
+}
+
+const toolsBySession = new WeakMap<Session, DraftTools>();
+export function nativeDraftTools(session: Session): DraftTools {
+  const existing = toolsBySession.get(session);
+  if (existing) return existing;
+  const api = new DraftsApi((path, options) => session.authorized(path, options));
+  const identity = () => ({ owner: session.snapshot().drafts.owner, generation: session.snapshot().generation,
+    online: !session.snapshot().busy && session.snapshot().drafts.phase === "online" });
+  let synchronizer: Promise<DraftSynchronizer> | undefined;
+  const tools: DraftTools = {
+    local: nativeAuthorizedDrafts(session.snapshot), api, current: session.snapshot,
+    uuid: Crypto.randomUUID,
+    online: () => session.reconnectDrafts(),
+    async sync(localId) {
+      const value = identity();
+      if (!value.owner || !value.online) return { state: "login-required" };
+      if (!synchronizer) synchronizer = openNativeDraftRepository().then(repo => new DraftSynchronizer(repo, api, identity, Crypto.randomUUID))
+        .catch(error => { synchronizer = undefined; throw error; });
+      return (await synchronizer).sync(value.owner, localId);
+    },
+  };
+  toolsBySession.set(session, tools);
+  return tools;
 }

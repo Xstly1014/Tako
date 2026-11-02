@@ -60,3 +60,38 @@ test("真实 3300 + 本机 SQLite：冻结请求重开确认、已有服务端�
   await loggedOut.restore();
   await assert.rejects(new AuthorizedDrafts(async () => f.repo, loggedOut.snapshot).list());
 });
+
+
+test("真实编辑器链路：本机缓存既有稿、编辑同步、再打开保持服务器确认内容", async (ctx) => {
+  const { DraftEditor } = await import("../src/drafts/workspace.ts");
+  const f = await fixture(); ctx.after(f.close);
+  let value: string | null = null;
+  const item = { get: async () => value, set: async (v: string) => { value = v; }, remove: async () => { value = null; } };
+  const session = new Session(createDraftSessionVault(item), request);
+  await session.restore();
+  await session.signIn("register", `draft-editor-${randomUUID()}@example.test`, randomUUID());
+  try {
+    await session.setNickname("编辑器合成验收"); await session.confirmDraftAccess();
+    const owner = session.snapshot().account!.id, local = new AuthorizedDrafts(async () => f.repo, session.snapshot);
+    const api = new DraftsApi((path, options) => session.authorized(path, options));
+    const worker = new DraftSynchronizer(f.repo, api, () => ({ owner: session.snapshot().drafts.owner,
+      generation: session.snapshot().generation, online: session.snapshot().drafts.phase === "online" }), randomUUID);
+    const tools = { local, api, current: session.snapshot, online: () => session.reconnectDrafts(),
+      sync: (key: string) => worker.sync(owner, key), uuid: randomUUID };
+    const key = randomUUID(); await local.create(key);
+    const editor = new DraftEditor(owner, key, tools); await editor.load();
+    editor.input("真实编辑合成标题", "中文、表情😀和多行\n都是合成验收文字。"); await editor.save();
+    await editor.synchronize();
+    const record = editor.snapshot().record!;
+    assert.equal(record.dirty, false); assert.equal(record.pending, null);
+    const server = await api.read(record.serverId!);
+    assert.equal(server.content, editor.snapshot().content);
+    // Import of an existing server draft initializes a clean local copy.
+    const cached = await local.cacheServer(server);
+    const reopened = new DraftEditor(owner, cached.id, tools); await reopened.load();
+    assert.equal(reopened.snapshot().content, server.content);
+    reopened.input("继续合成", "再次保存的合成文字"); await reopened.save(); await reopened.synchronize();
+    assert.equal((await api.read(record.serverId!)).content, "再次保存的合成文字");
+    assert.equal((await api.list()).items.length, 1);
+  } finally { await session.logout(); }
+});

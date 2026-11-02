@@ -204,3 +204,119 @@ test("双同步器旧读取：已有恢复与新编辑时不得依据旧身份�
   assert.equal((await fast.sync(f.owner, f.key)).state, "saved");
   assert.equal(f.api.drafts.size, 2);
 });
+
+
+async function editorFixture(ctx: { after(fn: () => void): void }) {
+  const f = await setup(ctx);
+  const { AuthorizedDrafts } = await import("../src/drafts/authorized.ts");
+  const { DraftEditor } = await import("../src/drafts/workspace.ts");
+  const { DraftsApi } = await import("../src/drafts/api.ts");
+  let current = { drafts: { phase: "online" as "online" | "offline" | "locked", owner: f.owner as string | null }, generation: 1, busy: false };
+  const local = new AuthorizedDrafts(async () => f.repo, () => current), worker = f.worker();
+  const tools = { local, api: new DraftsApi(async () => { throw new Error("unused_in_editor"); }), current: () => current,
+    online: async () => current.drafts.phase === "online", sync: (key: string) => worker.sync(f.owner, key), uuid: randomUUID };
+  const editor = new DraftEditor(f.owner, f.key, tools);
+  await editor.load();
+  return { ...f, local, tools, editor, setIdentity: (value: typeof current) => { current = value; } };
+}
+
+test("编辑器：加密暂存期间继续输入，最终落盘最新输入而不反写旧文本", async (ctx) => {
+  const f = await editorFixture(ctx);
+  const seal = f.cipher.seal.bind(f.cipher);
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let first = true;
+  f.cipher.seal = async (...args) => { if (first) { first = false; arrived(); await gate; } return seal(...args); };
+  f.editor.input("首次输入", "中文😀");
+  await ready;
+  f.editor.input("后来输入", "完整的最新文字😀");
+  release(); await f.editor.save();
+  assert.equal(f.editor.hasUnstored(), false);
+  assert.equal(f.editor.snapshot().content, "完整的最新文字😀");
+  assert.equal((await f.repo.load(f.owner, f.key))?.content, "完整的最新文字😀");
+  assert.equal(f.api.calls.length, 0);
+});
+
+test("编辑器：暂存失败保留输入与旧有效记录，重试与提交信号丢失读回", async (ctx) => {
+  const f = await editorFixture(ctx);
+  f.db.failBeforeCommit = true;
+  f.editor.input("失败合成", "不能丢掉的输入");
+  await assert.rejects(f.editor.save());
+  assert.equal(f.editor.hasUnstored(), true);
+  assert.equal(f.editor.snapshot().content, "不能丢掉的输入");
+  assert.equal((await f.repo.load(f.owner, f.key))?.content, "首份草稿");
+  await f.editor.save();
+  assert.equal(f.editor.hasUnstored(), false);
+  f.db.failAfterCommit = true;
+  f.editor.input("读回合成", "已经提交但回执丢失");
+  await f.editor.save();
+  assert.equal(f.editor.hasUnstored(), false);
+  assert.equal((await f.repo.load(f.owner, f.key))?.content, "已经提交但回执丢失");
+});
+
+test("编辑器：服务回执期间新输入不被确认，下一次同步仍只写同一稿", async (ctx) => {
+  const f = await editorFixture(ctx);
+  const { editorStatus } = await import("../src/drafts/workspace.ts");
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  f.api.beforeReceipt = async () => { f.api.beforeReceipt = null; arrived(); await gate; };
+  const syncing = f.editor.synchronize();
+  await ready;
+  f.editor.input("新输入", "服务请求之后继续写"); await f.editor.save();
+  release(); await syncing;
+  assert.equal(f.editor.snapshot().content, "服务请求之后继续写");
+  assert.notEqual(editorStatus(f.editor.snapshot()), "已保存到服务器");
+  await f.editor.synchronize();
+  assert.equal(editorStatus(f.editor.snapshot()), "已保存到服务器");
+  assert.equal(f.api.drafts.size, 1);
+});
+
+test("编辑器：离线保存、锁定后的迟到输入拒绝，原账号恢复仍保留未存输入", async (ctx) => {
+  const f = await editorFixture(ctx);
+  f.setIdentity({ drafts: { phase: "offline", owner: f.owner }, generation: 1, busy: false });
+  f.editor.input("离线", "离线仍可存"); await f.editor.save();
+  await assert.rejects(f.editor.synchronize());
+  assert.equal(f.api.calls.length, 0);
+  f.db.failBeforeCommit = true;
+  f.editor.input("未落盘", "原账号暂存失败的输入"); await assert.rejects(f.editor.save());
+  f.setIdentity({ drafts: { phase: "locked", owner: null }, generation: 2, busy: false });
+  f.editor.input("迟到", "不得替换");
+  assert.equal(f.editor.snapshot().content, "原账号暂存失败的输入");
+  await assert.rejects(f.editor.save());
+  f.setIdentity({ drafts: { phase: "online", owner: f.owner }, generation: 3, busy: false });
+  await f.editor.load(); await f.editor.save();
+  assert.equal((await f.local.load(f.key))?.content, "原账号暂存失败的输入");
+});
+
+test("编辑器：本机竞争不提升未存输入的基线，明确另存保留双方", async (ctx) => {
+  const f = await editorFixture(ctx);
+  const initial = f.editor.snapshot().record!;
+  await f.repo.edit(f.owner, f.key, initial.seq, "另一编辑器", "另一份已存输入");
+  f.editor.input("当前编辑器", "当前未存输入"); await assert.rejects(f.editor.save());
+  await assert.rejects(f.editor.load());
+  const copy = await f.editor.saveAsCopy();
+  assert.notEqual(copy, f.key);
+  assert.equal((await f.local.load(f.key))?.content, "另一份已存输入");
+  assert.equal((await f.local.load(copy))?.content, "当前未存输入");
+});
+
+test("服务器缓存：刷新不能覆盖本机脏稿或未确认请求", async (ctx) => {
+  const f = await editorFixture(ctx);
+  const serverId = randomUUID(), server = { id: serverId, revision: 1, saved_at: "2026-11-02T00:00:00Z", title: "缓存", content: "初次内容" };
+  const cached = await f.local.cacheServer(server);
+  await f.local.edit(serverId, cached.seq, "本机修改", "保留的脏稿");
+  await f.local.cacheServer({ ...server, revision: 2, content: "服务器新内容" });
+  assert.equal((await f.local.load(serverId))?.content, "保留的脏稿");
+  assert.equal((await f.local.load(serverId))?.baseRevision, 1);
+});
+
+
+test("自动同步只重试暂时错误，不循环提交缺笔名、错误环境或本机冲突", async () => {
+  const { automaticSyncAllowed } = await import("../src/drafts/workspace.ts");
+  assert.equal(automaticSyncAllowed(null), true);
+  for (const code of ["network", "service_unavailable", "rate_limited"]) assert.equal(automaticSyncAllowed(new ApiError(code)), true);
+  for (const code of ["nickname_required", "invalid_input", "environment", "contract", "authentication_required"]) assert.equal(automaticSyncAllowed(new ApiError(code)), false);
+  assert.equal(automaticSyncAllowed(new DraftError("local_conflict")), false);
+});

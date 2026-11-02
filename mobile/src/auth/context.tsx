@@ -7,9 +7,10 @@ import {
 import * as SecureStore from "expo-secure-store";
 import { request } from "../api/client";
 import { Session } from "./session";
+import { nativeAuthorizedDrafts } from "../drafts/native";
 import { createDraftSessionVault } from "../drafts/access";
 const key = "tako.test.app.session.v1";
-const session = new Session(
+const session: Session = new Session(
   createDraftSessionVault({
     get: () => SecureStore.getItemAsync(key),
     set: (value) =>
@@ -19,6 +20,7 @@ const session = new Session(
     remove: () => SecureStore.deleteItemAsync(key),
   }),
   request,
+  async () => (await nativeAuthorizedDrafts(session.snapshot).list()).filter(row => row?.dirty || row?.pending).length,
 );
 const Context = createContext(session);
 export function SessionProvider({ children }: { children: React.ReactNode }) {

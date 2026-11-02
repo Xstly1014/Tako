@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Image,
   Pressable,
   ScrollView,
@@ -14,7 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../auth/context";
 import { AuthSheet } from "../components/AuthSheet";
 import { BottomNavigation, unavailable } from "../components/PrototypeUi";
-import { apiMessage } from "../api/client";
+import { apiMessage, ApiError } from "../api/client";
+import { draftMessage } from "../drafts/workspace";
 import { theme as t } from "../theme";
 export default function Account() {
   const {
@@ -24,13 +26,14 @@ export default function Account() {
     busy,
     error: restoreError,
     generation,
+    drafts,
   } = useSession();
   const [sheet, setSheet] = useState(false),
     [edit, setEdit] = useState(false),
     [name, setName] = useState(""),
     [saving, setSaving] = useState(false),
     [error, setError] = useState<unknown>();
-  const logout = async () => {
+  const performLogout = async () => {
     setError(undefined);
     try {
       await session.logout();
@@ -39,6 +42,25 @@ export default function Account() {
     } catch (e) {
       setError(e);
     }
+  };
+  const [exitPrompt, setExitPrompt] = useState<{ count: number; generation: number; owner: string } | null>(null);
+  const logout = async () => {
+    try {
+      const before = session.snapshot();
+      const count = await session.pendingDraftCount();
+      const now = session.snapshot();
+      if (now.generation !== before.generation || now.account?.id !== before.account?.id) throw new ApiError("stale_session");
+      if (count && before.account) setExitPrompt({ count, generation: before.generation, owner: before.account.id });
+      else await performLogout();
+    } catch (e) { setError(e); }
+  };
+  const exitVisible = !!exitPrompt && exitPrompt.generation === generation && exitPrompt.owner === account?.id && phase === "ready";
+  const confirmExit = async () => {
+    const current = session.snapshot();
+    if (!exitPrompt || current.generation !== exitPrompt.generation || current.account?.id !== exitPrompt.owner) {
+      setExitPrompt(null); setError(new ApiError("stale_session")); return;
+    }
+    setExitPrompt(null); await performLogout();
   };
   const save = async () => {
     setSaving(true);
@@ -117,6 +139,7 @@ export default function Account() {
             >
               <Text style={s.primaryText}>重试确认账号</Text>
             </Pressable>
+            {drafts.phase === "offline" ? <Pressable onPress={() => router.push("/drafts")} style={s.row}><Text style={s.rowTitle}>离线草稿箱</Text><Text style={s.meta}>续写已暂存到这台手机的草稿</Text></Pressable> : null}
           </>
         ) : phase === "guest" ? (
           <Pressable onPress={() => setSheet(true)} style={s.primary}>
@@ -132,9 +155,9 @@ export default function Account() {
               <Text style={s.rowTitle}>阅读偏好</Text>
               <Text style={s.meta}>当前开放中篇阅读</Text>
             </Pressable>
-            <Pressable onPress={() => unavailable("草稿箱")} style={s.row}>
+            <Pressable onPress={() => router.push("/drafts")} style={s.row}>
               <Text style={s.rowTitle}>草稿箱</Text>
-              <Text style={s.meta}>尚未接入手机端</Text>
+              <Text style={s.meta}>新建或继续写中篇</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -203,7 +226,7 @@ export default function Account() {
         )}
         {error || (phase === "guest" && restoreError) ? (
           <Text accessibilityLiveRegion="polite" style={s.error}>
-            {apiMessage(error || restoreError)}
+            {draftMessage(error || restoreError)}
           </Text>
         ) : null}
         <Text style={s.note}>本地测试版 · 合成测试数据</Text>
@@ -215,6 +238,14 @@ export default function Account() {
           else router.replace("/community");
         }}
       />
+      <Modal visible={exitVisible} transparent onRequestClose={() => setExitPrompt(null)}>
+        <View style={s.exitOverlay}><View style={s.exitPanel}>
+          <Text style={s.rowTitle}>还有未同步草稿</Text>
+          <Text style={s.meta}>{exitVisible ? exitPrompt!.count : ""} 份草稿尚未确认到服务器。退出后加密记录保留，需原账号重登恢复。</Text>
+          <Pressable onPress={() => setExitPrompt(null)} style={s.row}><Text style={s.rowTitle}>继续同步</Text></Pressable>
+          <Pressable onPress={() => void confirmExit()} style={s.row}><Text style={[s.rowTitle, { color: t.danger }]}>保留并退出</Text></Pressable>
+        </View></View>
+      </Modal>
       <AuthSheet
         visible={sheet}
         onClose={() => setSheet(false)}
@@ -224,6 +255,8 @@ export default function Account() {
   );
 }
 const s = StyleSheet.create({
+  exitOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 },
+  exitPanel: { backgroundColor: t.surface, borderRadius: 8, padding: 24, gap: 16 },
   screen: { flex: 1, backgroundColor: "white" },
   content: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 32 },
   stats: {

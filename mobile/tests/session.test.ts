@@ -426,3 +426,44 @@ test("草稿授权：注销端点确认 401 时按已失效清理，而非保留
   assert.equal(s.snapshot().drafts.owner, null);
   assert.equal(await v.get(), null);
 });
+
+
+test("草稿重连：不改变编辑代次，不给锁定账号解锁，401 仍持久锁定", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  const first = new Session(v, transport(async () => account));
+  await first.restore(); await first.confirmDraftAccess();
+  let status = 0;
+  const s = new Session(makeSecureVault(item), transport(async () => {
+    if (status === 0) throw new ApiError("network");
+    if (status === 401) throw new ApiError("authentication_required", "", 401);
+    return account;
+  }));
+  await s.restore(); const generation = s.snapshot().generation;
+  assert.equal(s.snapshot().drafts.phase, "offline");
+  status = 200; assert.equal(await s.reconnectDrafts(), true);
+  assert.equal(s.snapshot().generation, generation);
+  assert.equal(s.snapshot().drafts.phase, "online");
+  status = 401; assert.equal(await s.reconnectDrafts(), false);
+  assert.equal(s.snapshot().drafts.owner, null);
+  assert.equal(await s.reconnectDrafts(), false);
+  const after = new Session(makeSecureVault(item), networkDown); await after.restore();
+  assert.equal(after.snapshot().drafts.owner, null);
+});
+
+
+test("退出摘要：只读取已授权本人数量，异步计数不能跨代次返回", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  let calls = 0, delayed = false, finish: (n: number) => void = () => {};
+  const s = new Session(v, transport(async (path) => {
+    if (path === "/me") return account;
+    if (path.includes("logout")) return;
+    return response;
+  }), async () => { calls++; return delayed ? new Promise<number>(resolve => { finish = resolve; }) : 2; });
+  await s.restore();
+  assert.equal(await s.pendingDraftCount(), 0); assert.equal(calls, 0);
+  await s.confirmDraftAccess(); assert.equal(await s.pendingDraftCount(), 2);
+  delayed = true;
+  const pending = s.pendingDraftCount(), denied = assert.rejects(pending);
+  await s.logout(); finish(2); await denied;
+  assert.equal(await s.pendingDraftCount(), 0);
+});

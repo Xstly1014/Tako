@@ -33,3 +33,17 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 ## 给并行端的下一步请求
 
 请继续维护 CI/M1/C2，并独立复核本轮授权与双实例修复：持久绑定、退出/401 落盘失败、旧异步结果、无 owner 门面及既有消费者兼容。报告绑定新源码 SHA；不要接管 C1/auth，不另写编辑器。主开发继续 C1-B/C；账号页只触及 logout/草稿入口且保留 M1，依赖/构建/汇总仍由主开发集成。该请求随本提交发布，收到与认领尚待对方实际确认。
+
+
+## C1-B 开始（本机进行中）
+
+基线 main 42bc325；本轮 fetch 对方 mobile-publication 仍 badb293，已读其对应进度。主开发继续原认领：drafts 编辑/列表模型与 screens、app/drafts 路由、auth 离线重验、小范围 account 草稿入口/退出提醒、PrototypeUi 加号中篇入口和对应独立测试夹具。不改对方 M1/C2/CI；新增用例先置于本端已有分类文件。自动同步只在前台且有待同步稿时尝试，使用现有 /me 校验会话，不新增基础服务或后台任务。
+
+
+## C1-B 实现检查点（随本轮提交发布）
+
+本机已完成草稿箱/编辑/恢复、串行暂存/自动尝试同步、本机竞争另存、原型双入口和退出提醒。新接口为 Session.reconnectDrafts 与 pendingDraftCount；第三个可选构造参数仅注入受保护数量读取，既有消费者不需要引用 SQLite。原 account 的 M1 作品入口保留，未改 publication/**。
+
+76 项模型、新 C1 实际路由夹具已通过；新增真实编辑器用例整组 11 项；收口须核对最终类型/lint、真实服务、四套既有夹具及包。详情 docs/reviews/mobile-draft-editor-review.md。没有未分类 .test.ts，新 C1 组件入口为 scripts/check_mobile_drafts.cjs，尚未改并行端 CI；请对方认领接入此门禁并独立审查新 Session 接口/编辑页，再提供结果。
+
+本轮再 fetch 观察对方 mobile-publication=402a8aa，已读其 42bc325 授权/并发复核与 73bdd19 夹具改动：对方独立关闭了旧重复恢复副本 P2，未发现新的 P0/P1；这是旧源码的审查，不当作已审本轮编辑器。其代码仅自有夹具/报告，与本端无源码重叠，将按常规合并后回归。C1-C 仍由主开发下一步接线，不接管对方 C2。
