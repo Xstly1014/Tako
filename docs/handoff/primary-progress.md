@@ -1,31 +1,35 @@
 # 主开发工作进度
 
-更新时间：2026-11-02（Asia/Shanghai）。主开发维护；分支 main，整合源码基线 c905d7a。本文件随本阶段提交发布；并行端是否已读新增审查/规划，尚无确认。
+更新时间：2026-11-02（Asia/Shanghai）。主开发维护，分支 main。实现以包含本记录的提交为准；不将已推送推导为对方已读或认可。
 
-## 当前认领
+## 已观察与本轮集成
 
-- 阶段：C1.1 核心已发布至 de49a17；本轮整合 CI/M1/C2、使用 tako-collab 互审与细化后续规格。
-- 已观察：通过单次代理 127.0.0.1:7897 fetch，origin/main=de49a17，origin/codex/mobile-publication=c905d7a。已读对方 ref 上的 parallel-progress、阶段复盘及 C1/C2 接口约定；本地从 de49a17 快进到 c905d7a，双方提交均保留，无文本冲突。
-- 本轮只修改主开发进度、共享交接入口及主开发审查/规格；未改对方 M1/C2、CI 源码或 parallel-progress，未改业务权利/契约。
-- 下一步独占认领：C1 授权模块及原生适配，auth/session.ts 与 context.tsx 的离线授权/锁定接入、对应会话与存储测试；随后新草稿路由/列表/编辑页。个人中心只调整 logout/草稿箱触点，保留 M1 作品入口；不接管 publication/** 或作者管理状态机。
-- 状态：整合源码在本端通过 53 项模型、10 项服务、3 项门禁、5 项快照行为、类型/lint/契约以及四套组件检查。无新增 App 实现或整合 APK；C1 页面、离线授权和 C1→C2 实际调用栈仍未交付。
+- 上轮已将 CI/M1/C2 整合并推至 main 59694d6。原 de49a17 单轮免检查例外已结束，每次推送均检查 main 与对方实际功能分支。
+- 本轮 7897 代理 fetch 观察 main=59694d6，对方 mobile-publication 从 c905d7a 前进至 a0d4cea；已读该 ref 的 parallel-progress、独立 C1 审查和 CI 诊断实现。
+- 本端 C1-A 检查点 33c15b2 与对方 a0d4cea 已普通合并，双方历史保留；对方新增仅诊断/测试/报告，与本端源码无文本重叠。原报告不由本端修改。
 
-## 协作更新
+## 当前交付与认领
 
-对方已完成并发布 CI、M1 作品管理、C2 固定预览/发布与协作技能；“另一端仍只在启动”是旧状态。新增独立审查为 `docs/reviews/cross-review-primary-c905d7a.md`，选定范围未确认 P0/P1 缺陷，首轮瞬时失败已如实留档，不能以本端检查代替设备验收。
+主开发继续独占 C1 access/authorized/native、auth/session/context、草稿列表/编辑及其测试；本轮额外在自身 drafts/sync.ts 修复对方发现的确定 P2。未改对方 CI/M1/C2 源码；其门禁变化通过合并取得，个人中心 M1 作品入口未动，未改后端契约、依赖或锁文件。
 
-现在所有推送按 tako-collab 执行 fetch→看双方进度/重叠→集成→受影响验证→普通推送。de49a17 的单次免检查例外已经结束。每次也检查对方功能分支，不能只盯 main；没有新提交不等于没有未提交工作。不修改全局代理配置，按当前用户提供的 7897 代理进行本次进程级获取。
+C1-A 已完成会话层与原生安全存储接线：令牌与本机许可同项绑定，旧字符串令牌可联网恢复；新登录先确认，已确认同会话可离线读取授权门面。退出先落盘锁定再请求注销；网络失败保留会话供重试但草稿锁定；401 与持久化失败不假报完成。详见 mobile-draft-access-review.md。
 
-## 小合同与待确认请求
+Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/account/generation/authorized 保留，普通 Vault 无 drafts 扩展仍兼容。真正页面只应使用 nativeAuthorizedDrafts，不传 owner 直接打开原生仓储。原始 native 仓储工厂已改为模块内部。
 
-- 本端接受 `c1-c2-interface.md` 与既定业务一致的参数/权限约定；C1 只在最新输入已确认且 clean/pending=null 时 push 发布页，recovered 且仍 dirty 不允许。具体待实现门槛见 `docs/mobile-draft-access-spec.md`。
-- 并行端继续维护 CI/M1/C2，不做另一套草稿编辑器。建议下一步审查 C1 核心 de49a17 与授权规格，按其独立报告反馈；如主开发新增测试文件，协助更新 CI 分类后再集成。此请求尚待对方下次同步读取/确认，不宣称已认领。
-- 共享 auth 接口需保持既有 Session/generation 消费兼容；若产生变更先发布最小接口说明，双方各改自己的消费方。
-- 主开发作为当前 main 集成人，后续统一更新账本、构建整合包；当前 APK仍为 de49a17 阶段，不包含新增 M1/C2，不能说已更新用户手机。
+## 对互审的回应
 
+已接受 cross-review-parallel-de49a17.md 的 P2：不同同步器能基于旧读取生成多余恢复副本。现已在事务内重查 dirty/serverId/baseRevision，旧读取失效时不创建 pending，返回 saved 或 pending；两个 Promise 闸门反例通过，原请求、真正冲突和恢复后新输入均继续通过。对方需基于新提交重新复核，不能把旧报告当作已审新代码。
 
-## C1-A 阶段交付（随本提交发布）
+对方已读取上一轮接口约定与主开发审查，并按其进度独立维护 CI 诊断；这有实际记录支持。新授权源码仍待对方读取和审查，尚不宣称获得认可。
 
-基线 main 59694d6；2026-11-02 再 fetch，对方 mobile-publication 仍 c905d7a。主开发正在修改 auth/session.ts、context.tsx、drafts/access.ts、authorized.ts、native.ts 和现有 session/drafts-storage 测试；不新增测试文件，沿用既有 CI 分类，不改对方 CI/M1/C2。Session 新增 snapshot.drafts 与 confirmDraftAccess，原 phase/account/generation/authorized 调用保留；普通 Vault 无 drafts 扩展仍按原行为。新增授权细节见本轮规格补充；对方消费方无需读取此字段。
+## 实际证据与剩余门槛
 
-授权检查点：64 项模型、10 项真实服务、类型/lint、四套既有组件已通过；复盘见 docs/reviews/mobile-draft-access-review.md。持久凭据和授权同一 SecureStore 项，原字符串令牌兼容联网恢复；新登录先确认本机稿件权限。退出前锁定，网络失败保留会话但草稿锁定；恢复时再校验身份并确认。下一步继续 C1-B 编辑接入（恢复确认、列表/编辑、退出提醒），再接 C1-C 发布门槛；尚未开放创作入口/构建整合 APK。
+- 当前整合树：67 项模型、10 项真实服务、类型/lint、契约一致性、5 项门禁失败/脱敏测试以及四套既有组件均通过，零 skip/todo。
+- 真实 HTTP/MySQL + 本机 SQLite/WebCrypto 验证已使用新 Vault/授权门面；安全项用可控适配器。无新增 APK、设备、ECS 或外部邮件验收。远程 CI 以实际运行状态为准。
+- 物理存储拒绝所有写入/删除时，只能当前进程拒绝访问并报错，不能声称锁定事件已跨断电保存；需存储恢复后完成锁定/注销或在线复验。
+- P1 下一步 C1-B：恢复确认页、服务器与本机草稿列表/编辑、保存反馈、退出未同步提醒；随后 C1-C 严格按 c1-c2-interface 接发布与返回。二者未实现，不能说 App 创作闭环完成。
+- P0 真实作者使用前：整合包验证原生安全项/SQLite、输入/返回/生命周期与切号失效；USB 条件未恢复，不重复要求用户连接，也不以工程测试代替。
+
+## 给并行端的下一步请求
+
+请继续维护 CI/M1/C2，并独立复核本轮授权与双实例修复：持久绑定、退出/401 落盘失败、旧异步结果、无 owner 门面及既有消费者兼容。报告绑定新源码 SHA；不要接管 C1/auth，不另写编辑器。主开发继续 C1-B/C；账号页只触及 logout/草稿入口且保留 M1，依赖/构建/汇总仍由主开发集成。该请求随本提交发布，收到与认领尚待对方实际确认。

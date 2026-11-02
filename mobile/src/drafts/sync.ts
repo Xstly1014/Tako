@@ -41,13 +41,15 @@ export class DraftSynchronizer {
       if (me.id !== owner) return { state: "account-mismatch" };
       if (!record.dirty && !record.pending) return { state: "saved", record };
       if (!record.pending) {
+        const readServerId = record.serverId, readBaseRevision = record.baseRevision;
         const server = record.serverId ? await this.api.read(record.serverId) : null;
         current();
         if (server && server.content === record.content && server.title === record.title) {
           const readSeq = record.seq;
           record = await this.repo.change(owner, localId, (latest) => {
             if (!latest) throw new DraftError("local_conflict");
-            if (latest.seq !== readSeq || latest.pending) return latest;
+            if (latest.seq !== readSeq || latest.pending || latest.serverId !== readServerId ||
+                latest.baseRevision !== readBaseRevision) return latest;
             return { ...latest, dirty: false, baseRevision: server.revision, savedAt: server.saved_at };
           });
           current();
@@ -59,6 +61,10 @@ export class DraftSynchronizer {
         record = await this.repo.change(owner, localId, (latest) => {
           if (!latest) throw new DraftError("local_conflict");
           if (latest.pending) return latest;
+          // Another synchronizer may have acknowledged or recovered this record
+          // while our HTTP read was in flight. Never interpret that OLD read
+          // as a new conflict against the latest server identity/revision.
+          if (!latest.dirty || latest.serverId !== readServerId || latest.baseRevision !== readBaseRevision) return latest;
           const kind = !latest.serverId ? "create" : server?.revision === latest.baseRevision ? "save" : "recover";
           return { ...latest, pending: { kind, seq: latest.seq, body: {
             mutation_id: mutation, title: latest.title, content: latest.content,
@@ -67,7 +73,8 @@ export class DraftSynchronizer {
         });
       }
       current();
-      let pending = record.pending!;
+      if (!record.pending) return { state: record.dirty ? "pending" : "saved", record };
+      let pending = record.pending;
       let ack;
       try { ack = checkedDraftReceipt(await this.api.write(pending), pending); }
       catch (e) {

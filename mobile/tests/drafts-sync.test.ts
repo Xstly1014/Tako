@@ -150,3 +150,57 @@ test("401 同时使会话失效时仍返回重新登录，保留私稿不读取�
   assert.equal((await sync.sync(f.owner, f.key)).state, "login-required");
   assert.ok((await f.repo.load(f.owner, f.key))?.pending);
 });
+
+
+test("双同步器旧读取：另一个已确认的 clean 记录不能再生成多余恢复副本", async (ctx) => {
+  const f = await setup(ctx), fast = f.worker();
+  await fast.sync(f.owner, f.key);
+  const initial = (await f.repo.load(f.owner, f.key))!;
+  await f.repo.edit(f.owner, f.key, initial.seq, "合成", "双实例待确认文字");
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const slow = new DraftSynchronizer(f.repo, {
+    me: () => f.api.me(), read: async (id) => { const result = await f.api.read(id); arrived(); await gate; return result; },
+    write: pending => f.api.write(pending),
+  }, () => ({ owner: f.owner, generation: 1, online: true }), randomUUID);
+  const late = slow.sync(f.owner, f.key);
+  await ready;
+  assert.equal((await fast.sync(f.owner, f.key)).state, "saved");
+  release();
+  assert.equal((await late).state, "saved");
+  const final = (await f.repo.load(f.owner, f.key))!;
+  assert.equal(f.api.drafts.size, 1);
+  assert.equal(final.serverId, initial.serverId);
+  assert.equal(final.dirty, false);
+});
+
+test("双同步器旧读取：已有恢复与新编辑时不得依据旧身份再恢复一次", async (ctx) => {
+  const f = await setup(ctx), fast = f.worker();
+  await fast.sync(f.owner, f.key);
+  const initial = (await f.repo.load(f.owner, f.key))!;
+  await f.repo.edit(f.owner, f.key, initial.seq, "合成", "第一次离线文字");
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const slow = new DraftSynchronizer(f.repo, {
+    me: () => f.api.me(), read: async (id) => { const result = await f.api.read(id); arrived(); await gate; return result; },
+    write: pending => f.api.write(pending),
+  }, () => ({ owner: f.owner, generation: 1, online: true }), randomUUID);
+  const late = slow.sync(f.owner, f.key);
+  await ready;
+  const old = f.api.drafts.get(initial.serverId!)!;
+  f.api.drafts.set(old.id, { ...old, revision: old.revision + 1, content: "远端改动" });
+  const recovered = await fast.sync(f.owner, f.key);
+  assert.equal(recovered.state, "recovered");
+  await f.repo.edit(f.owner, f.key, recovered.record!.seq, "合成", "恢复后继续写");
+  release();
+  assert.equal((await late).state, "pending");
+  assert.equal(f.api.drafts.size, 2);
+  const pending = (await f.repo.load(f.owner, f.key))!;
+  assert.equal(pending.serverId, recovered.record!.serverId);
+  assert.equal(pending.dirty, true);
+  assert.equal(pending.pending, null);
+  assert.equal((await fast.sync(f.owner, f.key)).state, "saved");
+  assert.equal(f.api.drafts.size, 2);
+});

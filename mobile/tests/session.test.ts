@@ -412,3 +412,17 @@ test("草稿授权：确认写失败不产生持久许可；迟到确认响应�
   await reopened.restore();
   assert.equal(reopened.snapshot().drafts.owner, null);
 });
+
+
+test("草稿授权：注销端点确认 401 时按已失效清理，而非保留在线账号", async () => {
+  const item = secureItem(token), v = makeSecureVault(item);
+  const s = new Session(v, transport(async (path) => {
+    if (path === "/me") return account;
+    throw new ApiError("authentication_required", "", 401);
+  }));
+  await s.restore(); await s.confirmDraftAccess();
+  await s.logout();
+  assert.equal(s.snapshot().phase, "guest");
+  assert.equal(s.snapshot().drafts.owner, null);
+  assert.equal(await v.get(), null);
+});

@@ -87,6 +87,7 @@ export class Session {
         return;
       }
       if (!validToken(token)) {
+        this.token = "";
         await this.vault.remove();
         this.update({ phase: "guest" });
         return;
@@ -237,6 +238,10 @@ export class Session {
     } catch (e) {
       if (epoch !== this.epoch) {
         if (e instanceof ApiError && e.code === "storage") throw e;
+        return;
+      }
+      if (e instanceof ApiError && e.status === 401) {
+        await this.forget();
         return;
       }
       if (e instanceof ApiError && e.code === "storage") this.unsafeStorage = true;
