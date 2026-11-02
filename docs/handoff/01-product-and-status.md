@@ -1,3 +1,5 @@
+> N1-A 当前补充：私密开书与资料管理已接入App与3300，章节／发布仍待后续阶段。详见[私密书籍复盘](../reviews/private-novels-review.md)，不要将下方历史“长文尚未实现”视作当前子链路状态。
+
 > 2026-11-03 当前补充：S2 搜索已有源码与自动化，设备范围见 handoff/README 和 device-requests；长文／连载小说进入[N0规格](../novels/README.md)，尚未实现。主开发不负责APK/USB/真机，完整分工见[主开发手册](05-development-playbook.md)。以下旧阶段摘要保留历史语境。
 
 > 当前整合已到 2cfd6fb：C1 副本竞争修复、C2 发布确认/现状 GET 隔离及 C1 路由远程门禁已纳入；Web 中危审计已通过本轮远程 Frontend CI。设备与同事复验仍单独记账。最新包/CI 见 [整合复验](../reviews/cross-review-primary-a2905e8.md)。下面为历史阶段背景。

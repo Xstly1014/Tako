@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.12.0
+  version: 0.13.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,139 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novels:
+    get:
+      operationId: listPrivateNovels
+      tags: [长文]
+      summary: 本人私密长文资料列表
+      description: 仅私密书籍资料，不创建中篇、章节或公开入口。跨账号统一不可见。提交需原 mutation_id 与固定载荷重试；相同标识改变目标或正文返回冲突。回执不得覆盖当前更高修订。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+          description: 账号绑定的创建时间游标，每页最多20条；资料更新不重排
+      responses:
+        '200':
+          description: 本人私密资料；回执为提交时快照，当前资料需重新读取
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: createPrivateNovel
+      tags: [长文]
+      summary: 建立私密长文，尚未发布
+      description: 仅私密书籍资料，不创建中篇、章节或公开入口。跨账号统一不可见。提交需原 mutation_id 与固定载荷重试；相同标识改变目标或正文返回冲突。回执不得覆盖当前更高修订。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NovelCreate'}
+      responses:
+        '200':
+          description: 本人私密资料；回执为提交时快照，当前资料需重新读取
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrivateNovel'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getPrivateNovel
+      tags: [长文]
+      summary: 读取本人私密长文资料
+      description: 仅私密书籍资料，不创建中篇、章节或公开入口。跨账号统一不可见。提交需原 mutation_id 与固定载荷重试；相同标识改变目标或正文返回冲突。回执不得覆盖当前更高修订。
+      responses:
+        '200':
+          description: 本人私密资料；回执为提交时快照，当前资料需重新读取
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrivateNovel'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: savePrivateNovel
+      tags: [长文]
+      summary: 按资料修订保存本人私密长文
+      description: 仅私密书籍资料，不创建中篇、章节或公开入口。跨账号统一不可见。提交需原 mutation_id 与固定载荷重试；相同标识改变目标或正文返回冲突。回执不得覆盖当前更高修订。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NovelSave'}
+      responses:
+        '200':
+          description: 本人私密资料；回执为提交时快照，当前资料需重新读取
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrivateNovel'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-mutations/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getNovelMutation
+      tags: [长文]
+      summary: 查询原请求的不可变确认回执
+      description: 仅私密书籍资料，不创建中篇、章节或公开入口。跨账号统一不可见。提交需原 mutation_id 与固定载荷重试；相同标识改变目标或正文返回冲突。回执不得覆盖当前更高修订。
+      responses:
+        '200':
+          description: 本人私密资料；回执为提交时快照，当前资料需重新读取
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrivateNovel'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/app/auth/register:
     post:
       operationId: registerAppPassword
@@ -2105,6 +2238,54 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    NovelTags:
+      type: array
+      minItems: 1
+      maxItems: 3
+      uniqueItems: true
+      items: {type: string, enum: [幻想, 冒险, 日常, 情感, 悬疑, 科幻]}
+    PrivateNovel:
+      type: object
+      additionalProperties: false
+      required: [id, title, introduction, tags, revision, created_at, saved_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 200, pattern: '\S'}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/NovelTags'}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        created_at: {type: string, format: date-time}
+        saved_at: {type: string, format: date-time}
+    NovelPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/PrivateNovel'}
+        next_cursor: {type: string, maxLength: 512}
+    NovelCreate:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, base_revision, title, introduction, tags]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        base_revision: {type: integer, minimum: 0, maximum: 0}
+        title: {type: string, minLength: 1, maxLength: 200, pattern: '\S'}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/NovelTags'}
+    NovelSave:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, base_revision, title, introduction, tags]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        base_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, minLength: 1, maxLength: 200, pattern: '\S'}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/NovelTags'}
     AppSession:
       type: object
       additionalProperties: false
@@ -2894,7 +3075,7 @@ components:
       properties:
         error:
           type: string
-          enum: [comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object
@@ -2986,7 +3167,7 @@ components:
       description: 草稿不存在或无权访问，统一语义
     Conflict:
       <<: *errorResponse
-      description: revision_conflict、mutation_id_reused、delivery_id_reused 或 nickname_required；客户端分别处理，不循环重试
+      description: revision_conflict、novel_revision_conflict（书籍资料已变化）、mutation_id_reused、delivery_id_reused 或 nickname_required；客户端分别处理，不循环重试
 
     InternalError:
       <<: *errorResponse

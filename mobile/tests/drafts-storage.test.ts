@@ -148,3 +148,69 @@ test("授权仓储：打开/解密期间切换代次，迟到结果不得交给�
   finishDecrypt();
   await stale;
 });
+
+// N1-A book request storage/coordination shares this existing private-storage gate.
+import { ApiError } from "../src/api/client.ts";
+import { NovelsApi, validMetadata, type Novel } from "../src/api/novels.ts";
+import { BookWriter, type PendingBook } from "../src/novels/writer.ts";
+import { EncryptedBookJournal } from "../src/novels/journal.ts";
+const bookPending = (): PendingBook => ({target:null,input:{mutation_id:randomUUID(),base_revision:0,title:"PRIVATE_BOOK_冒险😀",introduction:"合成简介",tags:["幻想"]}});
+const resultFor = (p:PendingBook):Novel => ({id:p.target??randomUUID(),title:p.input.title,introduction:p.input.introduction,tags:p.input.tags,revision:p.input.base_revision+1,created_at:new Date().toISOString(),saved_at:new Date().toISOString()});
+test("N1-A：书籍未知创建重开后只查原回执，密文隔离且无重复POST",async ctx=>{
+ const f=await fixture();ctx.after(f.close);const owner=randomUUID(),other=randomUUID(),pending=bookPending();
+ const journal=new EncryptedBookJournal(f.rows,f.cipher,owner,()=>true);let posts=0;const result=resultFor(pending);
+ const remote={async write(){posts++;throw new ApiError("network");},async receipt(){return result;}};
+ const writer=new BookWriter(journal,remote,()=>true);await writer.restore();await writer.submit(pending);
+ assert.equal(writer.snapshot().phase,"unknown");assert.equal(posts,1);
+ const otherJournal=new EncryptedBookJournal(f.rows,f.cipher,other,()=>true);assert.equal(await otherJournal.load(),null);
+ for(const suffix of ["","-wal"]){assert.equal(readFileSync(f.db.path+suffix).includes(Buffer.from(pending.input.title)),false);}
+ const reopened=new BookWriter(new EncryptedBookJournal(f.rows,f.cipher,owner,()=>true),remote,()=>true);
+ await reopened.restore();await reopened.retry();assert.equal(reopened.snapshot().phase,"confirmed");assert.equal(posts,1);assert.equal(await journal.load(),null);
+});
+test("N1-A：无回执重试沿用固定载荷，CAS拒绝保留原输入且不循环POST",async()=>{
+ const p=bookPending();p.target=randomUUID();p.input.base_revision=2;let stored:PendingBook|null=p;let submitted:PendingBook|undefined;
+ const writer=new BookWriter({async load(){return stored;},async save(v){stored=v;}},{async receipt(){throw new ApiError("resource_not_found","",404);},async write(target,input){submitted={target,input};throw new ApiError("novel_revision_conflict","",409);}},()=>true);
+ await writer.restore();await writer.retry();assert.deepEqual(submitted,p);assert.equal(writer.snapshot().phase,"rejected");assert.equal(stored,null);assert.equal(p.input.base_revision,2);
+});
+test("N1-A：落盘前故障不发请求；成功后清理故障不把已确认写入变未知",async()=>{
+ const p=bookPending();let posts=0,stored:PendingBook|null=null,fail=true;
+ const journal={async load(){return stored;},async save(v:PendingBook|null){if(fail)throw new ApiError("storage");stored=v;}};
+ const api={async write(){posts++;fail=true;return resultFor(p);},async receipt(){throw new Error("unexpected");}};
+ const w=new BookWriter(journal,api,()=>true);await w.restore();await w.submit(p);assert.equal(posts,0);
+ fail=false;await w.submit(p);assert.equal(posts,1);assert.equal(w.snapshot().phase,"confirmed");assert.ok(w.snapshot().pending);
+ fail=false;await w.retry();assert.equal(w.snapshot().phase,"confirmed");assert.equal(w.snapshot().pending,null);assert.equal(posts,1);
+});
+test("N1-A：迟到成功不能展示给另一账号，原账号仍可恢复提交",async()=>{
+ const p=bookPending();let current=true,stored:PendingBook|null=null,finish!:(v:Novel)=>void;
+ const w=new BookWriter({async load(){return stored;},async save(v){stored=v;}},{async write(){return new Promise<Novel>(resolve=>finish=resolve);},async receipt(){return resultFor(p);}},()=>current);
+ await w.restore();const task=w.submit(p);await new Promise(resolve=>setImmediate(resolve));current=false;finish(resultFor(p));await task;
+ assert.equal(w.snapshot().result,null);assert.deepEqual(stored,p);
+});
+test("N1-A：已存在密文的密钥丢失不能用新密钥覆盖待确认请求",async ctx=>{
+ const f=await fixture();ctx.after(f.close);const owner=randomUUID(),p=bookPending();const journal=new EncryptedBookJournal(f.rows,f.cipher,owner,()=>true);
+ await journal.save(p);const before=await f.rows.read(owner,(await f.rows.ids(owner))[0]);f.cipher.keys.delete(owner);
+ await assert.rejects(journal.load(),ApiError);await assert.rejects(journal.save(null),ApiError);
+ assert.deepEqual(await f.rows.read(owner,(await f.rows.ids(owner))[0]),before);assert.equal(f.cipher.keys.has(owner),false);
+});
+test("N1-A：资料Unicode边界和错目标响应契约拒绝",async()=>{
+ assert.equal(validMetadata({title:"😀".repeat(200),introduction:"",tags:["幻想"]}),true);
+ assert.equal(validMetadata({title:"\ud800",introduction:"",tags:["幻想"]}),false);
+ assert.equal(validMetadata({title:"a",introduction:"",tags:["幻想","幻想"]}),false);
+ const p=bookPending(),expected=randomUUID();const api=new NovelsApi(async<T>()=>resultFor(p) as T);
+ await assert.rejects(api.read(expected),e=>e instanceof ApiError&&e.code==="contract");
+});
+
+test("N1-A：两个页面竞争同账号journal不能覆盖，也不能清掉另一请求",async ctx=>{
+ const f=await fixture();ctx.after(f.close);const owner=randomUUID(),p=bookPending(),other=bookPending();
+ const first=new EncryptedBookJournal(f.rows,f.cipher,owner,()=>true),second=new EncryptedBookJournal(f.rows,f.cipher,owner,()=>true);
+ await first.save(p);await assert.rejects(second.save(other),e=>e instanceof ApiError&&e.code==="novel_request_pending");
+ await assert.rejects(second.save(null,other.input.mutation_id),e=>e instanceof ApiError&&e.code==="novel_request_pending");
+ assert.deepEqual(await second.load(),p);await first.save(null,p.input.mutation_id);assert.equal(await first.load(),null);
+});
+
+test("N1-A：慢存储提交前即冻结表单，重复提交不增加请求",async()=>{
+ const p=bookPending();let writes=0,release!:()=>void;
+ const first=new Promise<void>(resolve=>release=resolve);let saving=true;
+ const w=new BookWriter({async load(){return null;},async save(){if(saving){await first;saving=false;}}},{async write(){writes++;return resultFor(p);},async receipt(){throw new Error("unexpected");}},()=>true);
+ await w.restore();const task=w.submit(p);assert.equal(w.snapshot().phase,"saving");await w.submit(bookPending());assert.equal(writes,0);release();await task;assert.equal(writes,1);assert.equal(w.snapshot().phase,"confirmed");
+});

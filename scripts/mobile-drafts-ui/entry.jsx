@@ -4,6 +4,7 @@ import Account from "../../mobile/src/app/account.tsx";
 import Drafts from "../../mobile/src/app/drafts/index.tsx";
 import Editor from "../../mobile/src/app/drafts/[id].tsx";
 import { session } from "./context.jsx";
+import Novels from "../../mobile/src/app/novels.tsx";
 import Publish from "../../mobile/src/app/publish.tsx";
 import { RouteContext } from "./router.jsx";
 import { fixtureHttp, advanceServer, nativeDraftTools } from "./tools.jsx";
@@ -14,6 +15,7 @@ function Harness() {
   const editorPath = route.startsWith("/drafts/") ? route : route.startsWith("/publish") ? [...window.draftUi.history].reverse().find(x => x.startsWith("/drafts/")) : null;
   return <>
     {route === "/account" ? <RouteContext.Provider value={route}><Account /></RouteContext.Provider> : null}
+    {route === "/novels" ? <RouteContext.Provider value={route}><Novels /></RouteContext.Provider> : null}
     {route === "/drafts" ? <RouteContext.Provider value={route}><Drafts /></RouteContext.Provider> : null}
     {editorPath ? <RouteContext.Provider value={editorPath}><div hidden={route !== editorPath}><Editor key={editorPath} /></div></RouteContext.Provider> : null}
     {route.startsWith("/publish") ? <RouteContext.Provider value={route}><div id="publication-frame"><Publish key={route} /></div></RouteContext.Provider> : null}

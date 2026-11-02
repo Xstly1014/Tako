@@ -67,6 +67,7 @@ export function DraftsListScreen({ tools }: { tools: DraftTools }) {
       <Text style={s.title}>草稿箱</Text>
       <Pressable disabled={busy || !visible} onPress={() => void run(() => open())} style={[s.action, busy && s.disabled]}><Text style={s.link}>新建中篇</Text></Pressable>
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="管理私密长文" disabled={busy} onPress={() => router.push("/novels")} style={s.action}><Text style={s.link}>我的长文</Text></Pressable>
     <View style={s.toolbar}><Text style={s.meta}>{identity.drafts.phase === "offline" ? "当前离线，仅显示本机草稿" : "私密草稿，不会自动发布"}</Text><Pressable disabled={loading || busy} onPress={() => void refresh()} style={s.action}><Text style={s.link}>刷新</Text></Pressable></View>
     {error ? <Text accessibilityLiveRegion="polite" style={s.error}>{draftMessage(error)}</Text> : null}
     <FlatList data={visible ? rows : []} keyExtractor={row => row.key}

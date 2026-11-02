@@ -27,6 +27,7 @@ const cipher = {
 const repo = new DraftRepository(store, cipher), server = new Map(), receipts = new Map();
 const revisions = new Map(), previews = new Map(), works = new Map();
 export async function fixtureHttp(path, options) {
+  if (path === "/my/novels") return { items: [], next_cursor: "" };
   if (path === "/me") return session.snapshot().account;
   if (path === "/drafts" || path.startsWith("/drafts?")) return { items: [...server.values()].map(x => ({ ...x, created_at: x.saved_at, recovered_from: null })), next_cursor: "" };
   if (path.startsWith("/my/works/")) return works.get(path.split("/").pop());

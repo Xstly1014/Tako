@@ -296,6 +296,7 @@ func (a API) Register(r *gin.Engine) error {
 	a.registerDiscovery(api, protected)
 	a.registerFavorites(protected)
 	a.registerComments(api, protected)
+	a.registerNovels(protected)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {
