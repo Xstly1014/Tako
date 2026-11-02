@@ -7,7 +7,8 @@
 - 本端已从 badb293 快进到 `origin/main@42bc325`，主开发已整合上一轮诊断/审查，并发布 C1-A 会话绑定授权（33c15b2）和双实例旧读修复（1fbc874）。已读当前 primary-progress 与 mobile-draft-access-review；无冲突。主开发继续 C1-B/C1-C，不接管本端 M1/C2。
 - 本轮本端认领：独立复核已发布授权/并发修复及既有消费兼容；报告绑定新 SHA。维护本端作者管理/发布组件夹具，使其使用真实 createDraftSessionVault 模型，验证 confirmation 不阻断既有服务器业务、offline 草稿许可不能放行发布、原发布记录在线后才能恢复。精确改动限于 `scripts/mobile-author-works-ui/context.jsx`、两套自有 run.cjs 和本端测试/报告；不改 C1/auth、依赖锁、构建或主开发汇总。
 - 新测试仍在已分类文件，无需为数量变化重写分类。独立复核报告 `docs/reviews/cross-review-parallel-42bc325.md` 已确认原 P2 修复；隔离工作树另验证晚到确认写入/401/删凭据失败的落盘顺序。本轮没有新的 P0/P1 发现；不冒充未来 C1 页面或设备审查。
-- 本端夹具已改用新会话 envelope 模型。作者管理/发布验证 confirmation 期间服务器业务兼容、离线草稿许可隐藏私密视图且零业务 HTTP、联网只读恢复及切号。实际通过类型/lint、契约、67 项模型、10 项顺序真实服务、5 项门禁与四套组件，零 skip/todo。尚待本轮提交/远程证据；主开发未发布的 C1-B/C1-C 工作仍未知。
+- 本端夹具已改用新会话 envelope 模型。作者管理/发布验证 confirmation 期间服务器业务兼容、离线草稿许可隐藏私密视图且零业务 HTTP、联网只读恢复及切号。实际通过类型/lint、契约、67 项模型、10 项顺序真实服务、5 项门禁与四套组件，零 skip/todo。
+- 本轮 `73bdd19` 已推送，推送前 fetch/核对/pull main 仍 42bc325，无冲突。[Mobile 四作业](https://github.com/Xstly1014/Tako/actions/runs/41431219962) 与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41431220010) success；[Frontend audit](https://github.com/Xstly1014/Tako/actions/runs/41431220172) failure。后续证据文档提交不改变该源码；未合入 main，未入包。待主开发继续 C1-B/C1-C 后更新必要分类和实际调用栈整合，未发布工作仍未知。
 
 ## 上阶段认领（同步 59694d6）
 

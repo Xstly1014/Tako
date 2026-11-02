@@ -8,7 +8,9 @@
 
 本端实际产品组件夹具已接真实 createDraftSessionVault，验证草稿 confirmation 不影响既有服务器作品管理/发布；离线草稿许可仅用于本机稿，不显示旧 M1/C2 私密视图、不发送业务请求；联网后只读恢复原发布 journal，无新增 POST。HTTP 尝试先于网络 abort 计数，未将失败发送误报为零发送。阶段白名单同步维护，不改 C1/auth、锁文件、构建或主开发汇总。
 
-本机本轮实际通过：类型、lint、契约一致性、67 项模型、10 项顺序真实服务、5 项门禁及四套 Linux 断网组件，零 skip/todo。安全项/故障实验是可控适配器；组件 HTTP 模拟，真实服务另外通过，不冒充 Expo 原生设备验收。本轮源码远程结果待推送后绑定；既有审计与设备门槛保留。
+本机本轮实际通过：类型、lint、契约一致性、67 项模型、10 项顺序真实服务、5 项门禁及四套 Linux 断网组件，零 skip/todo。安全项/故障实验是可控适配器；组件 HTTP 模拟，真实服务另外通过，不冒充 Expo 原生设备验收。
+
+本端实现/审查提交 **`73bdd19`** 已推送到 codex/mobile-publication，推送前 fetch、核对并 pull main 仍为 42bc325，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41431219962) 四作业 success（Windows/Linux 静态/模型、组件、真实 MySQL/API），[Backend](https://github.com/Xstly1014/Tako/actions/runs/41431220010) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41431220172) 仍在 npm audit --audit-level=moderate 步骤 failure，责任与退出条件未变。后续仅证据文档提交不改变被验源码；本轮成果尚未合入 main，未入 APK。
 
 ## 上阶段：同步主线与门禁诊断、C1 互审
 

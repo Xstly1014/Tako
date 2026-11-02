@@ -33,6 +33,8 @@
 
 本机 Node 24.19.0/Windows：类型、lint、OpenAPI 一致性、67 项模型、10 项顺序真实 MySQL/API 服务组、5 项门禁与四套 Linux Docker 断网组件全部通过，零 skip/todo。真实服务测试使用主开发新 Vault/授权门面；不把可控安全存储或故障适配器算真机。组件 HTTP 是模拟服务，不冒充真实数据库层。远程结果随本端实现提交记录在 parallel-ci-results。
 
+本端夹具/审查实现 73bdd19 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41431219962) 四作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41431220010) 全部 success；本次被审主开发源码仍固定为 42bc325，不把未来源码自动视为已审。后续只补证据的文档提交不改变该源码。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41431220172) 仍失败在既有 moderate audit，未称全仓库绿灯。
+
 ## 不关闭的边界与移交
 
 - 主开发继续 C1-B/C1-C，实际恢复确认、列表/编辑、退出提醒和 push 发布/返回输入保护未实现；本轮不声称手机创作闭环完成。主开发新增测试发布后由本端更新必要分类，保持 Session phase/account/generation/authorized 加法兼容。
