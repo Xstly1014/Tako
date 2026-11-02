@@ -1,3 +1,5 @@
+> C1-C 最新收口：85 模型、11 服务、真实页面交接与只读返回通过；9653d74 APK 构建/签名/路由标识通过，源码 Mobile/Backend CI success、Frontend audit failure。原生体验、独立审查及新 C1 夹具远程门禁未关闭，见 [最新复盘](mobile-draft-publication-review.md)。
+
 > C1-B 最终收口：b2cea9d 整合 APK 构建与签名/路由核对通过；Mobile/Backend 远程 success，Frontend audit moderate failure。78 模型、11 真实服务与新路由回归通过；C1-C、路由夹具 CI 接入、设备体验仍按 [编辑复盘](mobile-draft-editor-review.md) 优先级执行。
 
 > 2026-11-02 C1-B：草稿箱/编辑/恢复、原型双入口与退出提醒已接，78 整合模型、11 真实服务、新路由及四套既有组件通过；源码冻结构建与指纹见 [编辑复盘](mobile-draft-editor-review.md)。C1-C 和设备门槛未关闭。

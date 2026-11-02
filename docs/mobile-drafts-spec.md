@@ -2,7 +2,7 @@
 
 当前实施拆分与归属见 [离线授权和编辑接入](mobile-draft-access-spec.md)。C1→C2 接口复用并行端维护的 `docs/handoff/c1-c2-interface.md`；主开发已审查 c905d7a 并接受其与既有权利一致的调用条件，尚未实现编辑页调用点。
 
-日期：2026-11-02。状态：C1.1 已实现加密仓储/同步核心与 SDK 适配，模型、真实 SQLite 与真实 API 分层验证；**C1-A 授权、C1-B 草稿箱/编辑已接源码；当前验收见 mobile-draft-editor-review.md，发布调用与设备门槛仍未关闭**。承接 [创作方向](mobile-authoring-plan.md) 与 A 既定语义。C1 不包含公开发布、长文目录、图文短帖、实时协作或删除草稿。
+日期：2026-11-02。状态：C1.1 已实现加密仓储/同步核心与 SDK 适配，模型、真实 SQLite 与真实 API 分层验证；**C1-A/B/C 已接源码；当前验收见 mobile-draft-publication-review.md，设备体验等门槛仍单独保留**。承接 [创作方向](mobile-authoring-plan.md) 与 A 既定语义。C1 不包含公开发布、长文目录、图文短帖、实时协作或删除草稿。
 
 ## 第一条作者链路
 
