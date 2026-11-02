@@ -11,6 +11,8 @@ Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日
 
 **Docker 清理后恢复：[本机重启手册](docs/restart/README.md)。** `$tako-restart` 恢复本机服务，`$tako-handoff` 整理或读取工作交接。技能随仓库保存；删除容器/镜像时保留数据卷、`.runtime/` 与 `backups/`。
 
+App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.md)：按作者授权切换正文，失败保留当前阅读，切版本不丢评论输入；[本轮复盘与验收边界](docs/reviews/mobile-version-reading-review.md)。下一条是 App 中篇创作规格，草稿允许加密本机暂存恢复，评论仍仅内存。
+
 ![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
 
 > 官网视觉截图，三类内容卡片展示产品方向。独立社区首页已支持中篇发现与人工精选；短内容、长篇仍是规划方向。

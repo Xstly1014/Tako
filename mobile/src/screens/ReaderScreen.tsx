@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   router,
   useFocusEffect,
@@ -26,6 +26,7 @@ import { FutureAction, Icon, unavailable } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { CommentsPanel } from "../components/CommentsPanel";
+import { VersionTimeline } from "../components/VersionTimeline";
 export default function Reader() {
   const params = useLocalSearchParams<{ id: string }>();
   return (
@@ -36,6 +37,7 @@ export default function Reader() {
   );
 }
 function ReaderContent({ id }: { id: string }) {
+  const paper = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [comments, setComments] = useState(false),
     [dirty, setDirty] = useState(false);
   usePreventRemove(dirty, ({ repeat }) => {
@@ -58,6 +60,10 @@ function ReaderContent({ id }: { id: string }) {
   const [work, setWork] = useState<PublicWork>(),
     [error, setError] = useState<unknown>(),
     [retry, setRetry] = useState(0);
+  const readVersion = useCallback((value: PublicWork) => {
+    setWork(value);
+    paper.current?.scrollTo({ y: 0, animated: false });
+  }, []);
   const back = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace("/community");
@@ -101,7 +107,7 @@ function ReaderContent({ id }: { id: string }) {
       </View>
       <View style={s.content}>
         {work ? (
-          <ScrollView contentContainerStyle={s.paper}>
+          <ScrollView ref={paper} contentContainerStyle={s.paper}>
             <View style={s.authorRow}>
               <View style={s.avatar} />
               <Text style={s.author}>{work.author_nickname}</Text>
@@ -130,23 +136,7 @@ function ReaderContent({ id }: { id: string }) {
                 {new Date(work.published_at).toLocaleDateString("zh-CN")}
               </Text>
             </View>
-            <View style={s.versions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="查看当前版本信息"
-                onPress={() =>
-                  Alert.alert(
-                    "版本信息",
-                    `当前公开版本 V${work.version}\n${new Date(work.published_at).toLocaleString("zh-CN")}\n其他历史版本尚未接入手机端。`,
-                    [{ text: "关闭" }],
-                  )
-                }
-                style={s.versionNode}
-              >
-                <View style={s.versionDot} />
-              </Pressable>
-              <Text style={s.metadata}>当前阅读版本 · 历史版本尚未接入</Text>
-            </View>
+            <VersionTimeline work={work} onRead={readVersion} />
             <Pressable
               accessibilityRole="button"
               onPress={() => setComments(true)}
@@ -282,24 +272,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
   },
   metadata: { fontSize: 11, lineHeight: 18, color: t.muted },
-  versions: {
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: t.line,
-  },
-  versionNode: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  versionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 2,
-    backgroundColor: t.brand,
-  },
   comments: {
     marginTop: 16,
     borderTopWidth: 8,

@@ -12,6 +12,7 @@
 - 原生凭据使用 Expo SecureStore，七天会话与浏览器独立；不保存密码，不伪造 Origin，不使用浏览器 Cookie。重启需服务端确认，网络错误不误清凭据，明确 401 才清除。断网退出显示失败，联网后重试。
 - 收藏响应丢失保留原请求重试；回执确认后重新读取当前状态，不把历史回执当成当前值。账号切换清空私有视图，旧账号响应不得写入新账号。
 - 评论已接入阅读页与输入面板：主评论/回复分页、发表/重试、删除确认、内存输入保护及本人处置原因。设备体验尚未验收，不能将源码接入记作用户手机已更新。个人中心保留原型菜单顺序并增加真实评论入口。
+- 阅读页已接真实版本时间线：点节点看元数据，作者授权才可切历史正文；失败保留已加载内容，切版本不清空当前评论输入。规则与证据见 `../docs/mobile-version-reading-spec.md`、`../docs/reviews/mobile-version-reading-review.md`。
 - 按用户确认保留原型未接入入口，点击明确提示尚未开放，不填假数字或假成功。长文、短内容、搜索、关注、赞、周边、消息与创作仍未接入 App。
 
 ## Windows 本地构建
@@ -44,6 +45,8 @@ APK 启动不需要 Metro，但读取测试数据需要电脑测试服务与 USB
 ## 契约与验证
 
 评论独立模块及 `src/components/CommentsPanel.tsx` 已接入源码。纯内存逻辑可单独运行 `node --experimental-strip-types --test tests/comments.test.ts`；`comments-service.test.ts` 必须使用已造数的本机 3300，会正常创建合成测试账号/评论并删除测试讨论，不发送邮件。组件交互见 `../scripts/mobile-comments-ui/README.md`，断网夹具与真实服务分开记账；它们不验证手机键盘或原生生命周期。
+
+历史阅读纯客户端检查为 `tests/versions.test.ts`；`versions-service.test.ts` 需要真实 3300 和专用 `.runtime/local-test/.env` 的合成运营账号，验证历史授权与限制过滤，只创建/隐藏自己的测试作品，不读取根 `.env`。实际阅读页组合夹具见 `../scripts/mobile-versions-ui/README.md`，不需要真机。
 
 `src/api/contract.d.ts` 来自 `backend/internal/contract/openapi.yaml`，生成命令：
 
