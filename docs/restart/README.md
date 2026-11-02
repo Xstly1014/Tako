@@ -9,6 +9,10 @@
 
 若客户端的技能选择器支持 @，可按名字搜索选择；标准显式写法是上面的 `$技能名`。新增技能可能需要重新打开项目或新会话才能出现在列表；未刷新时可直接附上 `.agents/skills/tako-restart/SKILL.md` 或 `tako-handoff/SKILL.md` 的文件链接，不依赖旧聊天。
 
+## 当前职责
+
+按2026-11-03用户明确分工，主开发只恢复服务与做业务/自动化，不执行APK构建、安装或真机测试。重启成功不自动启动Metro/ADB或检查手机；设备任务随推送交给同事。详见[主开发手册](../handoff/05-development-playbook.md)。手机是否已连接不改变此边界。
+
 ## 最短重启路径
 
 打开 Docker Desktop，确认 Linux containers。在仓库根目录执行：
