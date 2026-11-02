@@ -93,5 +93,33 @@ test("真实编辑器链路：本机缓存既有稿、编辑同步、再打开�
     reopened.input("继续合成", "再次保存的合成文字"); await reopened.save(); await reopened.synchronize();
     assert.equal((await api.read(record.serverId!)).content, "再次保存的合成文字");
     assert.equal((await api.list()).items.length, 1);
+    const { PublicationsApi, publicationInput } = await import("../src/api/publications.ts");
+    const { PublicationFlow } = await import("../src/publication/flow.ts");
+    const { work } = await import("../src/api/reader.ts");
+    const ticket = await reopened.preparePublication();
+    const path = new URL(reopened.publicationPath(ticket), "https://fixture.invalid");
+    const input = publicationInput({ draft_id: path.searchParams.get("draft_id"), source_revision: path.searchParams.get("source_revision") });
+    assert.equal(input.revision, reopened.snapshot().record!.baseRevision);
+    let journal: string | null = null;
+    const store = { get: async () => journal, set: async (v: string) => { journal = v; }, remove: async () => { journal = null; } };
+    const flow = new PublicationFlow(new PublicationsApi((path, options) => session.authorized(path, options)), store,
+      owner, () => session.snapshot().phase === "ready" && session.snapshot().account?.id === owner, randomUUID);
+    await flow.restore();
+    await flow.prepare(input.draftId, input.revision, "C1-C 合成链路", ["日常"], true);
+    assert.equal(flow.preview?.content, "再次保存的合成文字");
+    await flow.publish();
+    const workId = flow.result!.work_id;
+    try {
+      assert.equal((await work(workId)).content, "再次保存的合成文字");
+      const before = await f.rows.read(owner, reopened.localId);
+      await reopened.resume();
+      assert.equal((await f.rows.read(owner, reopened.localId))?.revision, before?.revision);
+      assert.equal(reopened.snapshot().content, "再次保存的合成文字");
+    } finally {
+      const { AuthorWorksApi } = await import("../src/api/author-works.ts");
+      const author = new AuthorWorksApi((path, options) => session.authorized(path, options));
+      const state = await new PublicationsApi((path, options) => session.authorized(path, options)).state(workId, ticket.draftId);
+      await author.change(workId, { action: "hide", expected_state_revision: state.state_revision, mutation_id: randomUUID() });
+    }
   } finally { await session.logout(); }
 });

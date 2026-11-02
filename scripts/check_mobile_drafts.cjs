@@ -11,6 +11,8 @@ const result = spawnSync("docker", ["run", "--rm", "--network", "none", "-v", ro
 if (result.status === 0 && !result.error) console.log("PASS mobile C1 route fixtures (not native-device evidence).");
 else {
   const stage = String(result.stderr).match(/FAIL mobile drafts fixture stage=([a-z-]+)/)?.[1];
-  const known = ["bundle", "access-and-create", "creation-sheet", "reopen", "write-failure-and-return", "locked-input-recovery", "uncertain-sync", "local-conflict-copy", "logout-and-isolation"];
+  const known = ["bundle", "access-and-create", "creation-sheet", "reopen", "write-failure-and-return", "locked-input-recovery", "uncertain-sync", "publish-handoff-and-return", "handoff-read-retry", "old-journal-priority", "local-conflict-copy", "logout-and-isolation"];
+  const line = String(result.stderr).match(/fixture_line=(\d+)/)?.[1];
+  if (line) console.error("DIAG C1 fixture_line=" + line);
   console.error("FAIL mobile C1 route fixture stage=" + (known.includes(stage) ? stage : "unavailable")); process.exitCode = 1;
 }

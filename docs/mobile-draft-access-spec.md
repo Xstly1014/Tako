@@ -69,3 +69,8 @@
 草稿箱/编辑/恢复与退出提示现已接源码，见 `docs/reviews/mobile-draft-editor-review.md`；C1-C 发布调用仍未接，不能据此记为完整作者闭环。账号页通过 Session 可选的受保护待同步数量回调接退出提示，不静态依赖 SQLite；既有两参数 Session 消费继续兼容。已授权旧会话的 reconnectDrafts 校验身份但不改编辑代次，不给锁定/待确认状态新权利。
 
 列表加载只缓存打开的服务器全文，缓存不替换任何既有工作稿；本机保存立即串行、网络确认在停输/前台等待时尝试。自动同步只对暂时错误重试，确定拒绝交给作者纠正。未暂存的离开保护不提供静默丢弃按钮；本机竞争可明确另存，保留原记录。上述均在原有数据保留/归属范围内。
+
+
+## C1-C 接入完成
+
+本端已实现 DraftEditor.preparePublication / publicationPath 与 resume，编辑页按既有合同 push 完整服务器确认对；返回不覆写工作稿。具体只读门槛、一次消费和并发语义见 mobile-draft-publication-handoff-spec.md；证据见 docs/reviews/mobile-draft-publication-review.md。只关闭工程接线项，设备和独立审查仍需单独关闭。

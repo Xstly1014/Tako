@@ -320,3 +320,145 @@ test("自动同步只重试暂时错误，不循环提交缺笔名、错误环�
   for (const code of ["nickname_required", "invalid_input", "environment", "contract", "authentication_required"]) assert.equal(automaticSyncAllowed(new ApiError(code)), false);
   assert.equal(automaticSyncAllowed(new DraftError("local_conflict")), false);
 });
+
+
+const draftReadTransport = (fn: (path: string) => Promise<unknown>) => fn as import("../src/auth/session.ts").Transport;
+async function publishingEditor(ctx: { after(fn: () => void): void }) {
+  const f = await editorFixture(ctx);
+  const { DraftsApi } = await import("../src/drafts/api.ts");
+  f.tools.api = new DraftsApi(draftReadTransport(async path => f.api.read(path.split("/").pop()!)));
+  await f.editor.synchronize();
+  return f;
+}
+
+test("发布票据：未同步拒绝；已确认只读核对，路由只含服务器 ID/修订且一次消费", async (ctx) => {
+  const f = await editorFixture(ctx);
+  assert.equal(f.editor.canPreparePublication(), false);
+  await assert.rejects(f.editor.preparePublication());
+  assert.equal(f.api.calls.length, 0);
+  const { DraftsApi } = await import("../src/drafts/api.ts");
+  f.tools.api = new DraftsApi(draftReadTransport(async path => f.api.read(path.split("/").pop()!)));
+  await f.editor.synchronize();
+  f.setIdentity({ drafts: { phase: "offline", owner: f.owner }, generation: 1, busy: false });
+  assert.equal(f.editor.canPreparePublication(), false);
+  await assert.rejects(f.editor.preparePublication());
+  f.setIdentity({ drafts: { phase: "online", owner: f.owner }, generation: 1, busy: false });
+  const before = await f.rows.read(f.owner, f.key), writes = f.api.calls.length;
+  const ticket = await f.editor.preparePublication();
+  assert.equal(f.editor.publicationPath(ticket), `/publish?draft_id=${ticket.draftId}&source_revision=1`);
+  await assert.rejects(async () => f.editor.publicationPath(ticket));
+  assert.equal(f.editor.canPreparePublication(), false);
+  assert.equal((await f.rows.read(f.owner, f.key))?.revision, before?.revision);
+  assert.equal(f.api.calls.length, writes);
+  await f.editor.resume();
+  assert.equal(f.editor.canPreparePublication(), true);
+  assert.equal(f.api.calls.length, writes);
+});
+
+test("发布核对期间新输入已暂存也必须拒绝旧票据，不隐式同步/发布", async (ctx) => {
+  const f = await publishingEditor(ctx);
+  const { DraftsApi } = await import("../src/drafts/api.ts");
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  f.tools.api = new DraftsApi(draftReadTransport(async path => { const result = await f.api.read(path.split("/").pop()!); arrived(); await gate; return result; }));
+  const pending = f.editor.preparePublication(), denied = assert.rejects(pending);
+  await ready;
+  assert.equal(f.editor.canPreparePublication(), false);
+  f.editor.input("新的合成输入", "核对中继续写的内容"); await f.editor.save();
+  release(); await denied;
+  assert.equal(f.editor.snapshot().content, "核对中继续写的内容");
+  assert.equal(f.editor.snapshot().record?.dirty, true);
+  assert.equal(f.api.calls.length, 1);
+});
+
+test("恢复副本仍 dirty 不进入发布，再确认最新输入后交接新服务器 ID", async (ctx) => {
+  const f = await publishingEditor(ctx), initial = f.editor.snapshot().record!;
+  const old = f.api.drafts.get(initial.serverId!)!;
+  f.api.drafts.set(old.id, { ...old, revision: old.revision + 1, content: "远端新版" });
+  f.editor.input("本机合成", "需要恢复的内容"); await f.editor.save();
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  f.api.beforeReceipt = async () => { f.api.beforeReceipt = null; arrived(); await gate; };
+  const syncing = f.editor.synchronize(); await ready;
+  f.editor.input("恢复中继续", "副本请求后新增输入"); await f.editor.save();
+  release(); await syncing;
+  assert.notEqual(f.editor.snapshot().record?.serverId, initial.serverId);
+  assert.equal(f.editor.snapshot().record?.dirty, true);
+  await assert.rejects(f.editor.preparePublication());
+  await f.editor.synchronize();
+  const ticket = await f.editor.preparePublication();
+  assert.notEqual(ticket.draftId, initial.serverId);
+  assert.equal(ticket.draftId, f.editor.snapshot().record?.serverId);
+  assert.equal(f.api.drafts.size, 2);
+});
+
+test("服务器已到 R2 仍交接已确认 R1，返回只读，不覆盖本机输入或提升基础修订", async (ctx) => {
+  const f = await publishingEditor(ctx), initial = f.editor.snapshot().record!;
+  const old = f.api.drafts.get(initial.serverId!)!;
+  f.api.drafts.set(old.id, { ...old, revision: 2, title: "服务器 R2", content: "不应自动覆盖的新版" });
+  const ticket = await f.editor.preparePublication();
+  assert.equal(ticket.revision, 1);
+  f.editor.publicationPath(ticket);
+  await f.editor.resume();
+  assert.equal(f.editor.snapshot().record?.baseRevision, 1);
+  assert.equal(f.editor.snapshot().content, initial.content);
+  assert.equal(f.api.calls.length, 1);
+  f.editor.input("返回后新写", "保留的新输入"); await f.editor.save();
+  await f.editor.resume();
+  assert.equal(f.editor.snapshot().content, "保留的新输入");
+  assert.equal(f.editor.snapshot().record?.dirty, true);
+  assert.equal(f.api.calls.length, 1);
+});
+
+test("票据读取期间换号拒绝；旧票据在输入变化后也不能用于导航", async (ctx) => {
+  const f = await publishingEditor(ctx);
+  const ticket = await f.editor.preparePublication();
+  f.editor.input("后写", "后写内容"); await f.editor.save();
+  assert.throws(() => f.editor.publicationPath(ticket));
+  await f.editor.synchronize();
+  const { DraftsApi } = await import("../src/drafts/api.ts");
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  f.tools.api = new DraftsApi(draftReadTransport(async path => { const result = await f.api.read(path.split("/").pop()!); arrived(); await gate; return result; }));
+  const pending = f.editor.preparePublication(), denied = assert.rejects(pending);
+  await ready;
+  f.setIdentity({ drafts: { phase: "online", owner: randomUUID() }, generation: 2, busy: false });
+  release(); await denied;
+  assert.equal(f.editor.canPreparePublication(), false);
+});
+
+test("发布核对读失败保留输入，不能自己存一遍或猜最新修订；伪造票据拒绝", async (ctx) => {
+  const f = await publishingEditor(ctx), writes = f.api.calls.length;
+  const { DraftsApi } = await import("../src/drafts/api.ts");
+  f.tools.api = new DraftsApi(async () => { throw new ApiError("network"); });
+  await assert.rejects(f.editor.preparePublication());
+  assert.equal(f.editor.snapshot().content, "首份草稿");
+  assert.equal(f.api.calls.length, writes);
+  f.tools.api = new DraftsApi(draftReadTransport(async path => f.api.read(path.split("/").pop()!)));
+  const ticket = await f.editor.preparePublication();
+  assert.throws(() => f.editor.publicationPath({ ...ticket }));
+});
+
+
+test("返回读取迟到：期间新输入已落盘，也不能将界面回退为旧内容/旧回执", async (ctx) => {
+  const f = await publishingEditor(ctx), open = f.cipher.open.bind(f.cipher);
+  let arrived: () => void = () => {}, release: () => void = () => {}, first = true;
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  f.cipher.open = async (...args) => {
+    const result = await open(...args);
+    if (first) { first = false; arrived(); await gate; }
+    return result;
+  };
+  const returning = f.editor.resume(); await ready;
+  f.editor.input("返回后立即输入", "本机已经保存的新文字"); await f.editor.save();
+  const seq = f.editor.snapshot().record!.seq;
+  release(); await returning;
+  assert.equal(f.editor.snapshot().content, "本机已经保存的新文字");
+  assert.equal(f.editor.snapshot().record?.seq, seq);
+  assert.equal(f.editor.snapshot().record?.dirty, true);
+  assert.equal(f.api.calls.length, 1);
+});

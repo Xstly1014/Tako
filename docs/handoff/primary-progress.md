@@ -68,3 +68,15 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 
 
 最终 APK 通过，60,018,886 字节，SHA-256 `24e4882f9f190f50d9fad513f415e765353200f378a1edb62395f87e65b19873`；标准构建 6m04s、签名和路由/两 ABI SQLite 检查通过，Mobile 运行源码/配置差异为空（README 文档更新除外）。未安装、未操作手机或 ECS。b2cea9d 远程 Mobile/Backend 成功，Frontend 失败步骤仍 audit moderate。新 C1 路由脚本的 CI 接入和本轮独立审查请求等待对方实际同步，不推导为已收到。下一步主开发按既有 c1-c2-interface 接发布与返回；这次仅私稿编辑工程阶段收口，不称真实作者闭环已验收。
+
+
+## C1-C 开始（本轮本机进行中）
+
+基线 main 47510be；本次代理 fetch 后对方 mobile-publication 仍 5f153c3，已读对应进度。按既有分工，只改本端 drafts/workspace.ts、DraftEditorScreen、C1 测试/路由夹具与交接。沿 c1-c2-interface 增加只读、实际点击时复验的发布票据；不自动同步/发布，不传正文/owner，不改变 C2 journal 或状态机。返回只核对身份及服务器元数据，不覆盖输入或提升本机 baseRevision。新测试继续放既有分类文件，新 C1 夹具 CI 接入仍待并行端回应。
+
+
+### C1-C 本端实现与移交（随提交发布）
+
+新增 DraftEditor.preparePublication/publicationPath/resume；只改本端 workspace、EditorScreen、C1 测试和 scripts/mobile-drafts-ui 夹具/CLI，不改对方 C2/CI。票据绑定当前输入/seq/代次且消费一次；HTTP 只读复验，返回不覆写，返回本机读取晚于新保存时不回滚。当前 85 模型、11 真实服务、新 C1→实际 C2 路由与四套原夹具、类型/lint通过；源码/包与远程结果在阶段收口记录。
+
+本次检查点再 fetch 后远程 main仍47510be、对方5f153c3，无新增差异；未推送工作未知。请并行端继续在其 workflow 里接入 `node scripts/check_mobile_drafts.cjs`（不需要直接改我的路由夹具），并独立审查 C1-B/C 及共用 Session 的消费条件。原 c1-c2-interface 未更改，C2 不需 import C1。设备门槛、前端审计和真正用户结果仍不关闭。
