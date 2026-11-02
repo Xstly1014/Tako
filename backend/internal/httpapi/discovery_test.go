@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -103,6 +104,18 @@ func TestDiscoveryHTTPContractAndOperatorBoundary(t *testing.T) {
 		return res
 	}
 	call("GET", "/api/community", nil, "", 200)
+	search := call("GET", "/api/search?q="+url.QueryEscape("发现契约作品"), nil, "", 200)
+	if !strings.Contains(search.Body.String(), published.WorkID.String()) || strings.Contains(search.Body.String(), "不会出现在发现卡片的正文") {
+		t.Fatal("public search card boundary")
+	}
+	for _, suffix := range []string{"", "?q=", "?q=%20%20", "?q=a%0Ab", "?q=a&q=b", "?q=a&extra=b", "?q=a&bad=%ZZ", "?q=a&cursor=bad", "?q=" + strings.Repeat("x", 65)} {
+		call("GET", "/api/search"+suffix, nil, "", 400)
+	}
+	empty := call("GET", "/api/search?q="+uuid.NewString(), nil, "", 200)
+	if !strings.Contains(empty.Body.String(), `"items":[]`) {
+		t.Fatal("empty search shape")
+	}
+
 	url := "/api/my/favorites/" + published.WorkID.String()
 	call("GET", "/api/my/favorites", nil, "", 401)
 	call("GET", url, nil, token, 200)

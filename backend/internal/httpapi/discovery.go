@@ -3,6 +3,7 @@ package httpapi
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"net/url"
 	"strings"
 	"writing.local/community/internal/identity"
 	"writing.local/community/internal/publication"
@@ -50,6 +51,24 @@ func (a API) registerDiscovery(api, protected *gin.RouterGroup) {
 		}
 		out, e := s.Discover(c.Request.Context(), c.Query("tag"), c.Query("cursor"))
 		reply(c, out, e)
+	})
+	api.GET("/search", func(c *gin.Context) {
+		if !enabled(c) {
+			return
+		}
+		values, err := url.ParseQuery(c.Request.URL.RawQuery)
+		if err != nil {
+			publicationError(c, publication.ErrInvalid)
+			return
+		}
+		for key, entries := range values {
+			if (key != "q" && key != "cursor") || len(entries) != 1 {
+				publicationError(c, publication.ErrInvalid)
+				return
+			}
+		}
+		out, err := s.Search(c.Request.Context(), values.Get("q"), values.Get("cursor"))
+		reply(c, out, err)
 	})
 	protected.GET("/me/access", func(c *gin.Context) {
 		c.JSON(200, gin.H{"operator": a.EnablePublications && a.isOperator(c.MustGet("account").(identity.Account).ID)})
