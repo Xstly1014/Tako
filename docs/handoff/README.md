@@ -4,7 +4,7 @@
 
 ## 当前已做到哪里
 
-本轮新增 [S1搜索API](../reviews/public-search-api-review.md)，用户确认标题/笔名/简介；服务端/契约/失败验证已实现，S2 App入口尚未开放。当前3300未替换新API，避免打断同事设备验收。业务盘点见 [中篇闭环后的下一步](../reviews/business-inventory-after-c1.md)。
+本轮新增 [S1搜索API](../reviews/public-search-api-review.md)，用户确认标题/笔名/简介；服务端/契约/失败验证已实现，1b89018三条远程CI已通过，S2 App入口尚未开放。当前3300未替换新API，避免打断同事设备验收。业务盘点见 [中篇闭环后的下一步](../reviews/business-inventory-after-c1.md)。
 
 中篇私稿→加密本机暂存/离线续写→服务器确认修订→固定预览→正式发布→读者阅读/收藏/两级评论→作者修订/管理，已接入同一工程。C1 列表/编辑与 C2 发布不是待开发空白。
 
