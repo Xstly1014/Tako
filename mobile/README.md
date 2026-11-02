@@ -42,6 +42,8 @@ APK 启动不需要 Metro，但读取测试数据需要电脑测试服务与 USB
 
 ## 契约与验证
 
+评论独立模块已在 `src/api/comments.ts`、`src/comments/editor.ts` 实现并测试，尚未挂入页面；手机上的评论入口仍明确未开放。纯内存逻辑可单独运行 `node --experimental-strip-types --test tests/comments.test.ts`；`comments-service.test.ts` 必须使用已造数的本机 3300，会正常创建合成测试账号/评论并删除测试讨论，不发送邮件。它不验证手机键盘、生命周期或页面接入。
+
 `src/api/contract.d.ts` 来自 `backend/internal/contract/openapi.yaml`，生成命令：
 
 ```sh
