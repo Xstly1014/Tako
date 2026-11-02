@@ -23,7 +23,7 @@
 - Node 24.19.0 / npm 11.17.0。第一次 npm ci 因全局缓存 `D:/nodejs/node_cache` 不可写而失败；改用 `.runtime/npm-cache` 后 mobile 与独立工具的锁定安装通过，未修改全局配置。
 - 同步 `3a17e22` 后 App 类型检查、Expo lint、24 项会话/评论/版本纯模型测试通过，零 skip/todo。
 - 实际 OpenAPI 重新生成与已提交类型语法比较通过；3 项门禁自动化测试通过，覆盖格式不误报、类型漂移/坏源拒绝、无源码写回、服务缺失/错误环境/种子不足拒绝，以及 skip/未分类测试拒绝和断言值不泄露。这些门禁夹具不是业务服务验收。
-- actionlint 1.7.12 检查新工作流通过；未执行远程 Actions，未验证远程 Windows/Linux job。
+- actionlint 1.7.12 检查新工作流通过；`f4ee3da` 推送后，远程 Windows/Linux 静态与模型、断网组件、真实 MySQL/API 四个作业全部成功，见 [Mobile checks #41388352711](https://github.com/Xstly1014/Tako/actions/runs/41388352711)。
 - 冷启动先后遇到 Docker Hub token 连接失败、distroless 拉取 EOF/TLS 超时、Go 模块代理 EOF 和容器 npm ECONNRESET。单独拉取重试后镜像齐备；容器显式继承 Docker 引擎已有 HTTP/HTTPS 代理后恢复依赖下载，未改全局配置、关闭证书校验或关闭 Go 校验和验证。原 `backend/Dockerfile` 使用预定义代理 build args 构建成功，没有替换运行镜像。
 - 真实 MySQL 8.4 的迁移 1～13、10 账号/60 作品种子完成；真实 API 镜像经 CI override 在回环 3300 启动，同步后 7 项 reader/comment/version 检查通过，零 skip/todo；账号/收藏验收脚本通过，包括原生/浏览器凭据隔离、多账号归属、幂等、隐藏元数据保护和退出重试。未发真实邮件。
 - 组件首次复验出现 `useMemo` 空引用，确认是宿主 mobile/node_modules 与 Docker /app/node_modules 两份 React 导致。最终独立入口遮蔽宿主依赖后，评论及历史阅读断网组件检查均通过，包括输入保留、登录、重试、删除/回复、切号，以及历史授权、失败保留原文、迟到响应和分页。本次安装依赖时曾误并行操作同一卷，已停止相关容器并顺序重装成功，再验证最终结果。
@@ -31,8 +31,9 @@
 
 ## 边界与退出条件
 
-- 本轮同步后的本机检查已收口：锁定安装、类型/lint、24 项模型、3 项门禁验证、真实迁移/种子、7 项 reader/comment/version、账号收藏 API 及两套断网组件均通过。远程 CI 尚未运行，不能称整个 CI 已远程验收。
-- P1，远程 CI：本阶段推送后验证三个 jobs 与两个静态平台；失败先修复，每次补丁推送仍先拉取远程同步，不把 actionlint 或 Windows 本机结果替代远程执行。
+- 本阶段工程检查已收口：本机锁定安装、类型/lint、24 项模型、3 项门禁验证、真实迁移/种子、7 项 reader/comment/version、账号收藏 API 及两套断网组件均通过，且远程三个 job 类型（静态含两个平台，共四个作业）成功。未包含 Android 原生构建、真机或恢复演练。
+- 已提交推送 `f4ee3da` 至本端分支，推送前成功拉取远程 main，基线仍为 `3a17e22`；使用提交局部的 `Codex <codex@localhost>` 作者标识，没有更改全局 Git 配置。每次后续推送仍先拉取主线、核对同事业务报告并重跑受影响检查。用户未授权本端直接合并 main，分支保持独立。
+- P1，共享前端依赖审计：本次既有 [Frontend checks](https://github.com/Xstly1014/Tako/actions/runs/41388352694) 的 `npm audit --audit-level=moderate` 失败；基线 [main/3a17e22](https://github.com/Xstly1014/Tako/actions/runs/41385497805) 同一步也失败。本机只读审计复核为 12 moderate、2 low、0 high/critical，未改包或锁文件。该项由主开发维护依赖范围，退出条件是在明确文件归属后修复相关依赖，并通过前端测试、类型、构建及 moderate 审计；合并评审及公开部署前必须跟进，不能把移动 CI 绿灯当作全仓库绿灯。
 - P1，交接 02 的完整 Web/1000 账号/20000 作品初始化尚未在本机执行；本轮小规模 API 环境不能代替完整展示环境或压力测试。
 - P0，移动体验交付前：账号/收藏/评论新包真机门槛继续保留。CI 不验证键盘、系统返回、安全存储或杀进程行为。
 
