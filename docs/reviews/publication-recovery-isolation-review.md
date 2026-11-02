@@ -23,5 +23,6 @@
 - 实际发布路由组件夹具：旧 V1 成功页注入另一页面的最小 journal，首次读取模拟 503。页面不再显示 V1 或“确认结果并选择其他稿件”，记录保持原样；用户重试后显示对应 V2，发布 POST 总数保持不变。组件的另一页面 journal 是明确故障注入；双实例交互由模型测试实际驱动，不冒充真实多设备。
 - 类型、lint、OpenAPI 一致性、10 项顺序真实 MySQL/API 服务组及 5 项门禁行为测试通过。未修改 HTTP API，未改 OpenAPI/生成类型、C1、会话、依赖或构建。仅本端发布组件在本机重验，四套组件另由远程整合门禁运行并绑定推送提交记录。
 - 本轮失败恢复的 503/并发是可控故障，不是真实切网或 SecureStore 设备验收。原生返回/杀进程/存储门槛继续为真实移动作者使用前 P0；既有 frontend moderate audit P1 保持原负责人和退出条件。
+- 修复提交 03f2d0b 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41433032243) success（含 Windows/Linux 和全部四套组件、真实 API），[Backend](https://github.com/Xstly1014/Tako/actions/runs/41433032280) success。公共 API 额度耗尽后，通过该提交公开运行页面确认结果；[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41433032252) 仍失败在原 moderate audit。后续证据文档不改变被验源码，不称全仓库绿灯。
 
 远程检查与提交号见 `docs/handoff/parallel-ci-results.md`，不复用前一提交的绿灯，也不将自查说成主开发独立审查。主开发需要保留本轮 C2 状态/入口保护，继续在自己的 C1-B/C1-C 范围接线；本轮无需其改动共享接口。

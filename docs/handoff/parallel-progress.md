@@ -7,7 +7,8 @@
 - 本轮 fetch 核对远程 main 仍 42bc325，本端为 402a8aa；没有新发布提交，不推导同事空闲。继续本端独占的 C2 故障恢复，不接管 C1-B/C1-C。
 - 发现并先写回归验证：旧成功页面恢复另一页面的新未知发布时，失败恢复可混合旧成功结果与新请求标识，使 reset 删除尚未确认的新 journal。认领 `mobile/src/publication/flow.ts`、`PublicationWorkspace.tsx`、既有发布模型/组件测试及本端阶段报告；不改 C1/auth、契约、锁或构建。
 - 已确认本端 P1：新增回归修复前失败，旧 reset 确实删除了新未知记录。已修复恢复状态一起提交、失败时页面隐藏旧成功并禁止 reset，以及过期清理比较原请求；不改已确认业务权利。详情见 `docs/reviews/publication-recovery-isolation-review.md`。
-- 本机已通过 69 项模型、10 项顺序真实服务、5 项门禁、类型/lint、契约和发布组件，零 skip/todo。本轮代码尚待提交/远程验证；其他三套组件未在本机重复，后续远程整合门禁确认。
+- 本机已通过 69 项模型、10 项顺序真实服务、5 项门禁、类型/lint、契约和发布组件，零 skip/todo。修复 03f2d0b 已推送，推送前再次 fetch/核对/pull main 仍 42bc325，无冲突。
+- [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41433032243) 与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41433032280) success，四套组件由本轮远程覆盖；[Frontend audit](https://github.com/Xstly1014/Tako/actions/runs/41433032252) 仍 failure。公共 API 限额后改读公开运行页面确认最终结果，不套用旧绿灯。后续证据文档提交不改变该源码；尚未进 main/包。待主开发集成本轮 C2 保护并继续 C1-B/C1-C，本端不改变其调用接口。
 
 ## 上阶段认领（同步 42bc325）
 
