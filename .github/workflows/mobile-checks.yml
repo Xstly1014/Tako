@@ -64,6 +64,8 @@ jobs:
           docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
       - name: Reader, author and publication fixtures (network disabled)
         run: node scripts/check_mobile_components.cjs
+      - name: Draft editing and publication handoff routes (network disabled)
+        run: node scripts/check_mobile_drafts.cjs
   real-api:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

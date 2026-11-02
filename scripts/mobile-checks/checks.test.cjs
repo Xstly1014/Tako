@@ -157,3 +157,30 @@ test('diagnostic projections reject unknown stages, paths and error codes', () =
   assert.equal(fixtureStage('author', 'Author fixture failed at conflict: PRIVATE_SENTINEL'), 'conflict');
   assert.equal(fixtureStage('publication', 'Publication fixture failed at PRIVATE_SENTINEL: Error'), 'unavailable');
 });
+
+test('C1 route CLI propagates failure and projects safe stage/line without raw child output', () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'tako-drafts-gate-'));
+  try {
+    const preload = path.join(fixture, 'docker.cjs');
+    fs.writeFileSync(preload, `require('node:child_process').spawnSync = (command,args) => {
+      if(command !== 'docker' || args[3] !== 'none' || !args.includes('/materials/scripts/mobile-drafts-ui/run.cjs')) throw Error('unexpected_command');
+      return JSON.parse(process.env.TAKO_GATE_FIXTURE_RESULT);
+    };`);
+    for (const example of [
+      { result: { status: 1, stderr: 'PRIVATE_BODY\nfixture_line=123\nFAIL mobile drafts fixture stage=publish-handoff-and-return kind=PRIVATE_TOKEN' }, status: 1, expected: 'stage=publish-handoff-and-return' },
+      { result: { status: 1, stderr: 'FAIL mobile drafts fixture stage=PRIVATE_BODY kind=PRIVATE_TOKEN' }, status: 1, expected: 'stage=unavailable' },
+      { result: { status: null, error: {code: 'ETIMEDOUT', message: 'PRIVATE_TOKEN'}, stderr: 'PRIVATE_BODY' }, status: 1, expected: 'stage=unavailable' },
+      { result: { status: 0, stdout: 'PRIVATE_BODY', stderr: 'PRIVATE_TOKEN' }, status: 0, expected: 'PASS mobile C1 route fixtures' },
+    ]) {
+      const result = spawnSync(process.execPath,
+        ['--require', preload, path.join(root, 'scripts/check_mobile_drafts.cjs')], {
+          encoding: 'utf8', timeout: 10000,
+          env: { ...process.env, TAKO_GATE_FIXTURE_RESULT: JSON.stringify(example.result) },
+        });
+      assert.equal(result.status, example.status);
+      assert.ok((result.stdout + result.stderr).includes(example.expected));
+      if (example.result.stderr.includes('fixture_line=123')) assert.match(result.stderr, /DIAG C1 fixture_line=123/);
+      assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE_BODY|PRIVATE_TOKEN/);
+    }
+  } finally { fs.rmSync(fixture, { recursive: true, force: true }); }
+});
