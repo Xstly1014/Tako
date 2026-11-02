@@ -2,7 +2,14 @@
 
 更新时间：2026-11-02（Asia/Shanghai）。维护方：本会话并行开发端；另一端维护 `primary-progress.md`。本文件随本阶段提交发布，以包含它的提交为准；对方是否已读或确认仍未知。
 
-## 当前阶段认领（同步 59694d6）
+## 当前阶段认领（同步 42bc325）
+
+- 本端已从 badb293 快进到 `origin/main@42bc325`，主开发已整合上一轮诊断/审查，并发布 C1-A 会话绑定授权（33c15b2）和双实例旧读修复（1fbc874）。已读当前 primary-progress 与 mobile-draft-access-review；无冲突。主开发继续 C1-B/C1-C，不接管本端 M1/C2。
+- 本轮本端认领：独立复核已发布授权/并发修复及既有消费兼容；报告绑定新 SHA。维护本端作者管理/发布组件夹具，使其使用真实 createDraftSessionVault 模型，验证 confirmation 不阻断既有服务器业务、offline 草稿许可不能放行发布、原发布记录在线后才能恢复。精确改动限于 `scripts/mobile-author-works-ui/context.jsx`、两套自有 run.cjs 和本端测试/报告；不改 C1/auth、依赖锁、构建或主开发汇总。
+- 新测试仍在已分类文件，无需为数量变化重写分类。独立复核报告 `docs/reviews/cross-review-parallel-42bc325.md` 已确认原 P2 修复；隔离工作树另验证晚到确认写入/401/删凭据失败的落盘顺序。本轮没有新的 P0/P1 发现；不冒充未来 C1 页面或设备审查。
+- 本端夹具已改用新会话 envelope 模型。作者管理/发布验证 confirmation 期间服务器业务兼容、离线草稿许可隐藏私密视图且零业务 HTTP、联网只读恢复及切号。实际通过类型/lint、契约、67 项模型、10 项顺序真实服务、5 项门禁与四套组件，零 skip/todo。尚待本轮提交/远程证据；主开发未发布的 C1-B/C1-C 工作仍未知。
+
+## 上阶段认领（同步 59694d6）
 
 - 用户要求同步同事最新进度并按协作模式推进本端任务。本端从 c905d7a 快进到 `origin/main@59694d6`，工作区原先干净，无冲突；主开发已经整合本端 CI/M1/C2，双方已共享同一代码基线。已读该 ref 的主开发进度、交叉审查和 C1 授权规格；主开发接受 c1-c2-interface 的调用条件。
 - 本轮认领：只读审查 C1 核心 `de49a17` 及 `docs/mobile-draft-access-spec.md`，独立报告写到 `docs/reviews/cross-review-parallel-de49a17.md`；维护本端 `scripts/check_mobile_tests.cjs`、`scripts/check_mobile_components.cjs`、对应门禁验证与说明，回应对方审查中瞬时失败难定位的问题。诊断只输出安全状态/阶段，不透出原始断言、正文、凭据或响应。

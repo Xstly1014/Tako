@@ -70,7 +70,9 @@ let stage = "bundle";
   let drop = true,
     restricted = false,
     conflict = false,
-    failRead = false;
+    failRead = false,
+    offline = false,
+    managementRequests = 0;
   const receipts = new Map(),
     attempts = [],
     errors = [];
@@ -97,6 +99,8 @@ let stage = "bundle";
         url = new URL(req.url()),
         p = url.pathname,
         body = req.postDataJSON();
+      if (p.startsWith("/api/my/works")) managementRequests++;
+      if (offline) return route.abort();
       const viewer = req.headers().authorization?.endsWith("b".repeat(64))
         ? b
         : a;
@@ -171,9 +175,16 @@ let stage = "bundle";
       }
       return json(route, { error: "resource_not_found" }, 404);
     });
+    stage = "session-envelope";
     await page.goto("http://127.0.0.1:3300/__author");
     await page.getByRole("button", { name: "管理本人作品" }).click();
     await page.getByRole("button", { name: "管理作品 甲的正式作品" }).click();
+    assert.equal(
+      await page.evaluate(
+        () => window.authorUi.session.snapshot().drafts.phase,
+      ),
+      "confirmation",
+    );
     stage = "lost-response";
     await page.getByRole("button", { name: "隐藏作品", exact: true }).click();
     assert.equal(attempts.length, 0);
@@ -241,6 +252,31 @@ let stage = "bundle";
       (await page.getByText("私有版本1", { exact: false }).count()) > 0,
       true,
     );
+    stage = "offline-grant-blocks-management";
+    await page.evaluate(() => window.authorUi.session.confirmDraftAccess());
+    const beforeOfflineRequests = managementRequests;
+    const beforeOfflineAttempts = attempts.length;
+    offline = true;
+    await page.evaluate(() => window.authorUi.session.restore());
+    await page.getByText("连接后确认账号", { exact: true }).waitFor();
+    assert.equal(
+      await page.evaluate(
+        () => window.authorUi.session.snapshot().drafts.phase,
+      ),
+      "offline",
+    );
+    assert.equal(
+      await page.getByText("私有版本1", { exact: false }).count(),
+      0,
+    );
+    assert.equal(managementRequests, beforeOfflineRequests);
+    assert.equal(attempts.length, beforeOfflineAttempts);
+    stage = "online-grant-restores-management";
+    offline = false;
+    await page.getByRole("button", { name: "重试确认账号" }).click();
+    await page.getByRole("button", { name: "管理作品 甲的正式作品" }).click();
+    await page.getByText("私有版本1", { exact: false }).first().waitFor();
+    assert.equal(attempts.length, beforeOfflineAttempts);
     stage = "account-switch";
     await page.evaluate(async () => {
       await window.authorUi.session.logout();
@@ -252,12 +288,18 @@ let stage = "bundle";
     });
     await page.getByText("还没有正式作品", { exact: true }).waitFor();
     assert.equal(
+      await page.evaluate(
+        () => window.authorUi.session.snapshot().drafts.phase,
+      ),
+      "confirmation",
+    );
+    assert.equal(
       await page.getByText("私有版本1", { exact: false }).count(),
       0,
     );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS author component fixtures: real entry, confirmation, uncertain retry, fresh state, restricted restore, cancellation, conflict, read failure and account isolation.",
+      "PASS author component fixtures: session envelope and pending draft confirmation preserve server management, offline draft grant hides management without requests, online read-only restoration, real entry, confirmation, uncertain retry, fresh state, restricted restore, cancellation, conflict, read failure and account isolation.",
     );
   } catch (error) {
     console.error("Author fixture failed at " + stage + ": " + error.name);

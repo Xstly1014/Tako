@@ -63,6 +63,9 @@ let stage = "bundle";
   let prepares = 0,
     publishes = 0,
     sourceReads = 0,
+    previewReads = 0,
+    publicationRequests = 0,
+    offline = false,
     published = false,
     preparedBody,
     errors = [];
@@ -110,6 +113,8 @@ let stage = "bundle";
         viewer = request.headers().authorization?.endsWith("b".repeat(64))
           ? b
           : a;
+      if (pathname.startsWith("/api/publication")) publicationRequests++;
+      if (offline) return route.abort();
       if (pathname === "/api/app/auth/login")
         return json(route, {
           account: { id: body.email.startsWith("b@") ? b : a, nickname: "" },
@@ -150,8 +155,10 @@ let stage = "bundle";
         preparedBody = body;
         return json(route, snapshot());
       }
-      if (pathname === "/api/publication-previews/" + previewId)
+      if (pathname === "/api/publication-previews/" + previewId) {
+        previewReads++;
         return json(route, snapshot());
+      }
       if (pathname === "/api/publications") {
         publishes++;
         published = true;
@@ -171,7 +178,15 @@ let stage = "bundle";
         });
       return json(route, { error: "resource_not_found" }, 404);
     });
+    stage = "session-envelope";
     await page.goto("http://127.0.0.1:3300/__publication");
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).waitFor();
+    assert.equal(
+      await page.evaluate(
+        () => window.publishUi.session.snapshot().drafts.phase,
+      ),
+      "confirmation",
+    );
     stage = "incomplete-editor-handoff";
     await page.evaluate((draft) => {
       window.publishUi.params = { draft_id: draft };
@@ -295,6 +310,40 @@ let stage = "bundle";
       await page.getByRole("button", { name: "读取当前展示版本" }).count(),
       0,
     );
+    stage = "offline-grant-blocks-publication";
+    await page.evaluate(() => window.publishUi.session.confirmDraftAccess());
+    const beforeOfflineReads = previewReads;
+    const beforeOfflineRequests = publicationRequests;
+    offline = true;
+    await page.evaluate(() => window.publishUi.session.restore());
+    await page.getByText("确认账号后发布", { exact: true }).waitFor();
+    assert.equal(
+      await page.evaluate(
+        () => window.publishUi.session.snapshot().drafts.phase,
+      ),
+      "offline",
+    );
+    assert.equal(
+      await page.getByText("固定快照正文", { exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page.getByText("已确认正式版本 V1", { exact: true }).count(),
+      0,
+    );
+    assert.equal(previewReads, beforeOfflineReads);
+    assert.equal(publicationRequests, beforeOfflineRequests);
+    assert.equal(publishes, 1);
+    assert.equal(
+      await page.evaluate(() => [...window.publishUi.journal.values()][0]),
+      saved,
+    );
+    stage = "online-grant-restores-journal";
+    offline = false;
+    await page.getByRole("button", { name: "重试确认账号" }).click();
+    await page.getByText("已确认正式版本 V1", { exact: true }).waitFor();
+    assert.equal(previewReads, beforeOfflineReads + 1);
+    assert.equal(publishes, 1);
     stage = "account-switch";
     await page.evaluate(async () => {
       window.publishUi.params = {};
@@ -307,13 +356,19 @@ let stage = "bundle";
     });
     await page.getByText("服务器暂无稿件", { exact: true }).waitFor();
     assert.equal(
+      await page.evaluate(
+        () => window.publishUi.session.snapshot().drafts.phase,
+      ),
+      "confirmation",
+    );
+    assert.equal(
       await page.getByText("固定快照正文", { exact: true }).count(),
       0,
     );
     assert.equal(publishes, 1);
     assert.deepEqual(errors, []);
     console.log(
-      "PASS publication fixtures: real entry, rejected incomplete/unconfirmed handoff, old revision and return, explicit rights, storage failure prevents POST, unknown result, prior journal takes precedence over a new handoff, current hidden state, and account isolation. Not native-storage evidence.",
+      "PASS publication fixtures: session envelope compatibility, rejected incomplete/unconfirmed handoff, old revision and return, explicit rights, storage failure prevents POST, unknown result, prior journal precedence, offline draft grant cannot restore/publish, online read-only restoration, current hidden state, and account isolation. Not native-storage evidence.",
     );
   } catch (error) {
     console.error("Publication fixture failed at " + stage + ": " + error.name);

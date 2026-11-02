@@ -21,9 +21,11 @@ function testLocations(output, files) {
 const stages = {
   comments: ['build', 'open', 'guest-input', 'login', 'transfer', 'private-records'],
   versions: ['bundle', 'closed-metadata', 'read-open-version', 'failed-switch', 'stale-switch', 'paging-retry', 'restricted-node'],
-  author: ['bundle', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'account-switch'],
-  publication: ['bundle', 'incomplete-editor-handoff', 'unconfirmed-editor-revision', 'confirmed-old-editor-revision',
-    'authorization-and-snapshot', 'storage-failure', 'unknown-result', 'remount-read-only', 'account-switch'],
+  author: ['bundle', 'session-envelope', 'lost-response', 'restricted-restore', 'conflict', 'read-failure',
+    'offline-grant-blocks-management', 'online-grant-restores-management', 'account-switch'],
+  publication: ['bundle', 'session-envelope', 'incomplete-editor-handoff', 'unconfirmed-editor-revision', 'confirmed-old-editor-revision',
+    'authorization-and-snapshot', 'storage-failure', 'unknown-result', 'remount-read-only',
+    'offline-grant-blocks-publication', 'online-grant-restores-journal', 'account-switch'],
 };
 const markers = {
   comments: /^Stage ([a-z-]+);/m,
