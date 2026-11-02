@@ -6,6 +6,8 @@
 
 新增实际发布页故障回归在修复前失败，修复后通过；断言重试前后 publication 请求数和正式 POST 数不变，仅状态读取增加，成功后错误消失。[阶段复盘](../reviews/publication-state-read-review.md) 记录准确触发和证据。本机类型/lint、85 项模型、11 项顺序真实服务、6 项门禁、发布组件及 C1→实际 C2 路由通过，零 skip/todo；其他三套组件本机未重复，远程结果待本轮提交绑定，不沿用旧绿灯。
 
+修复提交 **`2b2b952`** 已推送 codex/mobile-publication，推送前 fetch/核对/pull main 仍0e1e60e，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41452848999) 四作业 success，Windows/Linux 静态/模型、完整五套组件及真实 MySQL/API 均实际运行；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41452849363) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41452849138) 仍失败在 npm audit --audit-level=moderate，责任/退出条件未变。后续仅证据文档不改变该源码，不称全仓库绿灯。
+
 本轮 UI 源码变化尚未合入 main/进入已有 APK，最终集成冻结/包由主开发维护；设备 P0、frontend audit P1 和上一轮 C1 另存 P2 未因本轮改动关闭。
 
 ## 上阶段：C1-B/C 路由接入远程门禁与独立审查

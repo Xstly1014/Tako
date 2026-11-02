@@ -7,7 +7,8 @@
 - 本轮 fetch main仍0e1e60e，本端a814cf9；未见对方新发布进度，不视为无人进行工作。沿本端 C2 范围处理已确认发布被后续 GET 失败误报成未知的问题，不接管 C1 P2 或前端审计。
 - 改动范围：本端 `PublicationWorkspace.tsx`、发布组件夹具/白名单及本端记录。区分发布/记录恢复失败与作品现状 GET 失败，保留原确认并只重试 GET；不改 flow/journal、C1/auth、API/锁/构建。
 - 实际页面新回归在修复前 confirmed-state-read-retry 阶段失败，修复后通过。现状 GET 失败保留原发布确认，单独提示读取失败，重试不增加 publication 请求或 POST，成功后移除读取错误并显示真实状态。
-- 本机类型/lint、85 模型、11 顺序真实服务、6 门禁、发布组件与 C1→实际 C2 路由均通过，零 skip/todo；其他组件本机未重复，待本轮远程覆盖。复盘见 `docs/reviews/publication-state-read-review.md`。本轮尚待提交推送；主开发旧9653d74包不包含本轮UI改动，整合后由其冻结构建。
+- 本机类型/lint、85 模型、11 顺序真实服务、6 门禁、发布组件与 C1→实际 C2 路由均通过，零 skip/todo；其他组件本机未重复，由本轮远程完整覆盖。复盘见 `docs/reviews/publication-state-read-review.md`。主开发旧9653d74包不包含本轮UI改动，整合后由其冻结构建。
+- 修复 2b2b952 已推送独立分支，推送前 fetch/核对/pull main 仍0e1e60e，无冲突。[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41452848999) 四作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41452849363) success，含五套组件；[Frontend audit](https://github.com/Xstly1014/Tako/actions/runs/41452849138) 仍 failure。后续证据文档不改变该源码；本轮未合入 main/入包。收口再 fetch main无新增变化，对方未发布工作未知。
 
 ## 上阶段认领（同步 9653d74，C1-B/C 接入）
 

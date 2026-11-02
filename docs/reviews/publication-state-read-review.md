@@ -16,5 +16,6 @@
 - 修复前该用例在 confirmed-state-read-retry 阶段失败；修复后通过。没有更改失败注入或放松断言换取通过。
 - 本机类型/lint、85 项模型、11 项顺序真实服务、6 项门禁、发布组件与 C1→实际 C2 路由通过，零 skip/todo。其他三套组件本机未重复，由远程整合门禁覆盖并绑定本轮 SHA。未改 API/契约/锁文件，真实服务测试使用独立回环环境。
 - 断网错误为受控 HTTP abort，不算真实切网/原生生命周期验证。本轮 Mobile UI 有变化，主开发已有 9653d74 APK 不包含本轮修复，后续整合冻结后需按其构建流程更新；本端不自建第二套包或操作设备/ECS。
+- 修复提交 2b2b952 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41452848999) 四作业 success，包含 Windows/Linux 静态/模型与完整五套组件（原四套 + C1 路由）、真实 MySQL/API；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41452849363) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41452849138) 仍失败在 moderate audit，未将本轮移动绿灯当全仓库通过。后续仅证据文档不改变被验源码。
 
 远程结果见 parallel-ci-results，不将本机通过冒充远程通过。主开发负责现有 C1 P2 回应、依赖审计及最终集成/包，设备 P0 与审计 P1 仍保持原退出条件。
