@@ -46,3 +46,14 @@
 ### 自动重试节奏修正
 
 收尾核对发现 effect 依赖整个 record 对象，同步后的只读刷新即使内容不变也会重建 1.2 秒防抖，可能让待确认请求重复过快。已改为依赖输入与稳定 needsSync 布尔值；刷新元数据不会重置计时。实际页面夹具在首次丢回执后统计后续 3 秒 POST 数量保持不变，随后手动沿原请求确认成功。该修正改变 Mobile 源码，因此 fcf5499 构建也主动停止，最终包须绑定后续冻结提交，不沿用旧指纹。
+
+
+## 最终源码、产物与远程证据
+
+- Mobile 源码冻结 `b2cea9d397dd35d707821e834f73e6f22b9773df`；含 C1-B、Android 半屏入口、重试节奏修正及对方 03f2d0b 发布恢复修复。构建期间与该 SHA 的 Mobile 差异为空；后续收口提交只变文档。
+- 标准 Windows/Docker Android 构建通过：Gradle 6 分 4 秒，581 项任务（37 执行，544 缓存），类型/lint 在标准构建入口再次通过；内置 Hermes bundle 2,521,468 字节，签名验证通过。模板 debug 签名仅作个人测试，不是商店正式签名。
+- APK：`.runtime/mobile/artifacts/tako-test-0.1.0.apk`，60,018,886 字节；SHA-256：`24e4882f9f190f50d9fad513f415e765353200f378a1edb62395f87e65b19873`。已直接检查 bundle 含 drafts/index、drafts/[id]、my-works、publish 路由，arm64-v8a/armeabi-v7a 均有 libexpo-sqlite.so。APK/SDK/凭据不进 Git；不安装或连接用户手机。
+- 当前源码工程证据：78 项整合模型、11 项真实服务、实际 C1 路由夹具、四套既有组件、契约一致性与 5 项门禁均通过，零 skip/todo。新 C1 路由夹具还未进入对方 CI 分类；本机通过不等于远程已执行这条新夹具。
+- b2cea9d 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41435376750) 与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41435376788) success；[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41435376786) failure，已读取实际失败步骤为 `Run npm audit --audit-level=moderate`。沿既有 P1 责任与公开测试前退出条件处理，不能称全仓库 CI 全绿；后续仅文档提交不改此源码证据。
+
+C1-B 本轮工程交付收口。下一条主开发 C1-C 发布 push/返回；并行端认领新 C1 门禁/独立审查仍待实际回应。原生设备门槛不因包编译或上述工程回归而关闭。

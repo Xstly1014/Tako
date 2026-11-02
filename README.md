@@ -15,7 +15,7 @@ App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.
 
 [2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 已核对能力、验收与未完成约束；[App 私密草稿 C1](docs/mobile-drafts-spec.md) 已接入授权、草稿箱和编辑页，具备暂存/服务器确认区分、原请求恢复与冲突另存；[编辑阶段复盘](docs/reviews/mobile-draft-editor-review.md) 记录 78 项整合模型、11 项真实服务及组件证据。公开发布交接 C1-C 与真机门槛仍待完成。双 agent 分工与进度见 [协作入口](docs/handoff/03-parallel-work.md)。
 
-CI、App 作品管理 M1 与固定预览发布 C2 已整合到主线源码，并通过独立工程复验；尚未构建包含这些页面的整合 APK。下一步接入草稿离线授权与编辑页，见 [当前协作进度](docs/handoff/primary-progress.md) 与 [交叉审查](docs/reviews/cross-review-primary-c905d7a.md)。持续双端协作用 `$tako-collab`，每次推送前核对双方分支与进度。
+CI、App 作品管理 M1 与固定预览发布 C2 已整合到主线源码，并通过独立工程复验；包含这些页面及草稿编辑的整合 APK 已构建并校验，源码与指纹见 [编辑复盘](docs/reviews/mobile-draft-editor-review.md)，设备体验尚未验收。下一步接入草稿离线授权与编辑页，见 [当前协作进度](docs/handoff/primary-progress.md) 与 [交叉审查](docs/reviews/cross-review-primary-c905d7a.md)。持续双端协作用 `$tako-collab`，每次推送前核对双方分支与进度。
 
 ![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
 

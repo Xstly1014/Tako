@@ -1,5 +1,8 @@
 # 主开发工作进度
 
+> 最新收口：C1-B 已交付源码及整合 APK，Mobile 冻结 b2cea9d。78 模型、11 服务、新路由/四套原夹具与门禁通过；该源码远程 Mobile/Backend success，Frontend audit failure。包 SHA-256、设备与 C1-C 尾项见 mobile-draft-editor-review.md。以下保留阶段过程，旧冻结 SHA 和“构建中”不作为最终产物。
+
+
 更新时间：2026-11-02（Asia/Shanghai）。主开发维护，分支 main。实现以包含本记录的提交为准；不将已推送推导为对方已读或认可。
 
 ## 已观察与本轮集成
@@ -62,3 +65,6 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 
 
 自动重试收尾修正：元数据 record 对象变化不应重置 1.2 秒输入防抖，改用稳定 needsSync；新增 C1 路由请求计数断言。fcf5499 构建主动停止，最终源码/包以编辑复盘最后记录为准。停止均非 Gradle 随机失败，不套用成功。
+
+
+最终 APK 通过，60,018,886 字节，SHA-256 `24e4882f9f190f50d9fad513f415e765353200f378a1edb62395f87e65b19873`；标准构建 6m04s、签名和路由/两 ABI SQLite 检查通过，Mobile 差异为空。未安装、未操作手机或 ECS。b2cea9d 远程 Mobile/Backend 成功，Frontend 失败步骤仍 audit moderate。新 C1 路由脚本的 CI 接入和本轮独立审查请求等待对方实际同步，不推导为已收到。下一步主开发按既有 c1-c2-interface 接发布与返回；这次仅私稿编辑工程阶段收口，不称真实作者闭环已验收。

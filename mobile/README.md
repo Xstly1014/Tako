@@ -1,10 +1,10 @@
-# Tako Android · 首个阅读测试包
+# Tako Android · 本机测试 App
 
 独立 React Native + Expo App，与 Nuxt Web 同仓库、独立页面和导航，共用 Go API。视觉以 `../docs/prototypes/mobile-app-v1/` 为依据，中篇保持无封面全宽文字列表。原型不作为真实数据来源。
 
 ## 当前源码与安装包
 
-c905d7a 已整合原生作品管理 M1 与固定预览发布 C2，包含独立作者入口、正式版本/公开设置和发布恢复流程；C1 编辑器及其发布跳转尚未接入。当前本机 APK 仍为 de49a17 阶段，不能据源码整合声称手机已有这些页面。独立复验与边界见 `../docs/reviews/cross-review-primary-c905d7a.md`，下一步见 `../docs/mobile-draft-access-spec.md`。
+c905d7a 已整合原生作品管理 M1 与固定预览发布 C2，包含独立作者入口、正式版本/公开设置和发布恢复流程；C1 编辑器及其发布跳转尚未接入。当前整合 APK 来自 b2cea9d，包含这些页面与 C1-B；构建/签名/路由核对通过，尚未安装到用户手机或完成设备体验验收。独立复验与边界见 `../docs/reviews/cross-review-primary-c905d7a.md`，下一步见 `../docs/mobile-draft-access-spec.md`。
 
 C1-B 已接入原型加号半屏面板中的“中篇”与“我的→草稿箱”，支持确认恢复、服务器/本机列表、纯文本编辑、串行加密暂存、在线确认与本机竞争另存。Session 重连不清空输入，退出提示按账号隔离；[阶段复盘](../docs/reviews/mobile-draft-editor-review.md) 区分模型、真实服务、组件与原生包。C1-C 发布交接仍待接入，不把草稿自动公开。当前整合包状态与指纹以该复盘最后一节为准，不据旧段落推断用户手机版本。
 

@@ -1,3 +1,5 @@
+> C1-B 最终收口：b2cea9d 整合 APK 构建与签名/路由核对通过；Mobile/Backend 远程 success，Frontend audit moderate failure。78 模型、11 真实服务与新路由回归通过；C1-C、路由夹具 CI 接入、设备体验仍按 [编辑复盘](mobile-draft-editor-review.md) 优先级执行。
+
 > 2026-11-02 C1-B：草稿箱/编辑/恢复、原型双入口与退出提醒已接，78 整合模型、11 真实服务、新路由及四套既有组件通过；源码冻结构建与指纹见 [编辑复盘](mobile-draft-editor-review.md)。C1-C 和设备门槛未关闭。
 
 > 2026-11-02 C1-A：Session 已接入同项持久授权与无 owner 参数的仓储门面；67 模型、10 服务、5 项门禁及四套既有组件通过；已接受并修复对方提出的双同步器旧读取问题。草稿列表/编辑与发布调用仍待 C1-B/C，不宣称 App 创作完成。见 [授权复盘](mobile-draft-access-review.md)。
