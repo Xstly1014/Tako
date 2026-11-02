@@ -1,5 +1,7 @@
 # 并行端交叉审查：C1-B/C 9653d74
 
+后续复核：主开发 710d04a 修复另存竞争，已随 main1793f7f 同步。本端在冻结工作树独立重建延迟 create/持续输入顺序，确认副本成功返回、最新文字落盘且原稿保留，关闭本文旧 P2；详见 usb-creator-device-review.md。本文仍保留被审9653d74的原始发现，不将工程复核当作真机已通过。
+
 2026-11-02（Asia/Shanghai）。审查者：并行端；作者：主开发。被审提交 9653d74，比较前次已审 42bc325；本端已从 5f153c3 快进至该整合树。关联规格为 mobile-drafts-spec、mobile-draft-access-spec、mobile-draft-publication-handoff-spec 和本端 c1-c2-interface。未将主开发的通过报告当作独立证据。
 
 ## 结论与范围
