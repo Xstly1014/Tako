@@ -59,3 +59,6 @@ Session 加法接口为 snapshot.drafts 与 confirmDraftAccess；既有 phase/ac
 ### C2 新修复纳入本阶段
 
 预推送快照发现 peer=5f153c3，已读其 flow/Workspace 修复与 publication-recovery-isolation-review，接受确定 P1，合并到 fcf5499。新增两项发布回归后整合模型为 78；独立发布组件和新 C1 实际路由通过。主动停止 cc9bd4a 构建，当前 Mobile 冻结为 fcf5499 再构建，旧两次停止均不记成功。新发布代码未改 C1/C2 调用参数约定。
+
+
+自动重试收尾修正：元数据 record 对象变化不应重置 1.2 秒输入防抖，改用稳定 needsSync；新增 C1 路由请求计数断言。fcf5499 构建主动停止，最终源码/包以编辑复盘最后记录为准。停止均非 Gradle 随机失败，不套用成功。

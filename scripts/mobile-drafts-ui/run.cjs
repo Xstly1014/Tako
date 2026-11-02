@@ -61,9 +61,15 @@ let stage = "bundle";
     await page.getByText("已暂存本机，待同步", { exact: true }).waitFor();
     assert.equal(await page.getByRole("textbox", { name: "草稿正文" }).inputValue(), "暂存失败也保留输入");
     stage = "uncertain-sync";
+    // Let the input's original debounce run while offline. A failed sync must
+    // not create fresh 1.2-second timers merely by rereading the same record.
+    await page.waitForTimeout(1600);
     await page.evaluate(() => { window.draftUi.online = true; window.draftUi.drop = true; });
     await page.getByRole("button", { name: "同步", exact: true }).click();
     await page.getByText("已暂存本机，服务器结果待确认", { exact: true }).waitFor();
+    const postsBefore = await page.evaluate(() => window.draftUi.posts);
+    await page.waitForTimeout(3000);
+    assert.equal(await page.evaluate(() => window.draftUi.posts), postsBefore);
     await page.getByRole("button", { name: "同步", exact: true }).click();
     await page.getByText("已保存到服务器", { exact: true }).waitFor();
     stage = "local-conflict-copy";

@@ -12,9 +12,10 @@ export function DraftEditorScreen({ editor, onCopied }: { editor: DraftEditor; o
   const state = useSyncExternalStore(editor.subscribe, editor.snapshot), focused = useIsFocused();
   const leave = () => router.canGoBack() ? router.back() : router.replace("/drafts");
   const unsaved = editor.hasUnstored();
+  const needsSync = !!state.record && (state.record.dirty || !!state.record.pending || unsaved);
   useFocusEffect(useCallback(() => { void editor.load().catch(() => undefined); }, [editor]));
   useEffect(() => {
-    if (!focused || !state.record || (!state.record.dirty && !state.record.pending && !unsaved)) return;
+    if (!focused || !needsSync) return;
     const attempt = () => {
       if (AppState.currentState === "active" && automaticSyncAllowed(editor.snapshot().error))
         void editor.synchronize().catch(() => undefined);
@@ -22,7 +23,7 @@ export function DraftEditorScreen({ editor, onCopied }: { editor: DraftEditor; o
     const timer = setTimeout(attempt, INPUT_SYNC_DELAY_MS), retry = setInterval(attempt, RETRY_SYNC_MS);
     const subscription = AppState.addEventListener("change", next => { if (next === "active") attempt(); else void editor.save().catch(() => undefined); });
     return () => { clearTimeout(timer); clearInterval(retry); subscription.remove(); };
-  }, [editor, focused, state.title, state.content, state.record, unsaved]);
+  }, [editor, focused, state.title, state.content, needsSync]);
   return <SafeAreaView style={s.screen}>
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>

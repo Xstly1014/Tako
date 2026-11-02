@@ -29,6 +29,7 @@ const api = new DraftsApi(async (path, options) => {
   if (path === "/me") return session.snapshot().account;
   if (path.startsWith("/drafts?")) return { items: [...server.values()].map(x => ({ ...x, created_at: x.saved_at, recovered_from: null })), next_cursor: "" };
   if (options?.method !== "POST") return server.get(path.split("/").pop());
+  window.draftUi.posts = (window.draftUi.posts ?? 0) + 1;
   const body = options.body, kind = path.split("/").pop();
   let result = receipts.get(body.mutation_id);
   if (!result) {
