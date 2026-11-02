@@ -1,15 +1,13 @@
 # 04 · 给新电脑 Codex 的第一条消息
 
-也可直接调用仓库内 `$tako-handoff`；旧电脑只需恢复服务时调用 `$tako-restart`。新增技能未出现在选择器时，先重新打开项目/新会话，或直接指定 `.agents/skills/tako-handoff/SKILL.md`。
+接手项目用 `$tako-handoff`；已有两端持续协作用 `$tako-collab`；只恢复服务用 `$tako-restart`。下面可复制给新会话。
 
-下面整段可直接复制。请先拉取本批最新提交；不要把旧聊天中的阶段状态当成最新事实。
+> 你正在协作开发 Tako，一个年轻多元的文字社区。先读根 AGENTS.md、business-first、tako-collab、mobile/AGENTS.md；涉及界面时再读 ui-deai。读取 docs/handoff/README.md、primary-progress.md、parallel-progress.md，以及本轮相关规格。先 fetch 双方实际发布分支，核对提交与认领，不把旧聊天或 main 当成对方最新工作。
+>
+> 当前 Android App 优先。CI、M1 作品管理和 C2 固定预览发布已整合至 c905d7a；主开发负责 C1 草稿离线授权、列表编辑与发布交接，对方继续维护 CI/M1/C2。当前 APK 仍是 de49a17 阶段，不含新增 M1/C2 页面。C1 只有加密仓储与同步核心，页面、离线授权和发布调用入口尚未交付；详见 mobile-draft-access-spec.md 与 c1-c2-interface.md。不要重复分配已完成的 CI 工作，也不要仅因没有新提交就认领对方范围。
+>
+> 若你接替已有角色，先明确接替哪端与基线；若增加第三端，先提出独立范围并协调共享触点，不能自动接管。双方各维护自己的进度，跨审查用独立报告。每次推送前 fetch、读新增工作、检查重叠与接口、集成并验证，普通推送，不强推。用户提供的代理只作本次进程配置，不改全局 Git 设置。
+>
+> 本机仅使用 3300 合成测试环境；ECS 已停，不连接、不部署。凭据、正文、Cookie、数据库与 APK 不进 Git。没有 USB 条件时继续独立工程验证，不能宣称真机通过。业务权利、数据丢失、跨账号及范围冲突与用户讨论，常规实现自主推进；Git 推送按当前会话已有授权执行。
 
-> 你正在协作开发 Tako，一个年轻多元的文字社区。请先阅读根 AGENTS.md、.agents/skills/business-first/SKILL.md、.agents/skills/ui-deai/SKILL.md、mobile/AGENTS.md，以及 docs/handoff/README.md 和其余三份文档。当前以独立 Android App 为核心；Go/MySQL/Nuxt Web 已有账号、草稿、发布、版本、人工治理、发现、收藏与两级评论，App 已接入账号/收藏/评论/历史阅读页面，新包设备体验验收尚未完成。下一条为 App 创作规格，用户已确认草稿加密本机暂存恢复；评论仍只在内存。不要把 Web/API 能力记成 App 真机已交付，不重做用户认可原型，不连接已停机 ECS。
->
-> 建议你承担 docs/handoff/03-parallel-work.md 中的移动端 CI 与干净电脑可复现性任务。先从最新 main 创建 codex/mobile-ci-portability，并在本机建立独立 3300 合成测试环境；先核对文档与仓库现状，报告打算修改的文件，再开始独占范围内的工作。当前主开发继续负责 mobile/src、App 账号/收藏/评论验收和后续业务。你先不修改这些共享文件、依赖锁、OpenAPI 或业务权利；需要改动时提出最小方案与主开发/用户协商。
->
-> 你负责的建议文件为新的 .github/workflows/mobile-checks.yml、scripts/check_mobile_contract.*、docs/handoff/parallel-ci-results.md。优先让类型/lint、契约类型一致性、纯模型与真实服务测试有明确边界，不依赖原电脑路径、密码或隐藏缓存。先跑通自己的干净环境再记录结果，缺 MySQL/3300 时不能把 skip 当通过。
->
-> 凭据不要发到聊天或日志，不提交 .env/.runtime/SDK/APK/数据库；不发送真实邮件、不操作云端。Git 提交及推送按我在这个新会话给你的授权执行，不强制推 main。模糊业务权利、跨账号或数据丢失风险与我讨论，常规实现自主推进。完成一个纵向链路后记录证据层级与尾项，再与主开发协调合并。
-
-如果用户在新会话指定了别的任务，以该任务为准，先协调共享文件归属；这段提示不是覆盖用户后续指令的长期锁定。
+具体用户新指令优先。该提示是交接入口，不是长期锁定任务或额外部署授权。

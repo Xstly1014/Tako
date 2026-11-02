@@ -1,5 +1,7 @@
 # Tako 开发交接入口
 
+2026-11-02 当前协作：已拉取并快进整合并行端 `c905d7a`（包含 de49a17 的 C1 核心及对方 CI/M1/C2）。主开发独立复验 53 项模型、10 项服务、3 项门禁、5 项快照行为、类型/lint/契约及四套组件最终通过；首次瞬时失败与审查边界见 [交叉审查](../reviews/cross-review-primary-c905d7a.md)。新 M1/C2 源码未进入现有 APK，C1 页面仍缺。双方使用 `$tako-collab`，主开发下一步为 [离线授权和编辑接入](../mobile-draft-access-spec.md)，角色与待确认请求见 [primary-progress](primary-progress.md) / [parallel-progress](parallel-progress.md)。以下是先前快照。
+
 2026-11-02 当前进度：C1.1 草稿加密仓储、原请求持久化和同步核心已实现，45 项 Node/真实 API 回归、类型/lint、Android 新依赖兼容构建通过，见 [核心复盘](../reviews/mobile-drafts-core-review.md)。尚未接入草稿页面或跨重启离线授权。主开发下一步先做会话/锁定保护再接页面，范围见 [primary-progress](primary-progress.md)。另一端正在启动项目；从下次常规推送起必须核对远程新工作及双方进度，本轮按用户例外免对比。
 
 2026-11-02 当前阶段：已完成 [项目总复盘](../reviews/2026-11-02-project-review.md)，进入 App 中篇私密草稿 C1。业务规格见 [C1](../mobile-drafts-spec.md)：用户确认退出保留密文、同账号重登恢复，未退出可断网重开续写，明确失效锁定。真实 3300 原生草稿契约预检已通过；加密仓储、同步和页面尚未实现，下一步由主开发推进。此前 App 账号/收藏/评论/历史阅读已接入，31 项与 APK 证据为上一阶段记录，并非本轮重跑。
