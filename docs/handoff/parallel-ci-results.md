@@ -1,5 +1,19 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+## 最新：C1/C2 集成适配
+
+本轮按主开发转交要求暂停新业务。当前分支 `codex/mobile-publication`，开始 HEAD `1627347`；已 fetch 核对远程 main `de49a17`，它已通过集成提交 `b73fbe4` 合入本端，双方成果均保留，无文本冲突。主开发继续 C1 会话/离线授权/锁定/同账号恢复和草稿页；本端仅维护 CI、作者管理、发布适配。对方未推送工作仍未知，不因远程不动认定其空闲。
+
+CI 分类已在 `df4a5fb` 更新：模型 drafts-storage.test.ts、drafts-sync.test.ts，真实服务 drafts-service.test.ts；helpers/drafts.ts 仅辅助。工作流 Windows-2025/Ubuntu-24.04 均固定 Node 24.19.0，内置 node:sqlite 不需要额外 flag 或第三方数据库包，不跳过新测试。该提交 [Mobile 四作业](https://github.com/Xstly1014/Tako/actions/runs/41407759602) 与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41407759570) 成功，涵盖两个平台实际模型执行。
+
+本轮修复发布交接不完整时自动采用最新修订的问题，并为原发布恢复优先于新入口增加明确提示。参数必须是完整服务器 ID/修订对；完全无参数才手动选稿。旧修订不自动换新，C2 不触及 C1 本机正文。编辑页需要遵守的返回、旧修订、未确认发布恢复规则见 [C1/C2 接口约定](c1-c2-interface.md)，集成自查见 [阶段复盘](../reviews/c1-c2-integration-review.md)。
+
+本轮本机实际通过：类型、lint、契约一致性、53 项模型、10 项真实服务组（顺序执行）、3 项门禁与四套 Linux 断网组件；零 skip/todo。没有认证限频，本轮没有清计数或放宽保护。四套组件不等于真机或完整外部服务验收。上述旧远程绿灯只覆盖 df4a5fb；本轮远程结果在推送后记录。
+
+主开发需配合：按接口约定从当前已确认记录传 serverId/baseRevision；不能单凭 recovered 状态允许发布，须同时确认 dirty=false、pending=null 及没有新编辑/进行中保存。实际编辑页导航与返回待其实现后整合验证。未改 `mobile/src/drafts/**`、认证会话、依赖锁、构建配置或主开发进度；没有推进 ECS、真机和新业务。前端审计尾项的基线链接、错误步骤和退出条件保留在下文。
+
+## 历史阶段证据（各自绑定当时基线）
+
 后续 C2 更新：用户在规划后要求继续，并确认 SecureStore 仅保留账号绑定的最小发布标识，重开后手动核对。本端 `codex/mobile-publication` 已接入服务器已保存稿件 → 固定预览 → 正式发布 → 作品管理/阅读；C1 草稿实现仍由同事维护。规格见 [C2](../mobile-publication-spec.md)，证据和集成门槛见 [发布阶段复盘](../reviews/mobile-publication-review.md)。本机 38 项模型、9 项服务组、3 项门禁和四套组件通过；不宣称手机写稿闭环或新 APK 已交付。
 
 C2 提交 `dc9e672` 已推送，推送前成功拉取 main（仍 `3a17e22`）。[远程 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41401925691) 四个作业和 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41401925638) 均 success；工程阶段收口。下一门槛为 C1 页面/同步交接与整合包验证，仍不改动 C1 实现，不将系统安全存储夹具视为真机可靠性证明。

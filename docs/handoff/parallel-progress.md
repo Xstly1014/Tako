@@ -11,14 +11,14 @@
 ## 当前认领与共享边界
 
 - 用户已分配本端 M1 作者作品管理，并要求按规划继续 C2 发布；用户另明确授权本次编写双端协作技能。
-- 本次范围：`.agents/skills/tako-collab/**`、本文件、独立技能复盘；根 AGENTS 与 tako-handoff 仅加技能路由引用；同步新增 C1 测试所需的本端 `scripts/check_mobile_tests.cjs`、门禁测试夹具与说明。没有修改 C1 业务源码、auth、依赖锁、App 配置或共享入口账本。
+- 上阶段技能与 CI 已发布至 `1627347`。本轮按主开发转交提示只做分支集成适配与验证：本端 `mobile/src/api/publications.ts`、`mobile/src/app/publish.tsx`、`mobile/src/publication/PublicationWorkspace.tsx`、发布测试/组件夹具及本端独立交接/复盘。没有修改 C1 业务源码、auth、依赖锁、App 配置或共享入口账本。
 - 业务范围继续为本端作者管理、发布与 CI；实现和证据索引见 `parallel-ci-results.md`。C1 存储/同步/编辑由同事维护；其 auth/账号页改动需保留本端 M1 顶部作品入口。本端不另建草稿编辑器。
-- 交接建议：C1 只在服务器确认保存后导航到 `/publish?draft_id=...&source_revision=...`，本端发布页重新校验归属与修订。该调用点尚待同事接入，未声称已经确认或完成。
+- C1/C2 完整入口、返回、旧修订与原发布恢复规则见 [接口约定](c1-c2-interface.md)。本端已拒绝缺少修订的入口并明确恢复优先级；调用点尚待同事接入，未声称已经确认或完成。
 
 ## 状态与下一步
 
 - M1/C2 本端原提交的 Mobile/Backend CI 已通过；新 main 集成提交 `df4a5fb` 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41407759602) 四个作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41407759570) 也全部 success，不借用旧绿灯。
-- 本次技能已完成结构/本地引用校验与快照行为验证：只 fetch/读元数据，各写各进度、审查绑定 SHA，不提供隐式跨聊天发送或主线推送权限。集成后本机 51 项模型、10 项服务组、3 项门禁及类型/lint通过，零 skip/todo；没有重跑 APK 或设备检查。
+- 本轮本机类型/lint、契约一致性、53 项模型、10 项顺序真实服务、3 项门禁与四套组件通过，零 skip/todo；本轮远程结果待本轮推送后记录。SQLite 的两平台支持已有 df4a5fb 实跑证据，不用跳过解决运行条件；没有重跑 APK 或设备检查。
 - 待对方互审本端 M1/C2 与 C1→C2 交接；对方未确认前记录为待审，不把本端自查算独立审查。技能行为测试也不算对方代码审查。
-- 本阶段技能与集成工程检查收口，快照助手五项行为测试通过；P1：后续互审并明确 C1→C2 调用点，整合业务分支后冻结源码构建。完整技能证据见 `docs/reviews/tako-collab-skill-review.md`。
+- 技能阶段已收口，快照助手五项行为测试通过，见 `docs/reviews/tako-collab-skill-review.md`；本轮集成自查见 `docs/reviews/c1-c2-integration-review.md`。P1：主开发按约定接入 C1→C2 调用点，尤其检查 recovered 仍 dirty 的情况；后续互审及整合业务分支后冻结源码构建。
 - P0，真实移动作者前：C1 存储/锁定、C2 标识恢复、输入/返回/生命周期真机验收；现有工程证据不能关闭设备门槛。

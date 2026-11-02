@@ -12,6 +12,25 @@ export type DraftPage =
 export const publicationTags = ["幻想", "冒险", "日常", "情感", "悬疑", "科幻"];
 export const positive = (v: unknown): v is number =>
   Number.isSafeInteger(v) && Number(v) > 0;
+// C1 hands over a server-confirmed pair; an incomplete pair must never pick
+// the current revision implicitly. No parameters means the explicit picker.
+export function publicationInput(params: {
+  draft_id?: unknown;
+  source_revision?: unknown;
+}) {
+  if (params.draft_id === undefined && params.source_revision === undefined)
+    return { draftId: "", revision: 0 };
+  if (
+    typeof params.draft_id !== "string" ||
+    !UUID.test(params.draft_id) ||
+    params.draft_id === "00000000-0000-0000-0000-000000000000" ||
+    typeof params.source_revision !== "string" ||
+    !/^[1-9][0-9]*$/.test(params.source_revision) ||
+    !positive(Number(params.source_revision))
+  )
+    throw new ApiError("invalid_input");
+  return { draftId: params.draft_id, revision: Number(params.source_revision) };
+}
 const date = (v: unknown) =>
   typeof v === "string" && Number.isFinite(Date.parse(v));
 export function checkedResult(v: Published) {
@@ -145,7 +164,7 @@ export function publicationMessage(error: unknown) {
   const messages: Record<string, string> = {
     preview_expired: "预览已过期，请重新准备；草稿和已发布版本不会被删除。",
     source_revision_unavailable:
-      "这份服务器修订已不再保留，请回草稿箱确认保存后重新选择。",
+      "无法读取这份服务器修订，请回草稿箱确认保存后重新选择。",
     publication_conflict:
       "其他发布已推进版本。请先检查作品管理，再明确准备新预览。",
     unsupported_publication_state: "当前作品或账号需要审核处理，不能直接发布。",

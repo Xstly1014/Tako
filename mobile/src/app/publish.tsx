@@ -7,8 +7,7 @@ import { PublicationWorkspace } from "../publication/PublicationWorkspace";
 import { publicationJournal } from "../publication/journal";
 import { Status } from "../components/Ui";
 import { theme } from "../theme";
-import { UUID } from "../api/reader";
-import { positive } from "../api/publications";
+import { publicationInput } from "../api/publications";
 export default function PublishRoute() {
   const { phase, generation, account, session } = useSession();
   const params = useLocalSearchParams<{
@@ -20,15 +19,13 @@ export default function PublishRoute() {
     () => (accountId ? publicationJournal(accountId) : null),
     [accountId],
   );
-  const draftId = typeof params.draft_id === "string" ? params.draft_id : "";
-  const revision =
-    typeof params.source_revision === "string"
-      ? Number(params.source_revision)
-      : 0;
-  if (
-    (draftId && !UUID.test(draftId)) ||
-    (params.source_revision !== undefined && (!draftId || !positive(revision)))
-  )
+  let input: ReturnType<typeof publicationInput> | null = null;
+  try {
+    input = publicationInput(params);
+  } catch {
+    /* Invalid handoff never selects a revision. */
+  }
+  if (!input)
     return (
       <SafeAreaView>
         <Status
@@ -43,12 +40,12 @@ export default function PublishRoute() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.surface }}>
       {phase === "ready" && account && store ? (
         <PublicationWorkspace
-          key={`${generation}:${draftId}:${revision}`}
+          key={`${generation}:${input.draftId}:${input.revision}`}
           store={store}
           accountId={account.id}
           generation={generation}
-          draftId={draftId}
-          revision={revision}
+          draftId={input.draftId}
+          revision={input.revision}
         />
       ) : (
         <View>

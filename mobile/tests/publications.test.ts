@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import {
   PublicationsApi,
+  publicationInput,
   checkedPreview,
   type Preview,
 } from "../src/api/publications.ts";
@@ -34,6 +35,34 @@ const result = () => ({
 const api = (
   fn: (path: string, options?: Parameters<Transport>[1]) => Promise<unknown>,
 ) => new PublicationsApi(fn as Transport);
+test("发布入口保留明确的服务器修订；无参数才进入选择器", () => {
+  assert.deepEqual(publicationInput({}), { draftId: "", revision: 0 });
+  assert.deepEqual(
+    publicationInput({ draft_id: draft, source_revision: "1" }),
+    {
+      draftId: draft,
+      revision: 1,
+    },
+  );
+});
+test("不完整或含糊的发布交接拒绝，不能静默改用最新修订", () => {
+  const invalid = [
+    { draft_id: draft },
+    { source_revision: "1" },
+    { draft_id: [draft], source_revision: "1" },
+    { draft_id: draft, source_revision: ["1"] },
+    { draft_id: "", source_revision: "1" },
+    { draft_id: "00000000-0000-0000-0000-000000000000", source_revision: "1" },
+    ...["", "0", "-1", "1.5", "1e2", " 1", "01", "9007199254740992"].map(
+      (source_revision) => ({ draft_id: draft, source_revision }),
+    ),
+  ];
+  for (const params of invalid)
+    assert.throws(
+      () => publicationInput(params),
+      (e: unknown) => e instanceof ApiError && e.code === "invalid_input",
+    );
+});
 function vault() {
   let value: string | null = null,
     broken = false;

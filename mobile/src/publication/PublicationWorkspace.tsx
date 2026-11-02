@@ -223,6 +223,8 @@ export function PublicationWorkspace({
   const back = () =>
     router.canGoBack() ? router.back() : router.replace("/my-works");
   const frozen = busy || pending || !!flow.preview;
+  const targetId = source?.id || draftId;
+  const targetRevision = source?.revision || revision;
   return (
     <>
       <View style={s.header}>
@@ -242,6 +244,14 @@ export function PublicationWorkspace({
         {error ? (
           <Text accessibilityLiveRegion="polite" style={s.error}>
             {publicationMessage(error)}
+          </Text>
+        ) : null}
+        {flow.preview &&
+        targetId &&
+        (flow.preview.draft_id !== targetId ||
+          flow.preview.source_revision !== targetRevision) ? (
+          <Text accessibilityLiveRegion="polite" style={s.note}>
+            当前显示的是先前发布记录的固定快照，不是本次传入的稿件或修订。请先核对原结果；不会自动发布本次稿件。
           </Text>
         ) : null}
         {ready ? (

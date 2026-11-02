@@ -62,6 +62,7 @@ let stage = "bundle";
     work = "66666666-6666-4666-8666-666666666666";
   let prepares = 0,
     publishes = 0,
+    sourceReads = 0,
     published = false,
     preparedBody,
     errors = [];
@@ -134,7 +135,8 @@ let stage = "bundle";
               : [],
           next_cursor: "",
         });
-      if (pathname === "/api/drafts/" + draft)
+      if (pathname === "/api/drafts/" + draft) {
+        sourceReads++;
         return json(route, {
           id: draft,
           title: "服务器稿件",
@@ -142,6 +144,7 @@ let stage = "bundle";
           revision: 2,
           saved_at: "2026-11-02T00:00:00Z",
         });
+      }
       if (pathname === "/api/publication-previews") {
         prepares++;
         preparedBody = body;
@@ -169,6 +172,47 @@ let stage = "bundle";
       return json(route, { error: "resource_not_found" }, 404);
     });
     await page.goto("http://127.0.0.1:3300/__publication");
+    stage = "incomplete-editor-handoff";
+    await page.evaluate((draft) => {
+      window.publishUi.params = { draft_id: draft };
+      window.publishUi.navigate("/publish");
+    }, draft);
+    await page.getByText("发布入口参数无效", { exact: true }).waitFor();
+    assert.equal(sourceReads, 0);
+    assert.equal(prepares, 0);
+    assert.equal(publishes, 0);
+    await page.getByRole("button", { name: "返回作品管理" }).click();
+    stage = "unconfirmed-editor-revision";
+    await page.evaluate((draft) => {
+      window.publishUi.params = { draft_id: draft, source_revision: "3" };
+      window.publishUi.navigate("/publish");
+    }, draft);
+    await page
+      .getByText("无法读取这份服务器修订，请回草稿箱确认保存后重新选择。", {
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(prepares, 0);
+    assert.equal(publishes, 0);
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    stage = "confirmed-old-editor-revision";
+    await page.evaluate((draft) => {
+      window.publishUi.params = { draft_id: draft, source_revision: "1" };
+      window.publishUi.navigate("/publish");
+    }, draft);
+    await page.getByText("采用服务器修订 R1", { exact: true }).waitFor();
+    await page
+      .getByText(
+        "当前服务器最新为 R2。预览将由服务器读取选定修订的标题和正文。",
+        { exact: true },
+      )
+      .waitFor();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    assert.equal(prepares, 0);
+    assert.equal(publishes, 0);
+    await page.evaluate(() => {
+      window.publishUi.params = {};
+    });
     await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
     await page
       .getByRole("button", { name: "选择服务器稿件 服务器稿件" })
@@ -225,9 +269,24 @@ let stage = "bundle";
     assert.ok(!saved.includes("固定快照"));
     assert.ok(!saved.includes("简介"));
     stage = "remount-read-only";
-    await page.evaluate(() => window.publishUi.navigate("/my-works"));
+    const beforeRestoreReads = sourceReads;
+    await page.evaluate(() => {
+      window.publishUi.params = {
+        draft_id: "77777777-7777-4777-8777-777777777777",
+        source_revision: "1",
+      };
+      window.publishUi.navigate("/my-works");
+    });
     await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
     await page.getByText("已确认正式版本 V1", { exact: true }).waitFor();
+    await page
+      .getByText(
+        "当前显示的是先前发布记录的固定快照，不是本次传入的稿件或修订。请先核对原结果；不会自动发布本次稿件。",
+        { exact: true },
+      )
+      .waitFor();
+    assert.equal(sourceReads, beforeRestoreReads);
+    assert.equal(prepares, 1);
     assert.equal(publishes, 1);
     await page
       .getByText("当前展示 V1 · 作者仍隐藏作品", { exact: true })
@@ -238,6 +297,7 @@ let stage = "bundle";
     );
     stage = "account-switch";
     await page.evaluate(async () => {
+      window.publishUi.params = {};
       await window.publishUi.session.logout();
       await window.publishUi.session.signIn(
         "login",
@@ -253,7 +313,7 @@ let stage = "bundle";
     assert.equal(publishes, 1);
     assert.deepEqual(errors, []);
     console.log(
-      "PASS publication fixtures: real entry, explicit rights, fixed old revision, storage failure prevents POST, unknown result, remount read-only recovery, current hidden state, and account isolation. Not native-storage evidence.",
+      "PASS publication fixtures: real entry, rejected incomplete/unconfirmed handoff, old revision and return, explicit rights, storage failure prevents POST, unknown result, prior journal takes precedence over a new handoff, current hidden state, and account isolation. Not native-storage evidence.",
     );
   } catch (error) {
     console.error("Publication fixture failed at " + stage + ": " + error.name);
