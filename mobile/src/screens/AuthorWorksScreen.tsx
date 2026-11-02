@@ -172,6 +172,10 @@ function Workspace({
             />
           </View>
           <ScrollView contentContainerStyle={s.content}>
+            <Action
+              label="发布服务器已保存稿件"
+              onPress={() => router.push("/publish")}
+            />
             <Text style={s.note}>
               这里管理已正式发布的中篇。编辑工作稿请使用草稿箱。
             </Text>

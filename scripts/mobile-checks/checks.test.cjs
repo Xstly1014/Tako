@@ -82,6 +82,7 @@ test('model gate rejects skips and new unclassified files, and withholds asserti
     write('session.test.ts', 'require("node:test")("passes",()=>{});');
     write('versions.test.ts', 'require("node:test")("version model passes",()=>{});');
     write('author-works.test.ts', 'require("node:test")("author model passes",()=>{});');
+    write('publications.test.ts', 'require("node:test")("publication model passes",()=>{});');
     write('comments.test.ts', 'require("node:test").skip("must not pass",()=>{});');
     const skipped = run();
     assert.equal(skipped.status, 1);

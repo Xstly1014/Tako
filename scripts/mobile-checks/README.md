@@ -16,7 +16,7 @@ node scripts/check_mobile_tests.cjs model
 
 契约检查在系统临时目录重新生成声明，通过 TypeScript 语法树打印后比较，忽略换行、缩进和注释，不忽略类型差异。不写回源码；漂移、生成失败和依赖缺失均返回非零。工具测试验证漂移拒绝、坏规格拒绝、无写回，以及服务前置保护。前置保护的 fetch 夹具仅测试门禁失败，不计入真实服务结果。
 
-`model` 运行 session/comments/versions/author-works 的 29 项纯模型测试。`service` 运行 reader/comments/versions/author-works 的 8 项服务组检查，其中包括真实 HTTP 与读者失败响应测试。服务文件串行执行，遵守服务端两槽密码 CPU 限制，不通过调高业务限流来适配测试。新增 `.test.ts` 文件若未分类、或已分类文件缺失，命令会失败，避免遗漏新测试。两种命令都拒绝空测试、skip、todo 和失败；只输出计数，不打印可能带私有值的断言详情。调试失败时在本机分文件运行原测试，注意避免分享敏感输出。
+`model` 运行 session/comments/versions/author-works/publications 的 38 项纯模型测试。`service` 运行 reader/comments/versions/author-works/publications 的 9 项服务组检查，其中包括真实 HTTP 与读者失败响应测试。服务文件串行执行，遵守服务端两槽密码 CPU 限制，不通过调高业务限流来适配测试。新增 `.test.ts` 文件若未分类、或已分类文件缺失，命令会失败，避免遗漏新测试。两种命令都拒绝空测试、skip、todo 和失败；只输出计数，不打印可能带私有值的断言详情。调试失败时在本机分文件运行原测试，注意避免分享敏感输出。
 
 ## 真实 MySQL/API
 
@@ -51,15 +51,15 @@ $env:HTTP_PROXY = $taskProxy
 
 ## 组件与流水线
 
-组件检查复用同事维护的评论与历史阅读脚本，并增加本端作者管理页面夹具，不修改同事脚本。先按 [原脚本说明](../mobile-comments-ui/README.md) 安装两个依赖卷，再运行：
+组件检查复用同事维护的评论与历史阅读脚本，并增加本端作者管理、发布页面夹具，不修改同事脚本。先按 [原脚本说明](../mobile-comments-ui/README.md) 安装两个依赖卷，再运行：
 
 ```powershell
 node scripts/check_mobile_components.cjs
-# 也可单独运行 comments、versions 或 author：
+# 也可单独运行 comments、versions、author 或 publication：
 node scripts/check_mobile_components.cjs versions
 ```
 
-新入口用空目录遮住宿主 mobile/node_modules，并让所有脚本统一从 Docker 的 /app/node_modules 解析依赖，解决宿主与容器重复 React 的 Hook 错误。三个夹具均在 `--network none` 下运行，失败返回非零且不输出可能含正文的断言。生成的失败截图只在忽略目录。组件证据不等于真实权限或手机验收。
+新入口用空目录遮住宿主 mobile/node_modules，并让所有脚本统一从 Docker 的 /app/node_modules 解析依赖，解决宿主与容器重复 React 的 Hook 错误。四个夹具均在 `--network none` 下运行，失败返回非零且不输出可能含正文的断言。生成的失败截图只在忽略目录。组件证据不等于真实权限或手机验收。
 
 `.github/workflows/mobile-checks.yml` 包含 Windows/Linux 静态与模型检查、Linux 断网组件检查、Linux 真实 MySQL/API 检查。现有 backend 工作流继续负责路由覆盖、请求/响应契约、race/MySQL 和 vet；本工作流不重复全量后端测试。不依赖原机 `.runtime`、密钥、SDK 或 npm 缓存，不跑邮件发送、ECS、手机安装或 Android native 编译。
 

@@ -62,7 +62,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD/frontend:/app" -v writing-community_frontend_modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
           docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
-      - name: Comment, historical reading and author fixtures (network disabled)
+      - name: Reader, author and publication fixtures (network disabled)
         run: node scripts/check_mobile_components.cjs
   real-api:
     runs-on: ubuntu-24.04

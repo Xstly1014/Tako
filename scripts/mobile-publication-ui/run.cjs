@@ -1,0 +1,267 @@
+const esbuild = require("/tools/node_modules/esbuild");
+const { chromium } = require("/tools/node_modules/playwright");
+const assert = require("node:assert/strict");
+const path = require("node:path");
+let stage = "bundle";
+(async () => {
+  const built = await esbuild.build({
+    entryPoints: [path.join(__dirname, "entry.jsx")],
+    bundle: true,
+    write: false,
+    define: {
+      "process.env.EXPO_PUBLIC_API_URL": JSON.stringify(
+        "http://127.0.0.1:3300/api",
+      ),
+      "process.env.NODE_ENV": JSON.stringify("development"),
+    },
+    tsconfigRaw: { compilerOptions: { jsx: "react-jsx", target: "ES2022" } },
+    format: "esm",
+    jsx: "automatic",
+    loader: { ".png": "dataurl" },
+    nodePaths: ["/app/node_modules"],
+    plugins: [
+      {
+        name: "fixture",
+        setup(build) {
+          build.onResolve(
+            { filter: /^react-native$|^react-native-safe-area-context$/ },
+            () => ({
+              path: path.join(__dirname, "../mobile-comments-ui/native.jsx"),
+            }),
+          );
+          build.onResolve({ filter: /^expo-router$/ }, () => ({
+            path: path.join(__dirname, "router.jsx"),
+          }));
+          build.onResolve({ filter: /^react-native-svg$/ }, () => ({
+            path: path.join(__dirname, "../mobile-versions-ui/svg.jsx"),
+          }));
+          build.onResolve({ filter: /^expo-secure-store$/ }, () => ({
+            path: path.join(__dirname, "store.jsx"),
+          }));
+          build.onResolve({ filter: /\/auth\/context$/ }, () => ({
+            path: path.join(__dirname, "context.jsx"),
+          }));
+          build.onResolve({ filter: /^expo-crypto$/ }, () => ({
+            path: "crypto",
+            namespace: "fixture",
+          }));
+          build.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
+            contents: "export const randomUUID=()=>crypto.randomUUID();",
+            loader: "js",
+          }));
+        },
+      },
+    ],
+  });
+  const browser = await chromium.launch({ headless: true }),
+    page = await browser.newPage();
+  const a = "22222222-2222-4222-8222-222222222222",
+    b = "33333333-3333-4333-8333-333333333333",
+    draft = "44444444-4444-4444-8444-444444444444",
+    previewId = "55555555-5555-4555-8555-555555555555",
+    work = "66666666-6666-4666-8666-666666666666";
+  let prepares = 0,
+    publishes = 0,
+    published = false,
+    preparedBody,
+    errors = [];
+  const result = {
+    work_id: work,
+    version: 1,
+    published_at: "2026-11-02T00:00:00Z",
+    review_status: "pending",
+  };
+  const snapshot = () => ({
+    id: previewId,
+    draft_id: draft,
+    source_revision: 1,
+    expected_version: 0,
+    title: "固定快照标题",
+    content: "固定快照正文",
+    introduction: preparedBody?.introduction ?? "",
+    tags: preparedBody?.tags ?? ["日常"],
+    created_at: "2026-11-02T00:00:00Z",
+    expires_at: "2099-11-03T00:00:00Z",
+    ...(published ? { published: result } : {}),
+  });
+  const json = (route, value, status = 200) =>
+    route.fulfill({
+      status,
+      contentType: "application/json",
+      headers: { "X-Tako-Environment": "test" },
+      body: JSON.stringify(value),
+    });
+  page.on("pageerror", (e) => errors.push(e.name));
+  try {
+    await page.route("**/__publication", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body:
+          '<div id="root"></div><script type="module">' +
+          built.outputFiles[0].text.replaceAll("</script", "<\\/script") +
+          "</script>",
+      }),
+    );
+    await page.route("**/api/**", async (route) => {
+      const request = route.request(),
+        pathname = new URL(request.url()).pathname,
+        body = request.postDataJSON(),
+        viewer = request.headers().authorization?.endsWith("b".repeat(64))
+          ? b
+          : a;
+      if (pathname === "/api/app/auth/login")
+        return json(route, {
+          account: { id: body.email.startsWith("b@") ? b : a, nickname: "" },
+          token_type: "Bearer",
+          expires_in: 604800,
+          access_token:
+            "tako_app_" + (body.email.startsWith("b@") ? "b" : "a").repeat(64),
+        });
+      if (pathname === "/api/app/auth/logout")
+        return route.fulfill({
+          status: 204,
+          headers: { "X-Tako-Environment": "test" },
+        });
+      if (pathname === "/api/me")
+        return json(route, { id: viewer, nickname: "作者" });
+      if (pathname === "/api/my/works")
+        return json(route, { items: [], next_cursor: "" });
+      if (pathname === "/api/drafts")
+        return json(route, {
+          items:
+            viewer === a
+              ? [{ id: draft, title: "服务器稿件", revision: 1 }]
+              : [],
+          next_cursor: "",
+        });
+      if (pathname === "/api/drafts/" + draft)
+        return json(route, {
+          id: draft,
+          title: "服务器稿件",
+          content: "服务器已保存正文",
+          revision: 2,
+          saved_at: "2026-11-02T00:00:00Z",
+        });
+      if (pathname === "/api/publication-previews") {
+        prepares++;
+        preparedBody = body;
+        return json(route, snapshot());
+      }
+      if (pathname === "/api/publication-previews/" + previewId)
+        return json(route, snapshot());
+      if (pathname === "/api/publications") {
+        publishes++;
+        published = true;
+        if (publishes === 1) return route.abort();
+        return json(route, result);
+      }
+      if (pathname === "/api/my/works/" + work)
+        return json(route, {
+          id: work,
+          draft_id: draft,
+          last_version: 1,
+          display_version: 1,
+          state_revision: 2,
+          author_hidden: true,
+          history_open: false,
+          platform_limited: false,
+        });
+      return json(route, { error: "resource_not_found" }, 404);
+    });
+    await page.goto("http://127.0.0.1:3300/__publication");
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
+    await page
+      .getByRole("button", { name: "选择服务器稿件 服务器稿件" })
+      .click();
+    stage = "authorization-and-snapshot";
+    assert.equal(
+      await page.getByRole("button", { name: "生成固定预览" }).isDisabled(),
+      true,
+    );
+    await page
+      .getByRole("textbox", { name: "发布简介" })
+      .fill("仅用于夹具的简介");
+    await page.getByRole("button", { name: "发布标签 日常" }).click();
+    await page.getByRole("button", { name: "确认原创或取得发布授权" }).click();
+    assert.equal(
+      await page.getByRole("button", { name: "生成固定预览" }).isDisabled(),
+      true,
+    );
+    await page.getByRole("textbox", { name: "发布笔名" }).fill("发布夹具作者");
+    await page.getByRole("button", { name: "保存发布笔名" }).click();
+    assert.equal(
+      await page.getByRole("textbox", { name: "发布简介" }).inputValue(),
+      "仅用于夹具的简介",
+    );
+    await page.getByRole("button", { name: "生成固定预览" }).click();
+    await page.getByText("固定快照正文", { exact: true }).waitFor();
+    assert.equal(prepares, 1);
+    assert.equal(preparedBody.source_revision, 1);
+    assert.equal(publishes, 0);
+    stage = "storage-failure";
+    await page.evaluate(() => {
+      window.publishUi.failStore = true;
+    });
+    await page.getByRole("button", { name: "正式发布这份快照" }).click();
+    await page
+      .getByText("无法保留发布标识，本次不会发出新的发布请求，请重试。", {
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(publishes, 0);
+    stage = "unknown-result";
+    await page.getByRole("button", { name: "检查原发布请求" }).click();
+    await page
+      .getByText("结果尚未确认，请检查原请求，勿重复新建发布。", {
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(publishes, 1);
+    const saved = await page.evaluate(
+      () => [...window.publishUi.journal.values()][0],
+    );
+    assert.ok(saved.includes(previewId));
+    assert.ok(saved.length < 1024);
+    assert.ok(!saved.includes("固定快照"));
+    assert.ok(!saved.includes("简介"));
+    stage = "remount-read-only";
+    await page.evaluate(() => window.publishUi.navigate("/my-works"));
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
+    await page.getByText("已确认正式版本 V1", { exact: true }).waitFor();
+    assert.equal(publishes, 1);
+    await page
+      .getByText("当前展示 V1 · 作者仍隐藏作品", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page.getByRole("button", { name: "读取当前展示版本" }).count(),
+      0,
+    );
+    stage = "account-switch";
+    await page.evaluate(async () => {
+      await window.publishUi.session.logout();
+      await window.publishUi.session.signIn(
+        "login",
+        "b@example.test",
+        "fixture-password",
+      );
+    });
+    await page.getByText("服务器暂无稿件", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByText("固定快照正文", { exact: true }).count(),
+      0,
+    );
+    assert.equal(publishes, 1);
+    assert.deepEqual(errors, []);
+    console.log(
+      "PASS publication fixtures: real entry, explicit rights, fixed old revision, storage failure prevents POST, unknown result, remount read-only recovery, current hidden state, and account isolation. Not native-storage evidence.",
+    );
+  } catch (error) {
+    console.error("Publication fixture failed at " + stage + ": " + error.name);
+    process.exitCode = 1;
+  } finally {
+    await browser.close();
+  }
+})().catch(() => {
+  console.error("Publication fixture dependency or bundle failure");
+  process.exitCode = 1;
+});

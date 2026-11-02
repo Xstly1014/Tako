@@ -6,12 +6,12 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const selected = process.argv[2] ?? 'all';
-const fixtures = { comments: 'mobile-comments-ui', versions: 'mobile-versions-ui', author: 'mobile-author-works-ui' };
+const fixtures = { comments: 'mobile-comments-ui', versions: 'mobile-versions-ui', author: 'mobile-author-works-ui', publication: 'mobile-publication-ui' };
 const modes = selected === 'all' ? Object.keys(fixtures) : [selected];
 let directory;
 try {
   if (process.argv.length > 3 || modes.some(mode => !Object.hasOwn(fixtures, mode))) {
-    throw new Error('usage_comments_versions_author_or_all');
+    throw new Error('usage_comments_versions_author_publication_or_all');
   }
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tako-empty-host-modules-'));
   for (const mode of modes) {
@@ -27,7 +27,7 @@ try {
     console.log('PASS mobile ' + mode + ' component fixtures (network disabled; not device evidence).');
   }
 } catch (error) {
-  const codes = ['usage_comments_versions_author_or_all', 'comments_fixture_failed', 'versions_fixture_failed', 'author_fixture_failed'];
+  const codes = ['usage_comments_versions_author_publication_or_all', 'comments_fixture_failed', 'versions_fixture_failed', 'author_fixture_failed', 'publication_fixture_failed'];
   console.error('FAIL mobile components: ' + (codes.includes(error.message) ? error.message : 'check_docker_and_locked_dependency_volumes'));
   process.exitCode = 1;
 } finally {
