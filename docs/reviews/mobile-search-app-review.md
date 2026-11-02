@@ -25,3 +25,9 @@ SearchFlow区分输入与已提交查询。明确提交才GET，同词在途不�
 对方42517be已独立关闭710d04a另存P2，已合入S1并读规格/核对契约；这不是完整搜索独立代码审查。其M1/C2返回多退一次P2由其继续修复，本端未覆盖。中文长粘贴、切号401与设备冲突等C1门槛仍按其阶段矩阵处理。
 
 远程CI以本次实现SHA为准，结果待推送后补录。下一步在同事真机期间继续收集独立审查/业务缺口，不扩复杂治理和推荐来替代真实读者闭环。
+
+## 远程收口与设备任务
+
+实现源码ce1670a，文档发布3d6b8fe；其[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41480015173)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41480015112)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41480014917)均completed/success。新增读者搜索用例和页面沿原CI实跑，没有新分类漏跑。本轮工程接入收口；未生成/安装新包，设备任务已随推送记录在device-requests，待并行端确认，不能将发布任务当作其已读取。
+
+独立3320服务已停止，复核其自有“搜索验收作者”账号剩余0；复现方法见scripts/mobile-search-service/README.md。后续仅补证据/交接，不改变被验Mobile运行代码；无需为纯文档提交重复打包。
