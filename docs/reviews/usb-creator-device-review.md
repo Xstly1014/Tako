@@ -8,6 +8,7 @@
 - 本机无原 APK/Android 缓存，按既有 mobile_android.ps1 构建。Google 官方 repository 元数据校验 Windows platform-tools 37.0.1；SDK/NDK 按既有固定版本/校验安装。首次镜像连接、代理和 npm ECONNRESET 日志保留；使用现有网络/进程级代理恢复，未改全局配置、依赖版本或关闭校验。
 - 单个已授权 USB vivo V2055A、Android 14/API34、ARM64；最初目标 me.takostory.app.test 未安装。本机回环 3300 返回 test，USB reverse仅该端口。没有清除设备数据、开启网络 ADB 或采集其他 App 页面。
 - 两个新合成账号，仅用于独立本机库；凭据、过程截图等仅放忽略目录，不进 Git/日志。未使用个人账号、他人私稿、生产/ECS 或真实邮件。
+- 构建期间再观察并合入0468470，已读主开发 S1/S2 搜索认领和设备建议。Mobile新差异仅contract.d.ts生成声明，不改变本次包运行逻辑；根契约一致性通过。维持现有3300/sandbox不重建、不接入搜索测试，设备仍验冻结的创作整合链路。
 
 ## 已完成工程复核
 
