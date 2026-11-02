@@ -69,6 +69,8 @@ node scripts/check_mobile_drafts.cjs
 
 组件 job 在原四套后独立执行主开发维护的 C1 CLI；两步都必须成功，无 continue-on-error 或条件跳过。C1 复用相同依赖卷并自行禁网/遮蔽宿主模块，覆盖原型入口、草稿恢复/编辑/退出与真实 C2 页面交接返回。该 CLI 原有白名单阶段/行号投影由子 CLI 故障注入验证；不修改其源码或输出原始子进程日志。`check_mobile_components.cjs` 单独执行仍是四套，完整 CI 组件验证需两条命令，不能混称。
 
+Linux CI 在首次容器前由 runner 预建 `.runtime/mobile/qa/empty-host-modules`。否则原四套 root 容器可能先建父目录，后续 C1 CLI 以 runner 身份 mkdir 会 EACCES；不通过扩大整仓库权限解决。Windows 主机卷不一定暴露相同所有权问题。
+
 `.github/workflows/mobile-checks.yml` 包含 Windows/Linux 静态与模型检查、Linux 断网组件检查、Linux 真实 MySQL/API 检查。现有 backend 工作流继续负责路由覆盖、请求/响应契约、race/MySQL 和 vet；本工作流不重复全量后端测试。不依赖原机 `.runtime`、密钥、SDK 或 npm 缓存，不跑邮件发送、ECS、手机安装或 Android native 编译。
 
 用户已授权阶段性提交推送；每次推送前先拉取远程 main 和核对同事报告。只推本端功能分支，不推 main、不强推。同事负责 App C1 加密草稿/同步/页面；用户另明确本端并行开发作者作品管理，具体文件范围见 `docs/mobile-author-works-spec.md`。新增业务测试必须同步更新分类，再重跑受影响检查。本地检查通过不能记作远程工作流已通过。Android 键盘、导航、SecureStore 与系统终止仍需独立设备验收。

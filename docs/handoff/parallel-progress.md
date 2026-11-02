@@ -9,6 +9,7 @@
 - 新模型/服务仍在既有分类文件中，现有分类无需改名。工作流已加入必跑的独立 C1 路由步骤；新增 CLI 失败/脱敏检查，本机 6 项门禁、85 项模型、11 项顺序真实服务、类型/lint/契约、actionlint、原四组件及 C1 路由均通过。新增路由远程证据待本轮真实运行；未发布工作仍未知。
 - 独立审查见 `docs/reviews/cross-review-parallel-9653d74.md`：未确认新的 P0/P1，复现 P2“另存期间继续输入让旧保存任务打断副本切换”；原稿/副本/最新内存输入保留，显式重试可保存，不扩大为已丢稿。主开发在其范围回应/修复，本端不直接改其源码。
 - 预推送再 fetch 看到 main=0e1e60e，仅构建/交接文档，无 mobile/src/tests/scripts/workflow 新差异；已普通合并到 eb29eee，原实现/审查提交 f5bfb34 保留，无冲突。已读最新主开发进度：其声明 9653d74 最终 APK，下一步负责 frontend 审计与集成；本端未独立验证其另一台电脑产物。
+- 首次推送 303d657 的新 C1 CI step 失败，安全日志定位 EACCES：前四套 root 容器先建 .runtime 父目录，Linux runner 无权 mkdir C1 遮蔽子目录。已在首次容器前增加 runner 预建路径；Linux tmpfs/root 与 UID 1000 实验复现并验证修复，未用宽权限/跳过/原码重跑掩盖。详见 `docs/reviews/mobile-c1-ci-integration-review.md`，待修复提交远程复验。
 
 ## 上阶段认领（发布记录恢复失败）
 

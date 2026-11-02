@@ -12,6 +12,8 @@
 
 预推送看到 main 新增 0e1e60e（仅构建/交接文档），已普通合并，无冲突；业务/测试/脚本与本轮已验的 9653d74 无新增差异。本端实现/审查提交 f5bfb34 保留。已读主开发最终包声明及下一步 frontend 审计认领，未伪称本端核验了另一台电脑 APK。
 
+首轮推送 303d657 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41446434106) 新 C1 step 实际失败：Linux EACCES mkdir `.runtime/mobile/qa/empty-host-modules`，发生于原四套 root 容器建父目录之后；C1 浏览器断言未启动。不是忽略失败或改业务来换通过。已由 runner 在首次容器前预建路径，Linux 独立 tmpfs 中 root/UID1000 的确定实验复现原失败并验证该顺序修复，actionlint通过；修复后远程结果待新提交核对。[CI 接入复盘](../reviews/mobile-c1-ci-integration-review.md) 保留首轮证据。
+
 ## 上阶段：C2 失败恢复不能清除另一未确认发布
 
 本端基线 402a8aa，fetch 观察 main 仍 42bc325，无新发布增量，不推导主开发空闲。本轮在本端 C2 范围确认并修复 P1：旧成功页面读取另一页面的新未知 journal 失败时，原 restore 提前更换请求标识却保留旧成功，导致 reset 能删除新未知记录。先加回归，修复前 68 项中该项失败；修复后通过。
