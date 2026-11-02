@@ -8,6 +8,8 @@
 
 职责：主开发维护搜索业务/共享WorkRow及其自动化，C1/auth仍由其负责；本端继续M1/C2、CI集成和后续本机包/设备。用户明确USB暂停，device-requests已接收为待执行，未生成/安装新包，原生P2及余下P0不关闭。本机故障代理已停，无设备操作或测试服务重建。
 
+源码3e7c046已推送，其[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41492900748)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41492901017)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41492900762)均completed/success；Mobile真实API/账号收藏步骤亦已逐项核对。收口再次fetch后普通合入main9d9b2ac的N0连载规格/职责文档至eb12fad，运行文件与3e7c046差异为空，不移用其CI去证明新运行代码。已读新AGENTS和05-development-playbook：主开发推进N1业务/契约/实现，本端既有CI/M1/C2归属继续，打包/真机仍等用户通知；纯N0文档无新包需求。
+
 ## 最新：整合包 USB 真机阶段结果（尚未全部验收）
 
 本端已合入 main0468470，Mobile运行包冻结1793f7f（运行源码与2cfd6fb一致），本机新建工具链并构建/验签/安装成功。vivo V2055A / Android14，APK SHA256 `72ab78e6f707aae12125bc1a3fb3ff0c13d131a0c108cc707f052cf0555d139d`；不是同事电脑包的安装声明。类型/lint随本机构建通过，86模型及710d04a另存竞争工程复核已通过；本次文档推送未重跑无关全量CI，不以旧CI当本次设备证据。

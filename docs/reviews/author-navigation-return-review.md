@@ -29,3 +29,7 @@
 本端修复97ef177已用普通合并纳入main6ad485e，整合提交b69d034，无冲突。新搜索保留主开发实现/历史，本端没有改其文件或对方进度。已重新通过类型/lint、契约生成一致性、86模型、6项门禁行为与脱敏检查、四套组件及独立C1路由（零skip/todo）；其中versions夹具此次已包含对方S2搜索页面/阅读返回回归。
 
 本机3300仍是上轮设备测试服务，未因代码合并而自动重建或升级；本轮未运行新增搜索真实HTTP检查，不将组件/模型归为服务验收。整合源码推送后的真实MySQL/API证据由本次CI绑定，不借用对方旧绿灯。本机故障代理已停止，没有新增设备命令；用户恢复USB前不关闭更新包/原生导航P2复验门槛。
+
+3e7c046已推送独立分支，其[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41492900748)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41492901017)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41492900762)均completed/success；已核对Mobile真实API步骤（从该checkout构建API、真实MySQL、读者/评论/作者测试及账号收藏验收）实际success，没有用本机旧3300或别人的CI替代。
+
+再次预推送观察main9d9b2ac，新增N0连载小说规格及长期职责，无运行代码。已读新AGENTS、05-development-playbook、primary-progress、device-requests和N0入口/复盘，普通合并为eb12fad，无冲突；mobile/scripts/.github/backend/frontend与已通过CI的3e7c046完全一致，未为纯文档重复全量检查。主开发下一步N1兼容模型ADR/契约与私密开书/章草稿，尚未实现；本端不重复开展长文规格/实现。CI/M1/C2原归属保留，后续本机包/设备由本端承担且服从用户当前暂停指令。
