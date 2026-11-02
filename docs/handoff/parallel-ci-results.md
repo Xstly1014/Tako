@@ -1,6 +1,18 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
-## 最新：同步主线与门禁诊断、C1 互审
+## 最新：C1-A 授权与双实例修复独立复核
+
+本端从 badb293 快进到 `origin/main@42bc325`，主开发已整合全部上一轮本端成果，并发布授权 33c15b2、并发修复 1fbc874。无冲突。继续各自边界，主开发 C1-B/C1-C，本端 CI/M1/C2。
+
+[新审查报告](../reviews/cross-review-parallel-42bc325.md) 绑定 42bc325：独立复现证明旧双实例 P2 已解决；新增确定顺序实验验证 confirm 落盘期间收到 401、删除失败时，晚到确认不能覆盖锁定，断网重开仍 locked。未确认新的 P0/P1；未审未来页面或宣称设备安全。
+
+本端实际产品组件夹具已接真实 createDraftSessionVault，验证草稿 confirmation 不影响既有服务器作品管理/发布；离线草稿许可仅用于本机稿，不显示旧 M1/C2 私密视图、不发送业务请求；联网后只读恢复原发布 journal，无新增 POST。HTTP 尝试先于网络 abort 计数，未将失败发送误报为零发送。阶段白名单同步维护，不改 C1/auth、锁文件、构建或主开发汇总。
+
+本机本轮实际通过：类型、lint、契约一致性、67 项模型、10 项顺序真实服务、5 项门禁及四套 Linux 断网组件，零 skip/todo。安全项/故障实验是可控适配器；组件 HTTP 模拟，真实服务另外通过，不冒充 Expo 原生设备验收。
+
+本端实现/审查提交 **`73bdd19`** 已推送到 codex/mobile-publication，推送前 fetch、核对并 pull main 仍为 42bc325，无冲突。[本轮 Mobile](https://github.com/Xstly1014/Tako/actions/runs/41431219962) 四作业 success（Windows/Linux 静态/模型、组件、真实 MySQL/API），[Backend](https://github.com/Xstly1014/Tako/actions/runs/41431220010) success。[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41431220172) 仍在 npm audit --audit-level=moderate 步骤 failure，责任与退出条件未变。后续仅证据文档提交不改变被验源码；本轮成果尚未合入 main，未入 APK。
+
+## 上阶段：同步主线与门禁诊断、C1 互审
 
 本端从 c905d7a 快进至同事最新 `origin/main@59694d6`，双方现在共享 CI/M1/C2 的整合基线；主开发已按独立审查接受本端 C1/C2 参数和恢复约定。没有源码合并冲突。主开发继续 C1 授权与编辑接入，本端继续 CI/M1/C2，不新建第二套草稿实现。
 
