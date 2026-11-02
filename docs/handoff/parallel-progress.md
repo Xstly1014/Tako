@@ -7,23 +7,25 @@
 - 用户要求同步同事最新进度并按协作模式推进本端任务。本端从 c905d7a 快进到 `origin/main@59694d6`，工作区原先干净，无冲突；主开发已经整合本端 CI/M1/C2，双方已共享同一代码基线。已读该 ref 的主开发进度、交叉审查和 C1 授权规格；主开发接受 c1-c2-interface 的调用条件。
 - 本轮认领：只读审查 C1 核心 `de49a17` 及 `docs/mobile-draft-access-spec.md`，独立报告写到 `docs/reviews/cross-review-parallel-de49a17.md`；维护本端 `scripts/check_mobile_tests.cjs`、`scripts/check_mobile_components.cjs`、对应门禁验证与说明，回应对方审查中瞬时失败难定位的问题。诊断只输出安全状态/阶段，不透出原始断言、正文、凭据或响应。
 - 主开发继续独占 C1 access/native、auth/session/context、草稿列表/编辑页、共享依赖/构建及项目汇总。本端不接管这些文件；维持 M1/C2 消费契约，不增加新业务。对方尚未发布的授权实现仍未知。
-- 本轮实现/审查已在本机完成，尚待本轮提交推送。C1 报告确认 P2：不同同步器实例可基于旧读取创建多余恢复副本，原文/新文仍保留；由主开发在其范围回应，未直接改 C1。13 项 de49a17 仓储/同步原测试通过，双实例闸门实验确定复现；无 P0/P1 发现。
+- 本轮实现/审查 `a0d4cea` 已推送独立分支，尚未进入 main；推送前 fetch/核对/pull main 仍 59694d6，无冲突。C1 报告确认 P2：不同同步器实例可基于旧读取创建多余恢复副本，原文/新文仍保留；由主开发在其范围回应，未直接改 C1。13 项 de49a17 仓储/同步原测试通过，双实例闸门实验确定复现；无 P0/P1 发现。
 - 门禁新增安全阶段、状态和已分类测试行列诊断；5 项失败行为/脱敏测试、53 项模型、10 项顺序真实服务、契约一致性与四套组件通过，零 skip/todo。没有复现对方瞬时失败根因，不把诊断改进当作修复随机失败。阶段记录见 `docs/reviews/mobile-ci-diagnostics-review.md`。
+- a0d4cea 的 [Mobile 四作业](https://github.com/Xstly1014/Tako/actions/runs/41428997743) 和 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41428997687) success；[Frontend audit](https://github.com/Xstly1014/Tako/actions/runs/41428997693) 仍 failure，未改共享锁。后续只补证据的文档提交不改变被验源码。
+- 下一步：待主开发发布 C1-A 测试/接口后更新本端分类、复核 Session 消费与发布入口；C1 并发发现待其回应/修复 SHA 再复验。没有新提交不等于对方无进行中工作，本端不自行接管。
 
-## 已观察的基线
+## 上阶段基线
 
 - 本端业务提交：C2 `dc9e672`，验证记录 `78f4c57`；此前 M1、CI 已在本端分支发布，未合入 main。
 - 本次 fetch 观察到远程 main `de49a17`，已合入本端 `codex/mobile-publication`（集成检查点 `b73fbe4`）。已读该提交的 `primary-progress.md` 与 C1.1 复盘。
 - 对方已发布 C1.1 加密仓储/同步及 SQLite 依赖，尚未接 App 草稿页/离线授权保护；下一步认领 auth 绑定与 C1 页面。本端不知道其未推送工作的实时状态。
 
-## 当前认领与共享边界
+## 上阶段认领与共享边界
 
 - 用户已分配本端 M1 作者作品管理，并要求按规划继续 C2 发布；用户另明确授权本次编写双端协作技能。
 - 上阶段技能与 CI 已发布至 `1627347`。本轮按主开发转交提示只做分支集成适配与验证：本端 `mobile/src/api/publications.ts`、`mobile/src/app/publish.tsx`、`mobile/src/publication/PublicationWorkspace.tsx`、发布测试/组件夹具及本端独立交接/复盘。没有修改 C1 业务源码、auth、依赖锁、App 配置或共享入口账本。
 - 业务范围继续为本端作者管理、发布与 CI；实现和证据索引见 `parallel-ci-results.md`。C1 存储/同步/编辑由同事维护；其 auth/账号页改动需保留本端 M1 顶部作品入口。本端不另建草稿编辑器。
 - C1/C2 完整入口、返回、旧修订与原发布恢复规则见 [接口约定](c1-c2-interface.md)。本端已拒绝缺少修订的入口并明确恢复优先级；调用点尚待同事接入，未声称已经确认或完成。
 
-## 状态与下一步
+## 上阶段状态与门槛
 
 - M1/C2 本端原提交的 Mobile/Backend CI 已通过；新 main 集成提交 `df4a5fb` 的 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41407759602) 四个作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41407759570) 也全部 success，不借用旧绿灯。
 - 本轮适配 `f041ef5` 已推送独立分支，推送前 fetch/核对/pull main 仍 de49a17，无冲突。[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41410502057) 四作业与 [Backend](https://github.com/Xstly1014/Tako/actions/runs/41410501956) 全部 success；[Frontend 审计](https://github.com/Xstly1014/Tako/actions/runs/41410502037) 仍失败，未自行改锁。后续证据文档提交不改变被验源码。
