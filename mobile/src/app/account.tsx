@@ -82,9 +82,15 @@ export default function Account() {
           </View>
         </View>
         <View style={s.stats}>
-          <Pressable onPress={() => unavailable("作品管理")}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="管理本人作品"
+            onPress={() =>
+              phase === "ready" ? router.push("/my-works") : setSheet(true)
+            }
+          >
             <Text style={s.statTitle}>作品</Text>
-            <Text style={s.meta}>尚未开放</Text>
+            <Text style={s.meta}>管理本人作品</Text>
           </Pressable>
           <Pressable
             onPress={() =>

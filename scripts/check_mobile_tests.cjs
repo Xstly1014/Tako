@@ -5,8 +5,8 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const mode = process.argv[2];
 const files = {
-  model: ['session.test.ts', 'comments.test.ts', 'versions.test.ts'],
-  service: ['reader.test.ts', 'comments-service.test.ts', 'versions-service.test.ts'],
+  model: ['session.test.ts', 'comments.test.ts', 'versions.test.ts', 'author-works.test.ts'],
+  service: ['reader.test.ts', 'comments-service.test.ts', 'versions-service.test.ts', 'author-works-service.test.ts'],
 };
 async function main() {
   if (!files[mode] || process.argv.length !== 3) throw new Error('usage_model_or_service');
@@ -33,6 +33,7 @@ async function main() {
     }
   }
   const result = spawnSync(process.execPath, ['--experimental-strip-types', '--test', '--test-reporter=tap',
+    ...(mode === 'service' ? ['--test-concurrency=1'] : []),
     ...files[mode].map(file => path.join(root, 'mobile/tests', file))], {
     cwd: root, encoding: 'utf8', timeout: 180000,
     env: { ...process.env, EXPO_PUBLIC_API_URL: 'http://127.0.0.1:3300/api' },

@@ -62,7 +62,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD/frontend:/app" -v writing-community_frontend_modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
           docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
-      - name: Comment and historical reading fixtures (network disabled)
+      - name: Comment, historical reading and author fixtures (network disabled)
         run: node scripts/check_mobile_components.cjs
   real-api:
     runs-on: ubuntu-24.04
@@ -91,7 +91,7 @@ jobs:
         run: docker compose --project-directory "$PWD" --env-file .runtime/local-test/.env -f infra/compose.local-test.yaml -f scripts/mobile-checks/compose.ci.yaml up -d --wait --wait-timeout 180 api
       - name: Wait for HTTP readiness without dumping response bodies
         run: curl --fail --silent --output /dev/null --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:3300/health/ready
-      - name: Real reader and comment API tests (missing service is failure)
+      - name: Real reader, comment and author API tests (missing service is failure)
         run: node scripts/check_mobile_tests.cjs service
       - name: Real account and favorite acceptance
         run: node scripts/mobile_account_acceptance.cjs
