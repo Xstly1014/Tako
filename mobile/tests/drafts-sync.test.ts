@@ -462,3 +462,35 @@ test("返回读取迟到：期间新输入已落盘，也不能将界面回退�
   assert.equal(f.editor.snapshot().record?.dirty, true);
   assert.equal(f.api.calls.length, 1);
 });
+
+
+test("编辑器：另存期间继续输入只写副本，完成切换前排空最新输入", async (ctx) => {
+  const f = await editorFixture(ctx), initial = f.editor.snapshot().record!;
+  await f.repo.edit(f.owner, f.key, initial.seq, "另一窗口", "原稿已更新");
+  f.editor.input("本窗口", "另存开始的输入"); await assert.rejects(f.editor.save());
+  const create = f.local.create.bind(f.local), edit = f.local.edit.bind(f.local);
+  let arrived: () => void = () => {}, release: () => void = () => {};
+  const ready = new Promise<void>(resolve => { arrived = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const writes: string[] = [];
+  f.local.create = async (...args) => { const row = await create(...args); arrived(); await gate; return row; };
+  f.local.edit = async (...args) => { writes.push(args[0]); return edit(...args); };
+  const copying = f.editor.saveAsCopy(); await ready;
+  f.editor.input("另存中继续", "最新中文和表情😀");
+  const saving = f.editor.save();
+  // Attach a rejection handler before releasing the old implementation's CAS failure.
+  const settled = Promise.allSettled([copying, saving]);
+  await Promise.resolve(); release();
+  const results = await settled;
+  assert.equal(results[0].status, "fulfilled");
+  assert.equal(results[1].status, "fulfilled");
+  const copy = (results[0] as PromiseFulfilledResult<string>).value;
+  assert.equal(f.editor.localId, copy);
+  assert.notEqual(copy, f.key);
+  assert.ok(writes.length > 0 && writes.every(key => key === copy));
+  assert.equal((await f.local.load(f.key))?.content, "原稿已更新");
+  assert.equal((await f.local.load(copy))?.content, "最新中文和表情😀");
+  assert.equal(f.editor.hasUnstored(), false);
+  assert.equal(f.editor.snapshot().error, null);
+  assert.equal(f.api.calls.length, 0);
+});

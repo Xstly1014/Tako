@@ -44,6 +44,7 @@ export class DraftEditor {
   private tools: DraftTools;
   private listeners = new Set<() => void>();
   private writing: Promise<void> | null = null;
+  private copying: Promise<string> | null = null;
   private publicationTicket: PublicationTicket | null = null;
   private handedOff = false;
   private state: EditorState = { record: null, title: "", content: "", loading: true, saving: false, syncing: false, preparing: false, error: null };
@@ -92,6 +93,12 @@ export class DraftEditor {
     void this.save().catch(() => undefined);
   }
   async save(): Promise<void> {
+    // During copy creation all input joins the copy operation, never the old
+    // CAS target. Retry after it settles to include any last queued keystroke.
+    if (this.copying) { await this.copying; return this.save(); }
+    return this.saveInputs();
+  }
+  private async saveInputs(): Promise<void> {
     if (this.writing) return this.writing;
     const generation = this.capture();
     const operation = (async () => {
@@ -99,15 +106,15 @@ export class DraftEditor {
       try {
         while (this.hasUnstored()) {
           this.check(generation);
-          const { record, title, content } = this.state;
+          const { record, title, content } = this.state, localId = this.localId;
           if (!text(title, content)) throw new DraftError("invalid_input");
           let saved: LocalDraft;
-          try { saved = await this.tools.local.edit(this.localId, record!.seq, title, content); }
+          try { saved = await this.tools.local.edit(localId, record!.seq, title, content); }
           catch (error) {
             // A commit can succeed before its completion signal fails. Only an
             // exact read-back confirms THIS local write; never advance over a
             // different editor's text or guess success from an exception.
-            const readBack = await this.tools.local.load(this.localId).catch(() => null);
+            const readBack = await this.tools.local.load(localId).catch(() => null);
             this.check(generation);
             if (!readBack || readBack.seq !== record!.seq + 1 || readBack.title !== title || readBack.content !== content) throw error;
             saved = readBack;
@@ -122,18 +129,26 @@ export class DraftEditor {
     try { await operation; } finally { if (this.writing === operation) this.writing = null; }
   }
   async saveAsCopy() {
-    if (this.state.saving || this.state.syncing) throw new ApiError("session_busy");
+    if (this.copying || this.state.saving || this.state.syncing) throw new ApiError("session_busy");
     const generation = this.capture(), title = this.state.title, content = this.state.content;
+    // Install the barrier before notifying listeners or creating the row.
+    // Input remains editable; its save joins this operation until the new
+    // target exists and all currently buffered text has been persisted there.
+    const operation = Promise.resolve().then(async () => {
+      try {
+        const record = await this.tools.local.create(this.tools.uuid(), title, content);
+        this.check(generation);
+        this.localId = record.id;
+        this.update({ record, error: null });
+        await this.saveInputs();
+        return record.id;
+      } catch (error) { this.update({ error }); throw error; }
+      finally { this.update({ saving: false }); }
+    });
+    this.copying = operation;
     this.update({ saving: true });
-    try {
-      const record = await this.tools.local.create(this.tools.uuid(), title, content);
-      this.check(generation);
-      this.localId = record.id;
-      this.update({ record, error: null });
-      await this.save();
-      return record.id;
-    } catch (error) { this.update({ error }); throw error; }
-    finally { this.update({ saving: false }); }
+    try { return await operation; }
+    finally { if (this.copying === operation) this.copying = null; }
   }
   canPreparePublication() {
     return !this.handedOff && !this.state.preparing && this.publicationReady();

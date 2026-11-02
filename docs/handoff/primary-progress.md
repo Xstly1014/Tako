@@ -1,5 +1,7 @@
 # 主开发工作进度
 
+> 本轮进行中：已观察并行端 a814cf9，接受其 9653d74 另存竞争 P2；本机修复及确定顺序模型/页面回归通过。接续集成其 C1 CI 接入并处理本端 frontend 审计，不开展新业务。旧 APK 不覆盖本次修复，详见 mobile-draft-copy-concurrency-review.md。
+
 > 最新收口：C1-C 已完成工程接线，Mobile 冻结 9653d74，整合 APK 构建/签名/路由与校验标识检查通过；85 模型、11 服务、新 C1→C2 页面和四套旧夹具通过。当前源码远程 Mobile/Backend success，Frontend audit failure。详见 mobile-draft-publication-review.md；此前“C1-C 待接”和旧包指纹是历史阶段。
 
 
