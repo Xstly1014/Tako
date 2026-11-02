@@ -1,5 +1,7 @@
 # Tako 当前进度 · 2026-10-30
 
+2026-11-02：手机当前无法重连，用户确认先做规格与独立工作，账号/收藏设备门槛仍未通过。新增 `mobile-comments-spec.md`：用户选择评论输入仅内存，关闭 App 不恢复；补原生会话评论权限回归，不宣称 App 评论已实现。另一台 Codex 尚未开始，CI 方向未认领。阶段记录见 [评论规划复盘](mobile-comments-planning-review.md)。
+
 2026-11-01 本批交接收口：主线为 App 读者账号与收藏，代码、OpenAPI 0.12.0 / schema 13、真实 MySQL/race/契约、会话模型、真实服务与 Web 兼容已验证；Android 新包设备回归未完成，用户已拔下 USB。不能以旧匿名阅读验收覆盖新功能。下一条业务前先补设备门槛。完整现状与跨电脑启动/分工见 [交接入口](../handoff/README.md)，本批证据见 [账号与收藏复盘](mobile-reader-account-review.md)。下面记录保留历史快照。
 
 2026-11-01 Android 检查点：独立 React Native + Expo App 已构建并通过 USB 安装到 vivo Android 14，测试库中篇浏览、正文、断链重试、顶部及系统返回保持列表位置已有真机证据。首包视觉偏离已纠正为原型开屏、游客入口、形态选择、三频道与五位底栏；用户视觉验收仍待确认。最后一包图片比例微调在用户允许安装后更新成功，并重测开场、游客路径、阅读与系统返回位置一致。类型、lint、5 组真实 API/失败语义测试通过。详见 [Android 阅读链路](android-reader-review.md) 与 [原型一致性纠偏](android-prototype-alignment.md)。下面较早检查点中的表述为历史快照，不代表当前状态。

@@ -79,9 +79,13 @@ func TestCommentHTTPContextContractAndRoles(t *testing.T) {
 		t.Helper()
 		raw, _ := json.Marshal(body)
 		req := httptest.NewRequest(method, path, strings.NewReader(string(raw)))
-		req.Header.Set("Origin", api.Origin)
 		req.Header.Set("Content-Type", "application/json")
-		if token != "" {
+		if strings.HasPrefix(token, "tako_app_") {
+			req.Header.Set("Authorization", "Bearer "+token)
+		} else {
+			req.Header.Set("Origin", api.Origin)
+		}
+		if token != "" && !strings.HasPrefix(token, "tako_app_") {
 			req.AddCookie(&http.Cookie{Name: "tako_session", Value: token})
 		}
 		res := httptest.NewRecorder()
@@ -110,6 +114,37 @@ func TestCommentHTTPContextContractAndRoles(t *testing.T) {
 	}
 	var out publication.CommentResult
 	json.Unmarshal(result.Body.Bytes(), &out)
+	// Actual password service issues this native session; no browser Origin or
+	// Cookie is injected. This verifies transport/ownership, not a phone login UI.
+	if e = api.Identity.SetupPassword(ctx, reader, "native-comment-test-password", "native-comment-test"); e != nil {
+		t.Fatal(e)
+	}
+	nativeAccount, nativeToken, e := api.Identity.LoginAppPassword(ctx, reader.String()+"@example.test", "native-comment-test-password", "native-comment-test")
+	if e != nil || nativeAccount.ID != reader {
+		t.Fatal("native identity failed")
+	}
+	nativeReceipt := call("POST", path+"/comments", in, nativeToken, 200)
+	if nativeReceipt.Body.String() != result.Body.String() {
+		t.Fatal("native retry changed original receipt")
+	}
+	nativeList := call("GET", path+"/comments", nil, nativeToken, 200)
+	if !strings.Contains(nativeList.Body.String(), `"can_delete":true`) {
+		t.Fatal("native author lost delete permission")
+	}
+	anonymousList := call("GET", path+"/comments", nil, "", 200)
+	if strings.Contains(anonymousList.Body.String(), `"can_delete":true`) {
+		t.Fatal("anonymous delete permission leaked")
+	}
+	wrongActor := in
+	wrongActor.MutationID = uuid.New()
+	wrongActor.ExpectedAccountID = owner
+	// Comments reject an account mismatch as invalid_input (400), unlike the
+	// favorite state-conflict response. Neither case authorizes another account.
+	call("POST", path+"/comments", wrongActor, nativeToken, 400)
+	unchanged := call("GET", path+"/comments", nil, nativeToken, 200)
+	if unchanged.Body.String() != nativeList.Body.String() {
+		t.Fatal("rejected actor changed comments")
+	}
 	call("GET", path+"/comments", nil, "", 200)
 	call("GET", path+"/comments?root=invalid", nil, "", 400)
 	call("GET", "/api/ops/comments", nil, tokens[reader], 403)
@@ -119,6 +154,10 @@ func TestCommentHTTPContextContractAndRoles(t *testing.T) {
 	own := call("GET", "/api/my/comments", nil, tokens[reader], 200)
 	if !strings.Contains(own.Body.String(), "测试风险原因") {
 		t.Fatal("own reason missing")
+	}
+	nativeOwn := call("GET", "/api/my/comments", nil, nativeToken, 200)
+	if !strings.Contains(nativeOwn.Body.String(), "测试风险原因") {
+		t.Fatal("native owner reason missing")
 	}
 	other := call("GET", "/api/my/comments", nil, tokens[owner], 200)
 	if strings.Contains(other.Body.String(), "测试风险原因") {
