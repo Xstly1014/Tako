@@ -1,6 +1,6 @@
 # App 中篇私密草稿规格 · C1
 
-日期：2026-11-02。状态：进入规格与契约预检阶段，**尚未接入 App 草稿页或本机加密存储**。承接 [创作方向](mobile-authoring-plan.md) 与 A 既定语义。C1 不包含公开发布、长文目录、图文短帖、实时协作或删除草稿。
+日期：2026-11-02。状态：C1.1 已实现加密仓储/同步核心与 SDK 适配，模型、真实 SQLite 与真实 API 分层验证；**尚未接入 App 草稿页面及离线授权保护**。承接 [创作方向](mobile-authoring-plan.md) 与 A 既定语义。C1 不包含公开发布、长文目录、图文短帖、实时协作或删除草稿。
 
 ## 第一条作者链路
 
@@ -42,9 +42,11 @@
 
 ## 本机存储和失败边界
 
-候选实现为现有 Expo Crypto 的 AES-GCM、SecureStore 保存按账号分开的少量密钥、FileSystem 保存加密稿件；新增直接依赖必须按 SDK 58 安装并核对锁文件，不自造加密算法。正文/标题、原请求和账号绑定要进行认证加密；不把正文塞进 SecureStore，不写入日志、共享目录或剪贴板，不把密钥硬编码在包内。
+采用现有 Expo Crypto 的 AES-GCM、SecureStore 保存按账号分开的少量密钥、SQLite 事务保存密文。SDK 58 官方安装器加入 `expo-sqlite` ~58.0.15 及其插件，锁文件同步；不自造加密或原子文件协议。正文/标题、原请求和账号绑定进行认证加密；不把正文塞进 SecureStore，不自动写日志、共享目录或剪贴板，不把密钥硬编码在包内。
 
-文件层需要验证可恢复的原子提交策略：写入新密文并校验成功后才替代已确认记录；写入/切换/清理中断保留上一份有效记录。不能仅因存在一个文件就宣称成功，不能把 rename API 的存在当作断电原子性证明。具体方案及故障注入在编码前核对。
+存储采用 `WAL`、`synchronous=FULL` 与独占事务；密文与存储修订一起提交，异常回滚保留旧记录。认证附加数据绑定账号、记录 ID 和存储修订，拒绝把密文搬到其他账号/稿件/修订。SQLite 库文件并非整库 SQLCipher 加密：可检索的 UUID 和存储修订是索引元数据，标题、正文、待发送快照及其绑定信息在密文中。密钥与库分开保管。
+
+Node 真实 SQLite 的异常回滚、提交后回执丢失及子进程在提交前退出已验证；原生 Expo Crypto/SQLite/SecureStore 的设备行为仍需真机，不能将 Node 的 WebCrypto 或本机事务结果直接算作 Android 安全存储验收。仓储是底层存储能力，尚未接入登录/离线授权；草稿页面禁止绕过后续授权保护直接根据路由 owner 参数读仓储。
 
 密钥不可用、密文被改动或格式不兼容，保留原文件，显示恢复失败；不能静默生成新密钥覆盖旧稿。明确认证失效时隐藏并锁定；保留未落盘输入仅供原账号重新认证后恢复，不能借“导出救援”向别的账号泄露。存储失败时先阻止无提示离开，不靠删除旧稿腾空间。
 
@@ -64,4 +66,4 @@
 
 发布和作品管理后续复用 B1/B2，单独按固定预览/正式版语义验收；C1 不自动让草稿公开。
 
-工程依据：[Expo 58 Crypto](https://docs.expo.dev/versions/v58.0.0/sdk/crypto/)、[SecureStore](https://docs.expo.dev/versions/v58.0.0/sdk/securestore/)、[FileSystem](https://docs.expo.dev/versions/v58.0.0/sdk/filesystem/)。这些官方能力说明可行方向，不替代本项目存储故障和实机验收。
+工程依据：[Expo 58 Crypto](https://docs.expo.dev/versions/v58.0.0/sdk/crypto/)、[SecureStore](https://docs.expo.dev/versions/v58.0.0/sdk/securestore/)、[SQLite](https://docs.expo.dev/versions/v58.0.0/sdk/sqlite/)。文件方案已替换为成熟数据库事务，官方能力说明不替代本项目故障和实机验收。

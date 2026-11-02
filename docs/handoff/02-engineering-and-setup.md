@@ -58,6 +58,8 @@ node scripts/mobile_account_acceptance.cjs
 
 C1 原生草稿契约预检：`node scripts/mobile_draft_preflight.cjs`，需当前真实 3300。它正常注册两个合成账号并保留自己的私密测试稿，验证创建/保存回执重放、跨账号拒绝、修订冲突、恢复副本与续写；不读取根 `.env`，不发信、不触碰已有用户草稿，也不证明本机加密或 App 页面可用。
 
+C1.1 新增 `mobile/tests/drafts*.test.ts`：Node 24 内置 SQLite + WebCrypto，在 `.runtime/mobile/qa` 创建随机命名的测试库并逐文件清理；这是电脑平台证据。完整回归建议 `node --experimental-strip-types --test --test-concurrency=1 mobile/tests/*.test.ts`，避免短时间重复注册撞既有 20/IP/分钟限制；触发时等待窗口，不清计数或改保护。Expo SQLite 适配由新 SDK 依赖编译验证，真机安全存储另验。
+
 移动端类型/lint：安装 Node 24 后在 `mobile/` 执行 `npm ci`、`npm run typecheck`、`npm run lint`。SDK 新库用 `npx expo install`，按 `mobile/AGENTS.md` 先读 SDK 58 官方文档。API 变更后按 `mobile/README.md` 重新生成契约类型，不手工修改生成文件。
 
 ## Android 个人安装包
