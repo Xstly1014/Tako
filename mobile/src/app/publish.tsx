@@ -32,7 +32,7 @@ export default function PublishRoute() {
           title="发布入口参数无效"
           message="请从本人作品管理或草稿箱重新选择服务器修订。"
           actionLabel="返回作品管理"
-          onRetry={() => router.replace("/my-works")}
+          onRetry={() => router.dismissTo("/my-works")}
         />
       </SafeAreaView>
     );

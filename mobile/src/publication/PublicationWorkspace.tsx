@@ -317,7 +317,7 @@ export function PublicationWorkspace({
             )}
             <Action
               label="进入作品管理"
-              onPress={() => router.replace("/my-works")}
+              onPress={() => router.dismissTo("/my-works")}
             />
             {currentState &&
             !currentState.author_hidden &&

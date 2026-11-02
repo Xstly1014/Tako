@@ -3,6 +3,7 @@ export const router = {
   push: (path) =>
     window.authorUi.navigate(typeof path === "string" ? path : path.pathname),
   replace: (path) => window.authorUi.navigate(path),
+  dismissTo: (path) => window.authorUi.navigate(path),
   canGoBack: () => true,
   back: () => window.authorUi.navigate("/account"),
 };
