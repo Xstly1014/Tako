@@ -434,6 +434,9 @@ func publishChapter(ctx context.Context, tx *sql.Tx, owner, submission uuid.UUID
 	if _, err = tx.ExecContext(ctx, "INSERT INTO novel_publications(novel_id,owner_id,title,introduction,tags,first_published_at,updated_at) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE novel_id=novel_publications.novel_id", p.NovelID[:], owner[:], p.BookTitle, p.Introduction, tags, now, now); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO novel_metadata_versions(novel_id,owner_id,revision,title,introduction,tags,published_at) SELECT novel_id,owner_id,revision,title,introduction,tags,updated_at FROM novel_publications WHERE novel_id=? AND revision=1 ON DUPLICATE KEY UPDATE novel_id=novel_metadata_versions.novel_id`, p.NovelID[:]); err != nil {
+		return err
+	}
 	if p.CandidateVersion == 1 {
 		_, err = tx.ExecContext(ctx, "INSERT INTO chapter_release_events(chapter_id,novel_id,owner_id,ordinal,published_at) VALUES(?,?,?,?,?)", p.ChapterID[:], p.NovelID[:], owner[:], p.Ordinal, now)
 	}

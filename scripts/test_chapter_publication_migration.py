@@ -44,7 +44,7 @@ INSERT INTO chapter_drafts(id,owner_id,novel_id,chapter_id,title,content) VALUES
 UPDATE novel_chapters SET primary_draft_id=UNHEX('{draft}') WHERE id=UNHEX('{chapter}');
 INSERT INTO chapter_draft_revisions(draft_id,revision,title,content,saved_at) SELECT id,revision,title,content,updated_at FROM chapter_drafts;""",True)
     before=sql('SELECT n.title,d.title,d.content,d.revision FROM chapter_drafts d JOIN novels n ON n.id=d.novel_id;',True)
-    goose('up')
+    goose('up-to 16')
     if sql('SELECT COUNT(*) FROM novel_chapters WHERE ordinal IS NULL AND last_version=0 AND display_version=0;',True)!='1':
         raise RuntimeError('private_chapter_gained_publication')
     if sql("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND INDEX_NAME='chapter_previews_expiry';",True)!='2':
@@ -58,10 +58,30 @@ INSERT INTO chapter_draft_revisions(draft_id,revision,title,content,saved_at) SE
     after=sql('SELECT n.title,d.title,d.content,d.revision FROM chapter_drafts d JOIN novels n ON n.id=d.novel_id;',True)
     if before!=after:
         raise RuntimeError('safe_rollback_changed_private_chapter')
-    goose('up')
+    goose('up-to 16')
     if sql('SELECT n.title,d.title,d.content,d.revision FROM chapter_drafts d JOIN novels n ON n.id=d.novel_id;',True)!=before:
         raise RuntimeError('reupgrade_changed_private_chapter')
-    print('PASS N2 migration: N1 retained; allocated-slot rollback refused; safe rollback and reupgrade retained N1.')
+    # Model a known version-16 formal publication before upgrading management.
+    preview,submission,mutation=[uuid.uuid4().hex for _ in range(3)]
+    sql(f"""UPDATE novel_chapters SET ordinal=1,last_version=1,display_version=1;
+UPDATE novels SET last_position=1;
+INSERT INTO chapter_previews(id,owner_id,novel_id,chapter_id,snapshot,expires_at) VALUES(UNHEX('{preview}'),UNHEX('{owner}'),UNHEX('{book}'),UNHEX('{chapter}'),JSON_OBJECT('title','chapter preserved'),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 1 DAY));
+INSERT INTO chapter_submissions(id,owner_id,novel_id,chapter_id,preview_id,ordinal,candidate_version,state) VALUES(UNHEX('{submission}'),UNHEX('{owner}'),UNHEX('{book}'),UNHEX('{chapter}'),UNHEX('{preview}'),1,1,'published');
+INSERT INTO chapter_versions(chapter_id,novel_id,owner_id,version,submission_id,title,content,published_at) VALUES(UNHEX('{chapter}'),UNHEX('{book}'),UNHEX('{owner}'),1,UNHEX('{submission}'),'formal chapter','formal body',UTC_TIMESTAMP(6));
+INSERT INTO novel_publications(novel_id,owner_id,title,introduction,tags,first_published_at,updated_at) SELECT id,owner_id,'formal metadata',introduction,tags,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6) FROM novels;""",True)
+    formal=sql('SELECT title,content,version FROM chapter_versions;',True)
+    goose('up-to 17')
+    if sql('SELECT title,revision FROM novel_metadata_versions;',True)!='formal metadata\t1':
+        raise RuntimeError('management_upgrade_missing_formal_history')
+    goose('down')
+    if sql('SELECT title,content,version FROM chapter_versions;',True)!=formal:
+        raise RuntimeError('management_safe_rollback_changed_formal_chapter')
+    goose('up-to 17')
+    sql(f"INSERT INTO novel_management_requests(actor_id,mutation_id,novel_id,payload_hash,result) VALUES(UNHEX('{owner}'),UNHEX('{mutation}'),UNHEX('{book}'),UNHEX(REPEAT('00',32)),JSON_OBJECT());",True)
+    goose('down',False)
+    if sql('SELECT COUNT(*) FROM novel_metadata_versions;',True)!='1' or sql('SELECT title,content,version FROM chapter_versions;',True)!=formal:
+        raise RuntimeError('management_refused_rollback_changed_data_or_schema')
+    print('PASS N2 migrations 16/17: private/formal data retained; populated rollback refused; safe rollback and reupgrade verified.')
 finally:
     if created:
         sql(f'DROP DATABASE {database};')
