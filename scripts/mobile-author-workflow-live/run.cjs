@@ -86,7 +86,8 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     failAppealRead = false,
     failFeedbackRead = true,
     dropFeedbackReply = true,
-    dropFeedbackDelete = true;
+    dropFeedbackDelete = true,
+    failInboxRead = true;
   let dropPublication = true,
     publications = 0,
     workID = "",
@@ -258,6 +259,17 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
       ) {
         dropFeedbackDelete = false;
         faults.add("feedback-delete-response");
+        await route.abort();
+        return;
+      }
+      if (
+        response.ok() &&
+        failInboxRead &&
+        stage === "feedback-inbox" &&
+        request.method() === "GET" &&
+        url.pathname === "/api/my/work-feedback"
+      ) {
+        faults.add("feedback-inbox-read");
         await route.abort();
         return;
       }
@@ -690,6 +702,111 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     await button("收起评论").click();
     await button("返回作品管理").click();
     await button("查看本人处置与复核").waitFor();
+    stage = "feedback-inbox";
+    // Prepare one new reader root through real APIs; reader composition UI was
+    // already exercised above. Never insert fictitious successful responses.
+    await page.evaluate(
+      async ({ reader, author, id }) => {
+        const session = window.authorWorkflow.session;
+        await session.logout();
+        await session.signIn("login", reader.email, reader.password);
+        const value = await session.authorized("/works/" + id);
+        await session.authorized("/works/" + id + "/comments", {
+          method: "POST",
+          body: {
+            mutation_id: crypto.randomUUID(),
+            expected_account_id: session.snapshot().account.id,
+            content: "收件箱定位讨论",
+            context: value.comment_context,
+          },
+        });
+        await session.logout();
+        await session.signIn("login", author.email, author.password);
+      },
+      { reader: fixture.reader, author: fixture.author, id: workID },
+    );
+    await button("读者反馈收件箱").click();
+    await text("反馈读取失败").waitFor();
+    failInboxRead = false;
+    await button("重新加载").click();
+    await text("收件箱定位讨论").waitFor();
+    const inboxItem = await page.evaluate(
+      async (id) =>
+        (
+          await window.authorWorkflow.session.authorized(
+            "/my/work-feedback?status=awaiting_author&cursor=0",
+          )
+        ).items.find((x) => x.comment.work_id === id),
+      workID,
+    );
+    assert.equal(inboxItem.awaiting_author, true);
+    const openThread = async () =>
+      button("打开反馈讨论 " + inboxItem.comment.sequence).click();
+    await openThread();
+    await text("收件箱定位讨论").waitFor();
+    await button("回复").first().click();
+    await active()
+      .getByRole("textbox", { name: "评论正文" })
+      .fill("收件箱作者回应");
+    await button("发表").click();
+    await text("评论已发表。").waitFor();
+    await button("收起评论").click();
+    await button("返回反馈收件箱").click();
+    await text("暂无待回应讨论").waitFor();
+    await button("全部讨论").click();
+    await active()
+      .getByText(/已有作者回复$/)
+      .waitFor();
+    await openThread();
+    await button("查看回复").first().click();
+    await text("收件箱作者回应").waitFor();
+    await button("删除").nth(1).click();
+    await page
+      .getByRole("dialog", { name: "删除评论" })
+      .getByText("删除这条回复？", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("dialog", { name: "删除评论" })
+      .getByRole("button", { name: "删除", exact: true })
+      .click();
+    await text("评论已删除。").waitFor();
+    await button("收起评论").click();
+    await button("返回反馈收件箱").click();
+    await button("待回应讨论").click();
+    await text("收件箱定位讨论").waitFor();
+    const pendingAgain = await page.evaluate(
+      async (id) =>
+        (
+          await window.authorWorkflow.session.authorized(
+            "/my/work-feedback/" + id,
+          )
+        ).awaiting_author,
+      inboxItem.comment.id,
+    );
+    assert.equal(pendingAgain, true);
+    await openThread();
+    await button("回复").first().click();
+    await active()
+      .getByRole("textbox", { name: "评论正文" })
+      .fill("再次回应供整串删除");
+    await button("发表").click();
+    await text("评论已发表。").waitFor();
+    await button("查看回复").first().click();
+    await text("再次回应供整串删除").waitFor();
+    await button("删除").first().click();
+    await page
+      .getByRole("dialog", { name: "删除评论" })
+      .getByRole("button", { name: "删除", exact: true })
+      .click();
+    await text("评论已删除。").waitFor();
+    await text("还没有评论，读完说说你的想法。").waitFor();
+    await button("收起评论").click();
+    await button("返回反馈收件箱").click();
+    await text("暂无待回应讨论").waitFor();
+    await button("全部讨论").click();
+    await text("暂无可见反馈").waitFor();
+    await button("返回作品管理").click();
+    await button("查看本人处置与复核").waitFor();
     stage = "moderation-and-appeal";
     const env = Object.fromEntries(
       fs
@@ -800,6 +917,7 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     assert.deepEqual(
       [...faults].sort(),
       [
+        "feedback-inbox-read",
         "feedback-entry-read",
         "feedback-reply-response",
         "feedback-delete-response",

@@ -20,6 +20,10 @@ import {
 } from "../src/api/author-appeals.ts";
 import { AuthorAppeals } from "../src/author-works/appeals.ts";
 import { readAuthorFeedback } from "../src/author-works/feedback.ts";
+import {
+  AuthorFeedbackApi,
+  type FeedbackEntry,
+} from "../src/api/author-feedback.ts";
 
 const caseDetail = (): CaseDetail => ({
   case: {
@@ -886,4 +890,89 @@ test("作者反馈拒绝他人/隐藏/受限及取消，不向公开接口退化
     );
     assert.equal(publicReads, ["wrong-id", "context"].includes(kind) ? 1 : 0);
   }
+});
+
+const feedbackEntry = (sequence = 25): FeedbackEntry => ({
+  work_title: "当前正式标题",
+  awaiting_author: true,
+  comment: {
+    id: randomUUID(),
+    work_id: id,
+    author_id: randomUUID(),
+    nickname: "读者",
+    root_id: null,
+    reply_to: null,
+    reply_name: "",
+    content: "可见讨论",
+    sequence,
+    revision: 1,
+    replies: 0,
+    can_delete: true,
+    created_at: "2026-11-03T00:00:00Z",
+    deleted: false,
+    blocked: false,
+    reason: "",
+  },
+});
+test("跨作品反馈客户端严格验证全局游标、排序、状态与线程绑定，404不给旧快照", async () => {
+  const items = Array.from({ length: 20 }, (_, index) =>
+    feedbackEntry(25 - index),
+  );
+  const paths: string[] = [];
+  const api = new AuthorFeedbackApi(async (path, options) => {
+    paths.push(path);
+    assert.notEqual(options?.method, "POST");
+    return { items, next: 6 } as never;
+  });
+  assert.equal((await api.page("awaiting_author")).next, 6);
+  assert.equal(paths[0], "/my/work-feedback?status=awaiting_author&cursor=0");
+  const root = feedbackEntry();
+  const thread = new AuthorFeedbackApi(async () => root as never);
+  assert.equal(
+    (await thread.thread(root.comment.id, id)).comment.id,
+    root.comment.id,
+  );
+  await assert.rejects(thread.thread(randomUUID(), id));
+  await assert.rejects(thread.thread(root.comment.id, randomUUID()));
+  const gone = new AuthorFeedbackApi(async () => {
+    throw new ApiError("resource_not_found", "", 404);
+  });
+  assert.deepEqual(await gone.threadPage(root.comment.id, id), {
+    items: [],
+    next: 0,
+  });
+});
+test("反馈异常页与越权/隐藏字段不能显示，坏筛选游标不发送请求", async () => {
+  const root = feedbackEntry();
+  for (const page of [
+    { items: [root, root], next: 0 },
+    { items: [root, feedbackEntry(26)], next: 0 },
+    { items: [root], next: root.comment.sequence },
+    { items: [{ ...root, awaiting_author: false }], next: 0 },
+    ...[
+      { blocked: true },
+      { deleted: true },
+      { can_delete: false },
+      { reason: "不应展示的处置原因" },
+      { root_id: randomUUID() },
+      { sequence: 0 },
+    ].map((patch) => ({
+      items: [{ ...root, comment: { ...root.comment, ...patch } }],
+      next: 0,
+    })),
+  ])
+    await assert.rejects(
+      new AuthorFeedbackApi(async () => page as never).page("awaiting_author"),
+      (e: unknown) => e instanceof ApiError && e.code === "contract",
+    );
+  let calls = 0;
+  const api = new AuthorFeedbackApi(async () => {
+    calls++;
+    return {} as never;
+  });
+  await assert.rejects(api.page("unread" as never));
+  await assert.rejects(api.page("all", -1));
+  await assert.rejects(api.page("all", Number.MAX_SAFE_INTEGER + 1));
+  await assert.rejects(api.thread("bad"));
+  assert.equal(calls, 0);
 });

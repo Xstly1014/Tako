@@ -47,6 +47,7 @@ func (a API) parseCommentContext(work uuid.UUID, token string) (uint64, bool) {
 	return version, expected != "" && hmac.Equal([]byte(expected), []byte(token))
 }
 func (a API) registerComments(api, protected *gin.RouterGroup) {
+	a.registerAuthorFeedback(protected)
 	store := publication.Store{DB: a.DB}
 	gate := func(c *gin.Context) bool {
 		if !a.EnablePublications {

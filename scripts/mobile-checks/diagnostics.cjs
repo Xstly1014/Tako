@@ -21,7 +21,7 @@ function testLocations(output, files) {
 const stages = {
   comments: ['build', 'open', 'guest-input', 'login', 'transfer', 'private-records'],
   versions: ['bundle', 'closed-metadata', 'read-open-version', 'failed-switch', 'stale-switch', 'paging-retry', 'restricted-node'],
-  author: ['version-pair-hidden-restore', 'version-pair-restricted-read', 'version-pair-read-and-race', 'version-pair-decision', 'appeals-entry-and-history', 'appeals-unknown-and-confirmed-read', 'appeals-upheld-and-revoked', 'catalog-revision-return', 'catalog-search-and-paging', 'catalog-management-return', 'bundle', 'session-envelope', 'public-display-handoff', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'confirmed-action-read-retry',
+  author: ['feedback-inbox-paging', 'version-pair-hidden-restore', 'version-pair-restricted-read', 'version-pair-read-and-race', 'version-pair-decision', 'appeals-entry-and-history', 'appeals-unknown-and-confirmed-read', 'appeals-upheld-and-revoked', 'catalog-revision-return', 'catalog-search-and-paging', 'catalog-management-return', 'bundle', 'session-envelope', 'public-display-handoff', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'confirmed-action-read-retry',
     'offline-grant-blocks-management', 'online-grant-restores-management', 'account-switch'],
   publication: ['bundle', 'session-envelope', 'directed-revision-target', 'directed-original-journal-priority', 'directed-release-return', 'incomplete-editor-handoff', 'unconfirmed-editor-revision', 'confirmed-old-editor-revision',
     'authorization-and-snapshot', 'storage-failure', 'unknown-result', 'remount-read-only',
@@ -42,7 +42,7 @@ function fixtureStage(mode, output) {
 
 function authorWorkflowStage(output) {
   const stage = String(output).match(/^FAIL real author workflow stage=([a-z-]+)$/m)?.[1];
-  return ['author-feedback-workspace', 'revision-prepublication-review', 'bundle', 'cleanup', 'restore-eligibility', 'management-uncertain-recovery', 'appeal-uncertain-recovery', 'catalog-and-publication', 'publication-read-only-recovery', 'directed-revision-retained-stack',
+  return ['feedback-inbox', 'author-feedback-workspace', 'revision-prepublication-review', 'bundle', 'cleanup', 'restore-eligibility', 'management-uncertain-recovery', 'appeal-uncertain-recovery', 'catalog-and-publication', 'publication-read-only-recovery', 'directed-revision-retained-stack',
     'version-decision-and-reader', 'reader-feedback-and-author-return', 'moderation-and-appeal'].includes(stage) ? stage : 'unavailable';
 }
 module.exports = { processState, testLocations, fixtureStage, authorWorkflowStage };

@@ -167,15 +167,16 @@ test('real author workflow refuses unavailable or non-test service before writes
     fs.writeFileSync(preload, `let calls=0;
 global.fetch=async url=>{ calls++; if(url!=='http://127.0.0.1:3300/api/community') throw Error('PRIVATE_TOKEN');
  if(process.env.PREFLIGHT_MODE==='missing') throw Error('PRIVATE_TOKEN');
- return new Response('PRIVATE_BODY',{status:200,headers:{'X-Tako-Environment':'not_test'}}); };
+ return new Response('PRIVATE_BODY',{status:process.env.PREFLIGHT_MODE==='http-failure'?503:200,headers:{'X-Tako-Environment':process.env.PREFLIGHT_MODE==='http-failure'?'test':'PRIVATE_TOKEN'}}); };
 require('node:child_process').spawnSync=()=>{throw Error('PRIVATE_TOKEN');};
 process.on('exit',()=>{if(calls!==1)process.exitCode=3;});`);
-    for (const mode of ['missing', 'wrong-environment']) {
+    for (const mode of ['missing', 'wrong-environment', 'http-failure']) {
       const result = spawnSync(process.execPath, ['--require', preload, path.join(root, 'scripts/check_author_workflow_live.cjs')], {
         encoding: 'utf8', timeout: 10000, env: { ...process.env, PREFLIGHT_MODE: mode },
       });
       assert.equal(result.status, 1);
       assert.match(result.stderr, /FAIL author workflow:/);
+      assert.match(result.stderr, mode === 'missing' ? /network=unavailable/ : mode === 'http-failure' ? /http_status=503 environment=test/ : /http_status=200 environment=not_test/);
       assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE_BODY|PRIVATE_TOKEN/);
     }
   } finally {

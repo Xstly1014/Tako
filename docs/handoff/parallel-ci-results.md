@@ -1,5 +1,11 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+## 当前：跨作品反馈收件箱全链路
+
+[完整复盘](../reviews/author-feedback-inbox-stage-review.md)。新增两个只读API/错误语义/限定OpenAPI及生成类型，App服务端分页、待回应筛选、具体线程定位和原回复/删除闭环。完整Go race/vet/真实MySQL/契约/路由覆盖通过，补403后聚焦HTTP回归通过；132模型、20顺序服务、四组件+C1、类型/lint/生成契约、7门禁及实际整条HTTP/MySQL页面通过。运行API已沿原卷/凭据保留身份及计数更新至当前代码/迁移17，非Web/ECS/原生升级。精确CI待推送核验，不套用旧SHA。
+
+前包8d79e56的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41606590438)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41606590631)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41606590423)全部success，实际整条步骤成功；其P1关闭。main d913b30已独立审查整合427eff8，8d79e56及新收件箱待主开发下一窗口。USB暂停；安全预检诊断建议已落实，不把新增诊断当偶发失败根因已修复。
+
 ## 当前：作者反馈工作台
 
 完整[复盘](../reviews/author-feedback-stage-review.md)。实际新屏/路由+原评论组件+真实HTTP/MySQL贯通归属、线程、回复/删除丢响应重查、返回、内存输入恢复/资格GET重试及切号隔离；原整链路保持。原20顺序服务、四组件+C1通过；普通合入main01bfd70为07b1b62后127模型、类型/lint/完整契约及7门禁、整条再次通过。精确CI待本包推送核对，不引用旧SHA作为本包通过。N2内核是同事成果，未在本机升级3300或独立执行其Go/迁移；USB仍暂停。

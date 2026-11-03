@@ -4,6 +4,48 @@
  */
 
 export interface paths {
+  "/api/my/work-feedback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 本人公开作品的跨作品可见主评论收件箱
+     * @description 按会话账号验证归属及当前作品/展示版/评论可见性；不含私稿和历史正文。主评论sequence倒序，每页20条。待回应仅表示线程下没有当前可见作者回复，不是未读或已处理状态；删除或屏蔽作者回复会重新满足条件。各页重新判断可见性，不保证跨请求冻结快照。PUBLICATION_ENABLED控制。
+     */
+    get: operations["listAuthorWorkFeedback"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/work-feedback/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 重新验证本人反馈主评论，定位线程
+     * @description 仅本人当前可公开作品的可见主评论。不存在、他人作品、回复ID、隐藏或受限统一404；不能用列表旧快照越过现状验证。PUBLICATION_ENABLED控制。
+     */
+    get: operations["getAuthorWorkFeedback"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novels/{id}/formal-state": {
     parameters: {
       query?: never;
@@ -1677,6 +1719,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AuthorFeedbackEntry: {
+      comment: components["schemas"]["Comment"];
+      work_title: string;
+      awaiting_author: boolean;
+    };
+    AuthorFeedbackPage: {
+      items: components["schemas"]["AuthorFeedbackEntry"][];
+      next: number;
+    };
     NovelFormalMetadata: {
       title: string;
       introduction: string;
@@ -2551,6 +2602,61 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listAuthorWorkFeedback: {
+    parameters: {
+      query?: {
+        status?: "all" | "awaiting_author";
+        cursor?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人反馈页；next为0表示没有下一页 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorFeedbackPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getAuthorWorkFeedback: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前可见主评论，不代表新的发表或删除权限 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorFeedbackEntry"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   getNovelFormalState: {
     parameters: {
       query?: never;

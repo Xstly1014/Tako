@@ -6,11 +6,18 @@ import { useSession } from "../auth/context";
 import { AuthorWorksApi } from "../api/author-works";
 import { ApiError } from "../api/client";
 import { readAuthorFeedback } from "../author-works/feedback";
+import { AuthorFeedbackApi } from "../api/author-feedback";
 import { CommentsPanel } from "../components/CommentsPanel";
 import { Action, Status } from "../components/Ui";
 import { theme as t } from "../theme";
 
-export default function AuthorFeedbackScreen({ id }: { id: string }) {
+export default function AuthorFeedbackScreen({
+  id,
+  threadId,
+}: {
+  id: string;
+  threadId?: string;
+}) {
   const { phase, account } = useSession();
   const [owner, setOwner] = useState(account?.id ?? null);
   if (account && account.id !== owner) setOwner(account.id);
@@ -25,9 +32,24 @@ export default function AuthorFeedbackScreen({ id }: { id: string }) {
         />
       </SafeAreaView>
     );
-  return <Feedback key={`${owner}:${id}`} id={id} owner={owner} />;
+  return (
+    <Feedback
+      key={`${owner}:${id}:${threadId ?? ""}`}
+      id={id}
+      owner={owner}
+      threadId={threadId}
+    />
+  );
 }
-function Feedback({ id, owner }: { id: string; owner: string }) {
+function Feedback({
+  id,
+  owner,
+  threadId,
+}: {
+  id: string;
+  owner: string;
+  threadId?: string;
+}) {
   const { session, phase, account, generation } = useSession();
   const signedIn = phase === "ready" && account?.id === owner;
   const works = useMemo(
@@ -41,6 +63,11 @@ function Feedback({ id, owner }: { id: string; owner: string }) {
   const [retry, setRetry] = useState(0);
   const [visible, setVisible] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const loadThread = useMemo(() => {
+    if (!threadId) return undefined;
+    const api = new AuthorFeedbackApi((p, o) => session.authorized(p, o));
+    return (signal?: AbortSignal) => api.threadPage(threadId, id, signal);
+  }, [id, threadId, session]);
   useEffect(() => {
     if (!signedIn) return;
     const abort = new AbortController();
@@ -87,7 +114,7 @@ function Feedback({ id, owner }: { id: string; owner: string }) {
   const back = () =>
     router.canGoBack()
       ? router.back()
-      : router.replace({ pathname: "/my-works/[id]", params: { id } });
+      : threadId ? router.replace("/author-feedback") : router.replace({ pathname: "/my-works/[id]", params: { id } });
   const unavailable =
     error instanceof ApiError &&
     ["feedback_unavailable", "resource_not_found"].includes(error.code);
@@ -95,8 +122,13 @@ function Feedback({ id, owner }: { id: string; owner: string }) {
   return (
     <SafeAreaView style={s.screen}>
       <ScrollView contentContainerStyle={s.content}>
-        <Action label="返回作品管理" onPress={back} />
+        <Action label={threadId ? "返回反馈收件箱" : "返回作品管理"} onPress={back} />
         <Text style={s.heading}>作者反馈</Text>
+        {threadId ? (
+          <Text style={s.note}>
+            已定位指定讨论；删除、屏蔽或作品不可访问后，不会用收件箱缓存恢复旧正文。
+          </Text>
+        ) : null}
         <Text style={s.note}>
           评论归属作品，不按版本拆分。删除主评论会同时删除全部回复；未发表文字只在本页内存中保留。
         </Text>
@@ -151,6 +183,7 @@ function Feedback({ id, owner }: { id: string; owner: string }) {
           visible={visible && ready}
           onClose={() => setVisible(false)}
           onDirtyChange={setDirty}
+          loadThread={loadThread}
         />
       ) : null}
     </SafeAreaView>
