@@ -8,6 +8,7 @@ import { PublicationFlow } from "../src/publication/flow.ts";
 import { AuthorWorksApi } from "../src/api/author-works.ts";
 import { community, work } from "../src/api/reader.ts";
 import { readVersion } from "../src/api/versions.ts";
+import { readRevisionReview } from "../src/publication/revision-review.ts";
 import type { components } from "../src/api/contract";
 const session = () => {
   let token: string | null = null;
@@ -150,6 +151,10 @@ test("真实API修订发行闭环：同作品追加、丢响应恢复、竞争�
     const target = await directed.revisionTarget(workId);
     assert.equal(target.source.id, draft.draft_id);
     assert.equal(target.source.revision, 2);
+    const reviewed = await readRevisionReview(directed, author, target.state, 2);
+    assert.equal(reviewed.source.content, (await api.source(draft.draft_id)).content);
+    assert.equal(reviewed.current.version, target.state.display_version);
+    assert.equal(reviewed.changed.content, true);
     assert.equal((await api.revisionTarget(otherWorkId)).source.id, secondDraft.draft_id);
     await assert.rejects(other.revisionTarget(workId));
     const draftBeforeIssue = await api.source(draft.draft_id);
@@ -159,6 +164,11 @@ test("真实API修订发行闭环：同作品追加、丢响应恢复、竞争�
       expected_state_revision: state.state_revision,
       action: "hide",
     });
+    await assert.rejects(readRevisionReview(directed, author, target.state, 2),
+      (e: unknown) => e instanceof ApiError && e.code === "revision_review_changed");
+    const hiddenReview = await readRevisionReview(directed, author, await api.state(workId, draft.draft_id), 2);
+    assert.equal(hiddenReview.state.author_hidden, true);
+    await assert.rejects(readRevisionReview(other, new AuthorWorksApi((p, o) => b.authorized(p, o)), target.state, 2));
     const first = await directed.prepare({
       mutation_id: randomUUID(),
       draft_id: draft.draft_id,

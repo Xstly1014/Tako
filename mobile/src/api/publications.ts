@@ -195,6 +195,9 @@ export class PublicationsApi {
 }
 export function publicationMessage(error: unknown) {
   const messages: Record<string, string> = {
+    revision_review_unavailable: "核对读取未完成，请重试读取；尚未生成预览或发布。",
+    revision_review_changed: "核对期间工作稿或作品状态已变化，请重新核对目标作品后再读取；不会自动采用新修订。",
+    revision_review_required: "请先读取并明确采用本次核对修订，再生成固定预览。",
     preview_expired: "预览已过期，请重新准备；草稿和已发布版本不会被删除。",
     source_revision_unavailable:
       "无法读取这份服务器修订，请回草稿箱确认保存后重新选择。",

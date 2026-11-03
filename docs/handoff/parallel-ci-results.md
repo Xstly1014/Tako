@@ -1,6 +1,10 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
-## 当前：作者异常恢复与一致性包
+## 当前：修订发行前核对
+
+见原[M2复盘](../reviews/author-revision-stage-review.md)追加段。122模型、20顺序服务、四组件+C1、类型/lint/契约、7门禁通过；整条真实页面已验证核对/采用R2后另存R3，仍发行R2，R3私稿完整保留。精确CI待源码推送核对，不套用旧结果。原恢复包d1a47c3的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41599964955)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41599964967)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41599964954)均success，已确认整条步骤成功，该包P1退出关闭。main411b614尚未合入这两个增量；N2和设备依赖不变。
+
+## 上一包：作者异常恢复与一致性（历史快照）
 
 同一[整体验收报告](../reviews/author-workflow-live-acceptance-review.md)追加两项产品修复和五处真实提交后故障验证：正常新版恢复资格、管理回执语义校验，以及发布/管理/复核原请求重查与读取失败恢复。本机120模型、20顺序服务、四组件+C1、类型/lint/契约、7门禁及完整HTTP/MySQL页面链路均通过。精确CI待本包源码推送后核对，下面99a1a1b不覆盖此增量。main411b614已独立复核合入上一验收；本包仍交主开发另行整体审查。USB暂停，无原生/外部服务新结果。
 
