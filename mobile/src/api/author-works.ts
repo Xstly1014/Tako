@@ -203,13 +203,33 @@ export class AuthorWorksApi {
   }
   async change(id: string, body: WorkChange) {
     if (!UUID.test(id)) throw new ApiError("invalid_input");
-    return checkedWorkState(
+    const receipt = checkedWorkState(
       await this.transport<WorkState>(`/my/works/${id}/actions`, {
         method: "POST",
         body,
       }),
       id,
     );
+    // No-op actions keep the revision; a changed action advances it once.
+    // A replay can be older than today's state, but must describe this request.
+    if (
+      receipt.state_revision !== body.expected_state_revision &&
+      receipt.state_revision !== body.expected_state_revision + 1
+    )
+      fail();
+    if (
+      (body.action === "hide" && !receipt.author_hidden) ||
+      (body.action === "set_history" &&
+        receipt.history_open !== body.history_open) ||
+      (body.action === "switch_display" &&
+        receipt.display_version !== body.version) ||
+      (body.action === "restore" &&
+        (receipt.author_hidden ||
+          receipt.platform_limited ||
+          receipt.display_version !== (body.version ?? receipt.last_version)))
+    )
+      fail();
+    return receipt;
   }
 }
 // One explicitly confirmed operation per work. Receipts are never current-state reads.

@@ -43,6 +43,7 @@ type Props = {
   valid: () => boolean;
   disabled: boolean;
   canChoose: boolean;
+  restoreLatestRequired?: boolean;
   onChoose: () => void;
   onClose: () => void;
 };
@@ -63,6 +64,7 @@ function VersionDecisionRead({
   valid,
   disabled,
   canChoose,
+  restoreLatestRequired,
   onChoose,
   onClose,
   onRetry,
@@ -173,7 +175,9 @@ function VersionDecisionRead({
             />
           ) : (
             <Text style={s.note}>
-              候选或作品存在限制，或当前状态未确认；可核对本人内容，不能据此变更展示。
+              {restoreLatestRequired
+                ? `最新版 V${state.last_version} 正常，恢复需展示最新版；此候选仍可核对。请在管理区选择恢复最新版本。`
+                : "候选或作品存在限制，或当前状态未确认；可核对本人内容，不能据此变更展示。"}
             </Text>
           )}
         </>
