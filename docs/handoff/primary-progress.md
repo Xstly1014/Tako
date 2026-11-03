@@ -2,9 +2,9 @@
 
 ## N2连续批次 · 最低治理、运营与App公开阅读
 
-本地在d913b30上推进0018、API0.18、书/章/版本独立处置及复核、正式后审、Web `/ops/novels`，以及公开长文列表/目录/当前章API和App `/novel-community`、`/novel/[id]`、`/novel-chapter`。未新增依赖/锁/CI/原生目录。3300保留数据升级18并通过检查，升级前加密备份隔离恢复一致。模型131、App类型/lint、阅读真实组件DOM夹具、Web类型/16单元/2依赖检查已通过；最终全Go与浏览器结果待本批完成补录。详见N2实施复盘末段。
+本地在d913b30上推进0018、API0.18、书/章/版本独立处置及复核、正式后审、Web `/ops/novels`，以及公开长文列表/目录/当前章API和App `/novel-community`、`/novel/[id]`、`/novel-chapter`。未新增依赖/锁/CI/原生目录。3300保留数据升级18并通过检查，升级前加密备份隔离恢复一致。模型131、App类型/lint、阅读真实组件DOM夹具、Web类型/16单元/2依赖检查已通过；全Go race/vet/真实MySQL与请求响应契约通过（HTTP532.950秒），运营四组浏览器夹具通过并人工查看桌面/手机布局。详见N2实施复盘末段。
 
-仍由本端负责App章节发布加密原记录/未知恢复与正式管理接线，不称N2整体完成。同事继续原分工/设备与自有门禁；新增独立 `node scripts/check_novel_reading_components.cjs` 与 `node scripts/check_novel_ops.cjs` 可下一门禁窗口接入，不擅改其CI文件。peer8d79反馈工作台已阅读，待本批交叉审查集成。未跟踪 `.agents/skills/ui-layout-rework/` 来源未核实，保持原状、不纳入本批。
+仍由本端负责App章节发布加密原记录/未知恢复与正式管理接线，不称N2整体完成。同事继续原分工/设备与自有门禁；新增独立 `node scripts/check_novel_reading_components.cjs` 与 `node scripts/check_novel_ops.cjs` 可下一门禁窗口接入，不擅改其CI文件。peer8d79反馈工作台已完成精确审查并正常合入e8c96cd；整合后133模型/7门禁通过，实际作者HTTP/MySQL+DOM整条链路已通过。自然fetch观察新dfe0ff6收件箱，读其进度/范围后留下一窗口，不把未审共享API混进本批。未跟踪 `.agents/skills/ui-layout-rework/` 来源未核实，保持原状、不纳入本批。
 
 
 ## N2 连续推进 · 正式管理与书籍资料审核
@@ -243,3 +243,5 @@ C1-C 最终包为源码 9653d74，60,024,858 字节，SHA-256 `5d1349ae8db62f409
 本轮收口补录：最终 APK 绑定 2cfd6fb，字节数 60,026,558、SHA-256 c5740f459877fb6f6a5d2181a0da18cefbc852b4bf465c75edd9f133a0aef541。4c63ad0 三条远程工作流均成功。推送前重新检查 main 与 peer 的实际引用，不把本文件推送等同于对方已收到/确认。
 
 用户最新分工明确主开发只承担业务/自动化/集成，打包与设备验证由同事负责；每次推送随docs/handoff/device-requests.md发布具体任务，待其progress确认才记已接收。本机聊天工具未显示其另一台电脑会话，继续通过仓库协作技能交接，不称已直接发送跨电脑消息。
+
+整合后实际运行 `node scripts/check_author_workflow_live.cjs` 成功：真实HTTP/MySQL与DOM作者发布、反馈回复/整串删除、丢响应原操作确认、同号恢复和切号隔离；不代表Android原生/真机。133模型、生成契约、类型/lint及7门禁通过。
