@@ -23,9 +23,9 @@ Tako 是一个正在开发的年轻、多元的文字创作社区。你可以分
 <details>
 <summary>展开官网视觉</summary>
 
-![Tako 官网视觉：创作主题与原创二次元看板娘](docs/images/tako-home-desktop.png)
+![Tako 当前官网：动态构图看板娘、社区入口与统一导航](docs/images/readme/website-desktop-current-v2.png)
 
-这是品牌官网的历史视觉截图。官网负责介绍项目，社区负责浏览内容，二者不是同一个首页。Web 社区已支持中篇发现、精选和搜索；后续编排仍会继续调整。
+这是 2026-11-03 从本机当前 Web 测试环境截取的官网，保留测试环境标识。官网负责介绍项目，社区负责浏览内容，二者不是同一个首页。Web 社区已支持中篇发现、精选和搜索；后续编排仍会继续调整。
 
 </details>
 
@@ -117,11 +117,13 @@ Tako 由人和 AI 一起推进：业务选择、实现、审查和真实验证�
 <table>
   <tr>
     <td align="center" width="33%"><a href="https://github.com/Xstly1014"><img src="docs/images/readme/xstly1014-avatar.png" height="120" alt="xstly1014 指定的银发绿瞳 Q 版头像"></a><br><a href="https://github.com/Xstly1014"><strong>xstly1014</strong></a><br>项目发起 · 产品决策<br>开发协作 · 运营与验收</td>
-    <td align="center" width="33%"><img src="docs/images/readme/chatgpt-chibi.webp" height="120" alt="ChatGPT 白发龙娘社区 Q 版形象"><br><strong>ChatGPT</strong><br>业务讨论 · 编码协作<br>测试、审查与文档</td>
-    <td align="center" width="33%"><img src="mobile/assets/tako-chibi.png" height="120" alt="Tako 蓝发章鱼发饰 Q 版看板娘"><br><strong>Tako</strong><br>项目原创品牌形象<br>社区的视觉搭档</td>
+    <td align="center" width="33%"><img src="docs/images/readme/chatgpt-avatar-v2.png" height="120" alt="ChatGPT 静态 Q 版头像：白发紫瞳龙娘"><br><strong>ChatGPT</strong><br>业务讨论 · 编码协作<br>测试、审查与文档</td>
+    <td align="center" width="33%"><img src="docs/images/readme/tako-avatar-v2.png" height="120" alt="Tako 静态 Q 版头像：蓝发章鱼发饰与眨眼比耶"><br><strong>Tako</strong><br>项目原创品牌形象<br>社区的视觉搭档</td>
   </tr>
 </table>
 
-ChatGPT 为 AI 协作工具，Tako 为虚拟品牌角色。xstly1014 使用本人指定的生成头像，点击可访问 GitHub。ChatGPT Q 版来自 [fywdy/chatgpt-chibi-pets](https://github.com/fywdy/chatgpt-chibi-pets)，为非官方同人形象，按 CC BY-NC 4.0 署名用于本文档展示；项目与 OpenAI 无官方合作或背书关系。[图片来源与许可](docs/images/readme/README.md)
+三位采用统一风格的静态 Q 版头像。ChatGPT 为 AI 协作工具，Tako 为虚拟品牌角色；xstly1014 使用本人指定的生成头像，点击可访问 GitHub。ChatGPT 头像基于 [fywdy/chatgpt-chibi-pets](https://github.com/fywdy/chatgpt-chibi-pets) 的非官方同人角色重新绘制，保留 CC BY-NC 4.0 署名与许可，用于本文档展示；项目与 OpenAI 无官方合作或背书关系。[图片来源与许可](docs/images/readme/README.md)
+
+GitHub 右侧的 Contributors 由真实提交和账号关联自动统计，与本区头像分别维护。[如何关联账号与头像](docs/contribution-display.md)
 
 欢迎带着对内容、业务或技术的兴趣参与。提议功能时，说明它解决谁的问题、失败时应该怎样，再讨论实现；开始修改前先核对 [协作边界](docs/handoff/03-parallel-work.md)，避免覆盖并行工作。

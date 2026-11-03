@@ -2,6 +2,8 @@
 
 ## 文档维护 · README图文（2026-11-03）
 
+用户追加纠正：已从当前3300官网匿名重新截图替换旧图；按xstly1014头像画风为ChatGPT/Tako各生成静态方形近景，仅用于README。PNG单帧及浅/深色显示、所有本地链接/图片加载已核验。新增contribution-display说明GitHub侧统计与README展示的区别；只读发现f3196c7未关联作者账号，没有配置Git身份或改写历史。参考源/派生许可/提示词随文档保留，现有App/官网品牌运行素材未替换，无新包/设备任务。
+
 用户要求更新项目README并添加三位Contribution头像。本端仅认领根README、docs/images/readme及自身复盘/进度；保留用户App原型源。读取N1/M2当前记录，7897代理fetch观察main a3e9860、peer60eb6cc无新增。重排产品/能力/规划/开发入口，配三张明确标注的原型图，头像采用网上ChatGPT Q版、已有Tako Q版，以及用户最新指定的本轮生成头像（链接本人GitHub）。上游署名/许可与生成提示词随文档保留。
 
 本地链接检查、全部图片加载、浅/深色实际渲染与人工检查通过，详见[README复盘](../reviews/readme-current-state-review.md)。仅文档/图片，无新运行代码、接口、包或设备任务；既有4c3fa3e设备队列继续。N2业务仍未开始，不把本轮文档更新计作新功能。
