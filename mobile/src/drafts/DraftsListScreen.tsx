@@ -4,11 +4,12 @@ import { router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme as t } from "../theme";
 import type { LocalDraft } from "./model";
+import { LocalChapterBooks } from "../novels/chapters/LocalChapterBooks";
 import type { DraftPage } from "./api";
 import { draftMessage, localAllowed, type DraftTools } from "./workspace";
 
 type Row = { key: string; title: string; local?: LocalDraft; serverId?: string };
-export function DraftsListScreen({ tools }: { tools: DraftTools }) {
+export function DraftsListScreen({ tools, chapterBook }: { tools: DraftTools; chapterBook?: {id:string;title:string} }) {
   const [locals, setLocals] = useState<LocalDraft[]>([]), [servers, setServers] = useState<DraftPage["items"]>([]);
   const [cursor, setCursor] = useState(""), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -48,7 +49,7 @@ export function DraftsListScreen({ tools }: { tools: DraftTools }) {
     let record = row?.local;
     if (!row) record = await tools.local.create(tools.uuid());
     else if (!record && row.serverId) record = await tools.local.cacheServer(await tools.api.read(row.serverId));
-    if (record && same(before.generation, before.drafts.owner)) router.push(`/drafts/${record.id}`);
+    if (record && same(before.generation, before.drafts.owner)) router.push(chapterBook ? `/chapter-edit?book=${chapterBook.id}&id=${record.id}` : `/drafts/${record.id}`);
   };
   const more = async () => {
     const before = tools.current(), page = await tools.api.list(cursor);
@@ -64,18 +65,19 @@ export function DraftsListScreen({ tools }: { tools: DraftTools }) {
   return <SafeAreaView style={s.screen}>
     <View style={s.header}>
       <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/account")} style={s.action}><Text style={s.link}>返回</Text></Pressable>
-      <Text style={s.title}>草稿箱</Text>
-      <Pressable disabled={busy || !visible} onPress={() => void run(() => open())} style={[s.action, busy && s.disabled]}><Text style={s.link}>新建中篇</Text></Pressable>
+      <Text style={s.title}>{chapterBook ? "章节草稿" : "草稿箱"}</Text>
+      <Pressable disabled={busy || !visible} onPress={() => void run(() => open())} style={[s.action, busy && s.disabled]}><Text style={s.link}>{chapterBook ? "新建章节" : "新建中篇"}</Text></Pressable>
     </View>
-    <Pressable accessibilityRole="button" accessibilityLabel="管理私密长文" disabled={busy} onPress={() => router.push("/novels")} style={s.action}><Text style={s.link}>我的长文</Text></Pressable>
+    {!chapterBook ? <Pressable accessibilityRole="button" accessibilityLabel="管理私密长文" disabled={busy} onPress={() => router.push("/novels")} style={s.action}><Text style={s.link}>我的长文</Text></Pressable> : <Text style={[s.meta,{paddingHorizontal:16}]}>{chapterBook.title} · 尚未正式发布</Text>}
+    {!chapterBook ? <LocalChapterBooks /> : null}
     <View style={s.toolbar}><Text style={s.meta}>{identity.drafts.phase === "offline" ? "当前离线，仅显示本机草稿" : "私密草稿，不会自动发布"}</Text><Pressable disabled={loading || busy} onPress={() => void refresh()} style={s.action}><Text style={s.link}>刷新</Text></Pressable></View>
     {error ? <Text accessibilityLiveRegion="polite" style={s.error}>{draftMessage(error)}</Text> : null}
     <FlatList data={visible ? rows : []} keyExtractor={row => row.key}
       renderItem={({ item }) => <Pressable disabled={busy} onPress={() => void run(() => open(item))} style={({ pressed }) => [s.row, pressed && s.pressed]}>
-        <Text style={s.rowTitle} numberOfLines={2}>{item.title || "未命名草稿"}</Text>
+        <Text style={s.rowTitle} numberOfLines={2}>{item.title || (chapterBook ? "未命名章节" : "未命名草稿")}</Text>
         <Text style={s.meta}>{!item.local ? "服务器草稿，打开后可离线续写" : item.local.pending ? "本机暂存，服务器结果待确认" : item.local.dirty ? "本机暂存，待同步" : "已保存到服务器"}</Text>
       </Pressable>}
-      ListEmptyComponent={loading ? <ActivityIndicator color={t.brand} /> : <View style={s.empty}><Text style={s.rowTitle}>还没有本机草稿</Text><Text style={s.meta}>新建中篇，或联网刷新服务器草稿。</Text></View>}
+      ListEmptyComponent={loading ? <ActivityIndicator color={t.brand} /> : <View style={s.empty}><Text style={s.rowTitle}>{chapterBook ? "还没有章节草稿" : "还没有本机草稿"}</Text><Text style={s.meta}>{chapterBook ? "新建一份私密章节，或联网打开已保存章节。" : "新建中篇，或联网刷新服务器草稿。"}</Text></View>}
       ListFooterComponent={cursor ? <Pressable disabled={busy || loading} onPress={() => void run(more)} style={s.action}><Text style={s.link}>加载更多</Text></Pressable> : undefined} />
   </SafeAreaView>;
 }

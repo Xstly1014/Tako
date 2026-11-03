@@ -16,7 +16,8 @@ import (
 // history editor. Recover using Write(recover) to a NEW draft, never rewind one.
 func (s Store) ReadRevision(ctx context.Context, owner, id uuid.UUID, revision uint64) (Draft, error) {
 	d := Draft{ID: id, Revision: revision}
-	err := s.DB.QueryRowContext(ctx, "SELECT r.title,r.content,r.saved_at FROM draft_revisions r JOIN drafts d ON d.id=r.draft_id WHERE r.draft_id=? AND r.revision=? AND d.owner_id=?", id[:], revision, owner[:]).Scan(&d.Title, &d.Content, &d.SavedAt)
+	query, args := s.scoped("SELECT r.title,r.content,r.saved_at FROM draft_revisions r JOIN drafts d ON d.id=r.draft_id WHERE r.draft_id=? AND r.revision=? AND d.owner_id=?", "d", id[:], revision, owner[:])
+	err := s.DB.QueryRowContext(ctx, query, args...).Scan(&d.Title, &d.Content, &d.SavedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Draft{}, ErrNotFound
 	}
@@ -26,11 +27,23 @@ func (s Store) ReadRevision(ctx context.Context, owner, id uuid.UUID, revision u
 // Policy: every save for 24h, latest revision per Shanghai calendar day until
 // 30 days. The current revision is exempt, regardless of age. Bounded batches.
 func (s Store) CleanupRevisions(ctx context.Context, now time.Time) (int, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT r.draft_id,r.revision,d.owner_id FROM draft_revisions r JOIN drafts d ON d.id=r.draft_id
+	if s.Chapter != nil {
+		return s.cleanupRevisions(ctx, now)
+	}
+	n, err := s.cleanupRevisions(ctx, now)
+	if err != nil {
+		return n, err
+	}
+	chapter := Store{DB: s.DB, Chapter: &ChapterScope{}}
+	extra, err := chapter.cleanupRevisions(ctx, now)
+	return n + extra, err
+}
+func (s Store) cleanupRevisions(ctx context.Context, now time.Time) (int, error) {
+	rows, err := s.DB.QueryContext(ctx, s.query(`SELECT r.draft_id,r.revision,d.owner_id FROM draft_revisions r JOIN drafts d ON d.id=r.draft_id
  WHERE r.revision<>d.revision AND (r.saved_at<? OR (r.saved_at<? AND EXISTS(
  SELECT 1 FROM draft_revisions newer WHERE newer.draft_id=r.draft_id AND newer.revision>r.revision
  AND DATE(newer.saved_at + INTERVAL 8 HOUR)=DATE(r.saved_at + INTERVAL 8 HOUR))))
- ORDER BY r.saved_at,r.draft_id,r.revision LIMIT 100`, now.UTC().Add(-30*24*time.Hour), now.UTC().Add(-24*time.Hour))
+ ORDER BY r.saved_at,r.draft_id,r.revision LIMIT 100`), now.UTC().Add(-30*24*time.Hour), now.UTC().Add(-24*time.Hour))
 	if err != nil {
 		return 0, err
 	}
@@ -75,7 +88,7 @@ func (s Store) CleanupRevisions(ctx context.Context, now time.Time) (int, error)
 			tx.Rollback()
 			return removed, e
 		}
-		result, e := tx.ExecContext(ctx, "DELETE r FROM draft_revisions r JOIN drafts d ON d.id=r.draft_id WHERE r.draft_id=? AND r.revision=? AND d.owner_id=? AND r.revision<>d.revision", c.id[:], c.revision, c.owner[:])
+		result, e := tx.ExecContext(ctx, s.query("DELETE r FROM draft_revisions r JOIN drafts d ON d.id=r.draft_id WHERE r.draft_id=? AND r.revision=? AND d.owner_id=? AND r.revision<>d.revision"), c.id[:], c.revision, c.owner[:])
 		if e != nil {
 			tx.Rollback()
 			return removed, e

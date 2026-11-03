@@ -36,7 +36,7 @@ func TestMySQLSaveInvariants(t *testing.T) {
 		db.Exec("DELETE FROM drafts WHERE owner_id=?", owner[:])
 		db.Exec("DELETE FROM accounts WHERE id IN (?,?)", owner[:], other[:])
 	})
-	s := Store{db}
+	s := Store{DB: db}
 	create := Write{MutationID: uuid.New(), Title: "标题", Content: "原始文字"}
 	first, err := s.Write(ctx, owner, "create", create)
 	if err != nil {

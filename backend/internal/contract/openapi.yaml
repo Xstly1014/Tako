@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.13.0
+  version: 0.14.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,197 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novels/{id}/chapters:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: listPrivateChapters
+      tags: [长文]
+      summary: 本人私密章节工作稿
+      description: 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+          description: 账号和书绑定的创建时间游标，每页最多20条
+      responses:
+        '200':
+          description: 本人私密章节的查询或原提交确认
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChapterPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapter-drafts:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: listChapterDrafts
+      tags: [长文]
+      summary: 本人私密章节工作稿
+      description: 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+          description: 账号和书绑定的创建时间游标，每页最多20条
+      responses:
+        '200':
+          description: 本人私密章节的查询或原提交确认
+          content:
+            application/json:
+              schema: {$ref: '#/paths/~1api~1drafts/get/responses/200/content/application~1json/schema'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapter-drafts/{draft}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: draft
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: readChapterDraft
+      tags: [长文]
+      summary: 本人私密章节工作稿
+      description: 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+      responses:
+        '200':
+          description: 本人私密章节的查询或原提交确认
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Draft'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapter-drafts/create:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: createChapterDraft
+      tags: [长文]
+      summary: 本人私密章节工作稿
+      description: 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateDraft'}
+      responses:
+        '200':
+          description: 本人私密章节的查询或原提交确认
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WriteResult'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapter-drafts/save:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: saveChapterDraft
+      tags: [长文]
+      summary: 本人私密章节工作稿
+      description: 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SaveDraft'}
+      responses:
+        '200':
+          description: 本人私密章节的查询或原提交确认
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WriteResult'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapter-drafts/recover:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: recoverChapterAsNew
+      tags: [长文]
+      summary: 本人私密章节工作稿
+      description: 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecoverDraft'}
+      responses:
+        '200':
+          description: 本人私密章节的查询或原提交确认
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WriteResult'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/novels:
     get:
       operationId: listPrivateNovels
@@ -2238,6 +2429,26 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ChapterSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, draft_id, revision, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, maxLength: 200}
+        draft_id: {type: string, format: uuid}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        created_at: {type: string, format: date-time}
+    ChapterPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/ChapterSummary'}
+        next_cursor: {type: string, maxLength: 512}
     NovelTags:
       type: array
       minItems: 1

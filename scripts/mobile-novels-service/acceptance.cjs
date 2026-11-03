@@ -28,5 +28,28 @@ const root=path.resolve(__dirname,"../.."),file=path.join(root,".runtime/novels/
  await assert.rejects(api.write(book.id,{...input,mutation_id:randomUUID(),base_revision:1}),e=>e instanceof ApiError&&e.code==="novel_revision_conflict");
  assert.equal((await api.receipt(input.mutation_id)).revision,1);assert.equal((await api.read(book.id)).title,"合成当前资料");
  await assert.rejects(request("/my/novels"),e=>e instanceof ApiError&&e.status===401);
+ const {chapterDraftsApi}=await import("../../mobile/src/novels/chapters/api.ts");
+ const {ChapterStorage}=await import("../../mobile/src/novels/chapters/storage.ts");
+ const {DraftSynchronizer}=await import("../../mobile/src/drafts/sync.ts");
+ const {fixture}=await import("../../mobile/tests/helpers/drafts.ts");
+ const f=await fixture();
+ try{
+  const owner=accounts[0].id,chapterApi=chapterDraftsApi((route,opts)=>request(route,{...opts,token:accounts[0].token}),book.id);
+  const first=await chapterApi.write({kind:"create",seq:1,body:{mutation_id:randomUUID(),title:"HTTP首章😀",content:"合成章节正文"}});
+  await assert.rejects(request(`/my/novels/${book.id}/chapter-drafts/${first.draft_id}`,{token:accounts[1].token}),e=>e.status===404);
+  await assert.rejects(request(`/drafts/${first.draft_id}`,{token:accounts[0].token}),e=>e.status===404);
+  await assert.rejects(request("/publication-previews",{method:"POST",token:accounts[0].token,body:{mutation_id:randomUUID(),draft_id:first.draft_id,source_revision:1,rights_confirmed:true,tags:["幻想"],introduction:""}}),e=>e.status===404);
+  const storage=new ChapterStorage(f.rows,f.cipher),repo=storage.repository(book.id),local=randomUUID();await storage.cacheBook(owner,{id:book.id,title:book.title});
+  await repo.create(owner,local,"HTTP恢复章","本机冲突内容");await repo.change(owner,local,row=>({...row,serverId:first.draft_id,baseRevision:1}));
+  await chapterApi.write({kind:"save",seq:2,body:{mutation_id:randomUUID(),draft_id:first.draft_id,base_revision:1,title:"服务器原章",content:"合成另一端内容"}});
+  let drop=true;const apiWithDrop={me:()=>chapterApi.me(),read:id=>chapterApi.read(id),async write(pending){const result=await chapterApi.write(pending);if(drop&&pending.kind==="recover"){drop=false;throw new ApiError("network");}return result;}};
+  const identity=()=>({owner,generation:1,online:true});const lost=await new DraftSynchronizer(repo,apiWithDrop,identity,randomUUID).sync(owner,local);assert.equal(lost.state,"pending");
+  const recovered=await new DraftSynchronizer(storage.repository(book.id),chapterApi,identity,randomUUID).sync(owner,local);assert.equal(recovered.state,"recovered");assert.notEqual(recovered.record.serverId,first.draft_id);
+  let chapters=await request(`/my/novels/${book.id}/chapters`,{token:accounts[0].token});assert.equal(chapters.items.length,2);assert.equal(new Set(chapters.items.map(x=>x.id)).size,2);
+  const record=await repo.load(owner,local);await repo.edit(owner,local,record.seq,"HTTP恢复章","合成恢复章继续写");const saved=await new DraftSynchronizer(repo,chapterApi,identity,randomUUID).sync(owner,local);assert.equal(saved.state,"saved");
+  assert.equal((await chapterApi.read(first.draft_id)).content,"合成另一端内容");assert.equal((await chapterApi.read(saved.record.serverId)).content,"合成恢复章继续写");
+  chapters=await request(`/my/novels/${book.id}/chapters`,{token:accounts[0].token});assert.equal(chapters.items.length,2);
+  console.log("PASS real chapter client/synchronizer, independent recovery and old-middle-form isolation with HTTP/MySQL.");
+ }finally{f.close();}
  console.log("PASS real App novels client/writer with loopback HTTP and MySQL; no device claim.");
 })().catch(()=>{console.error("FAIL novels live acceptance; synthetic account cleanup required");process.exitCode=1;});

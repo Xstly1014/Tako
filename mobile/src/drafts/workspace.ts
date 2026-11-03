@@ -5,6 +5,7 @@ import type { DraftsApi } from "./api.ts";
 import type { DraftSyncResult } from "./sync.ts";
 
 export type DraftTools = {
+  channel?: "chapter";
   local: AuthorizedDrafts;
   api: DraftsApi;
   current(): LocalIdentity;
@@ -24,6 +25,7 @@ export function draftMessage(error: unknown) {
     invalid_input: "标题最多 200 字符，正文最多 1 MiB；超出内容仍保留在输入框。",
     account_mismatch: "草稿已锁定，请用原账号登录并恢复。",
   }[error.code];
+  if (error instanceof ApiError && error.code === "chapter_publication_unavailable") return "章节发布尚未开放，私密草稿仍保留。";
   if (error instanceof ApiError && error.code === "draft_handoff_unconfirmed") return "请先同步当前输入，再准备发布。";
   if (error instanceof ApiError && error.code === "draft_handoff_changed") return "内容或账号已变化，请核对并同步后重新准备发布。";
   if (error instanceof ApiError && error.code === "nickname_required") return "请先在“我的”中设置笔名；本机文字仍保留。";
@@ -156,13 +158,13 @@ export class DraftEditor {
   private publicationReady() {
     const { record, title, content, loading, saving, syncing } = this.state;
     const identity = this.tools.current();
-    return localAllowed(identity, this.owner) && identity.drafts.phase === "online" &&
+    return this.tools.channel !== "chapter" && localAllowed(identity, this.owner) && identity.drafts.phase === "online" &&
       !loading && !saving && !syncing && !this.writing && !!record && record.owner === this.owner &&
       record.id === this.localId && !record.dirty && record.pending === null &&
       record.title === title && record.content === content && id(record.serverId) &&
       integer(record.baseRevision, 1) && date(record.savedAt);
   }
-  private handoffError(code: "draft_handoff_unconfirmed" | "draft_handoff_changed"): never {
+  private handoffError(code: "draft_handoff_unconfirmed" | "draft_handoff_changed" | "chapter_publication_unavailable"): never {
     const error = new ApiError(code); this.update({ error }); throw error;
   }
   private matchesTicket(ticket: PublicationTicket, record: LocalDraft | null) {
@@ -176,6 +178,7 @@ export class DraftEditor {
       this.state.record.baseRevision === ticket.revision;
   }
   async preparePublication(): Promise<PublicationTicket> {
+    if (this.tools.channel === "chapter") this.handoffError("chapter_publication_unavailable");
     if (!this.canPreparePublication()) this.handoffError("draft_handoff_unconfirmed");
     const generation = this.capture(), record = this.state.record!;
     const ticket = Object.freeze({ draftId: record.serverId!, revision: record.baseRevision,

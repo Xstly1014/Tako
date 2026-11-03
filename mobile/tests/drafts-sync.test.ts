@@ -494,3 +494,33 @@ test("编辑器：另存期间继续输入只写副本，完成切换前排空�
   assert.equal(f.editor.snapshot().error, null);
   assert.equal(f.api.calls.length, 0);
 });
+
+import { chapterDraftsApi } from "../src/novels/chapters/api.ts";
+import { ChapterStorage } from "../src/novels/chapters/storage.ts";
+import { fixture as chapterFixture } from "./helpers/drafts.ts";
+test("N1-B：冲突恢复的新稿继续通过书级入口同步，原稿不覆盖，丢回应不多建章",async ctx=>{
+ const f=await chapterFixture();ctx.after(f.close);const owner=randomUUID(),book=randomUUID(),local=randomUUID(),source=randomUUID(),recovered=randomUUID();
+ const storage=new ChapterStorage(f.rows,f.cipher),repo=storage.repository(book);await storage.cacheBook(owner,{id:book,title:"同步合成书"});
+ await repo.create(owner,local,"初稿","本机新内容");await repo.change(owner,local,row=>({...row!,serverId:source,baseRevision:1}));
+ const original={id:source,title:"服务器原章",content:"另一端已保存",revision:2,saved_at:new Date().toISOString()};let receipt:unknown=null,creates=0,drop=true,receivedMutation="";
+ const paths:string[]=[];
+ const api=chapterDraftsApi(async<T>(path:string,options?:Parameters<import("../src/auth/session.ts").Transport>[1])=>{
+  paths.push(path);
+  if(path==="/me")return {id:owner,nickname:"章节作者"} as T;
+  if(path===`/my/novels/${book}/chapter-drafts/${source}`)return original as T;
+  if(path===`/my/novels/${book}/chapter-drafts/recover`){const body=options!.body as {mutation_id:string};if(!receipt){creates++;receivedMutation=body.mutation_id;receipt={draft_id:recovered,revision:1,saved_at:new Date().toISOString()};}else assert.equal(body.mutation_id,receivedMutation);if(drop){drop=false;throw new ApiError("network");}return receipt as T;}
+  throw new Error("unexpected_route");
+ },book);
+ const identity=()=>({owner,generation:1,online:true});
+ const first=await new DraftSynchronizer(repo,api,identity,randomUUID).sync(owner,local);assert.equal(first.state,"pending");assert.equal((await repo.load(owner,local))?.pending?.kind,"recover");
+ const second=await new DraftSynchronizer(storage.repository(book),api,identity,randomUUID).sync(owner,local);assert.equal(second.state,"recovered");assert.equal(second.record?.serverId,recovered);assert.equal(second.record?.recoveredFrom,source);assert.equal(creates,1);assert.equal(original.content,"另一端已保存");
+ assert.equal(paths.some(path=>path.startsWith("/drafts")),false);
+});
+
+test("N1-B：已同步章节也不能领取中篇发布票据，原中篇默认能力不变",async ctx=>{
+ const f=await editorFixture(ctx);await f.tools.sync(f.key);
+ const {DraftEditor}=await import("../src/drafts/workspace.ts");
+ const chapter=new DraftEditor(f.owner,f.key,{...f.tools,channel:"chapter"});await chapter.load();
+ assert.equal(chapter.canPreparePublication(),false);await assert.rejects(chapter.preparePublication(),e=>e instanceof ApiError&&e.code==="chapter_publication_unavailable");
+ await f.editor.load();assert.equal(f.editor.canPreparePublication(),true);
+});

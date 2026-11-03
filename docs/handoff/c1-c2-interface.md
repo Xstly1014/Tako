@@ -43,3 +43,8 @@ C2 重新通过当前会话读取本人服务器稿件；路由参数只指定�
 | C1 recovered 且有新编辑 | 只读核对同步器分支；不是本轮编辑页实测 | 主开发依据最新 record 与当前编辑状态接线；集成时复验 |
 
 完整运行结果与远程 SHA 见 [parallel-ci-results](parallel-ci-results.md)。没有本轮 APK、ECS 或真机结果；未改 C1、会话、锁文件、构建配置及主开发汇总文件。
+
+
+## 2026-11-03 · 章节工作稿例外
+
+主开发新增可选DraftTools.channel="chapter"；未设置的既有中篇行为不变。章节模式即使已同步，也不能通过DraftEditor.preparePublication领取中篇票据；返回chapter_publication_unavailable。UI不显示中篇发布入口，服务端旧publication-previews同时拒绝novel_id非空的稿件。N2正式章发布将另定契约，不让C2猜书／章归属。

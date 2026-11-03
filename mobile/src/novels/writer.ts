@@ -142,6 +142,7 @@ export class BookWriter {
   }
   private async send(pending: PendingBook, lookup: boolean) {
     let result: Novel;
+    let writing = false;
     try {
       if (lookup) {
         try {
@@ -149,9 +150,13 @@ export class BookWriter {
         } catch (e) {
           if (!(e instanceof ApiError) || e.status !== 404) throw e;
           if (!this.valid()) return;
+          writing = true;
           result = await this.api.write(pending.target, pending.input);
         }
-      } else result = await this.api.write(pending.target, pending.input);
+      } else {
+        writing = true;
+        result = await this.api.write(pending.target, pending.input);
+      }
       checkedNovel(result, pending.target ?? undefined);
       if (
         result.revision !== pending.input.base_revision + 1 ||
@@ -162,7 +167,11 @@ export class BookWriter {
         throw new ApiError("contract");
     } catch (e) {
       if (!this.valid()) return;
-      if (e instanceof ApiError && [400, 404, 409, 429].includes(e.status)) {
+      if (
+        writing &&
+        e instanceof ApiError &&
+        [400, 404, 409, 429].includes(e.status)
+      ) {
         // Known rejection leaves the form untouched; don't spin retries against CAS.
         this.update({ phase: "rejected", error: e });
         try {

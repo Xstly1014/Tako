@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -47,7 +48,7 @@ func TestContractRouteCoverage(t *testing.T) {
 		if !strings.HasPrefix(route.Path, "/api/") {
 			continue
 		}
-		path := strings.ReplaceAll(strings.ReplaceAll(route.Path, ":id", "{id}"), ":number", "{number}")
+		path := regexp.MustCompile(`:([A-Za-z][A-Za-z0-9_]*)`).ReplaceAllString(route.Path, "{$1}")
 		item := doc.Paths.Value(path)
 		if item == nil || item.GetOperation(route.Method) == nil {
 			t.Fatalf("undocumented route: %s %s", route.Method, path)

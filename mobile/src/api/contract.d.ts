@@ -4,6 +4,139 @@
  */
 
 export interface paths {
+  "/api/my/novels/{id}/chapters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人私密章节工作稿
+     * @description 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+     */
+    get: operations["listPrivateChapters"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-drafts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人私密章节工作稿
+     * @description 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+     */
+    get: operations["listChapterDrafts"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-drafts/{draft}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        draft: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人私密章节工作稿
+     * @description 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+     */
+    get: operations["readChapterDraft"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-drafts/create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人私密章节工作稿
+     * @description 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+     */
+    post: operations["createChapterDraft"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-drafts/save": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人私密章节工作稿
+     * @description 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+     */
+    post: operations["saveChapterDraft"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-drafts/recover": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人私密章节工作稿
+     * @description 会话账号与书作用域共同判权。首次创建或冲突恢复在同一事务建立独立章节及其工作稿，恢复不覆盖原章；均不形成正式发布或序号。原标识／固定载荷重试不再建章，目标书参与幂等散列。旧中篇接口不能读取或发布章稿。
+     */
+    post: operations["recoverChapterAsNew"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novels": {
     parameters: {
       query?: never;
@@ -1014,6 +1147,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ChapterSummary: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      /** Format: uuid */
+      draft_id: string;
+      revision: number;
+      /** Format: date-time */
+      created_at: string;
+    };
+    ChapterPage: {
+      items: components["schemas"]["ChapterSummary"][];
+      next_cursor: string;
+    };
     NovelTags: ("幻想" | "冒险" | "日常" | "情感" | "悬疑" | "科幻")[];
     PrivateNovel: {
       /** Format: uuid */
@@ -1603,7 +1750,7 @@ export interface components {
         "application/json": components["schemas"]["Error"];
       };
     };
-    /** @description revision_conflict、mutation_id_reused、delivery_id_reused 或 nickname_required；客户端分别处理，不循环重试 */
+    /** @description revision_conflict、novel_revision_conflict（书籍资料已变化）、mutation_id_reused、delivery_id_reused 或 nickname_required；客户端分别处理，不循环重试 */
     Conflict: {
       headers: {
         [name: string]: unknown;
@@ -1629,6 +1776,217 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listPrivateChapters: {
+    parameters: {
+      query?: {
+        /** @description 账号和书绑定的创建时间游标，每页最多20条 */
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人私密章节的查询或原提交确认 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listChapterDrafts: {
+    parameters: {
+      query?: {
+        /** @description 账号和书绑定的创建时间游标，每页最多20条 */
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人私密章节的查询或原提交确认 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": paths["/api/drafts"]["get"]["responses"]["200"]["content"]["application/json"]["schema"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readChapterDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        draft: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人私密章节的查询或原提交确认 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Draft"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  createChapterDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateDraft"];
+      };
+    };
+    responses: {
+      /** @description 本人私密章节的查询或原提交确认 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WriteResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  saveChapterDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SaveDraft"];
+      };
+    };
+    responses: {
+      /** @description 本人私密章节的查询或原提交确认 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WriteResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  recoverChapterAsNew: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecoverDraft"];
+      };
+    };
+    responses: {
+      /** @description 本人私密章节的查询或原提交确认 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WriteResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listPrivateNovels: {
     parameters: {
       query?: {

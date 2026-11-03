@@ -14,6 +14,14 @@ for row in rows:
  # Exact generated email; no user content or credentials appear in command text/log.
  queries.extend([
   f"SET @fixture_id=(SELECT id FROM accounts WHERE email='{email}');",
+  "UPDATE novel_chapters SET primary_draft_id=NULL WHERE owner_id=@fixture_id;",
+  "UPDATE chapter_drafts SET recovered_from_id=NULL WHERE owner_id=@fixture_id;",
+  "DELETE FROM chapter_draft_mutations WHERE owner_id=@fixture_id;",
+  "DELETE FROM chapter_drafts WHERE owner_id=@fixture_id;",
+  "UPDATE drafts SET recovered_from_id=NULL WHERE owner_id=@fixture_id;",
+  "DELETE FROM draft_mutations WHERE owner_id=@fixture_id;",
+  "DELETE FROM drafts WHERE owner_id=@fixture_id;",
+  "DELETE FROM novel_chapters WHERE owner_id=@fixture_id;",
   "DELETE FROM novel_mutations WHERE owner_id=@fixture_id;",
   "DELETE FROM novels WHERE owner_id=@fixture_id;",
   "DELETE FROM sessions WHERE account_id=@fixture_id;",

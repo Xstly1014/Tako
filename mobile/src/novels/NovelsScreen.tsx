@@ -360,11 +360,20 @@ export function BooksWorkspace({
         ) : null}
         {editing ? (
           <>
+            {target ? (
+              <Button
+                label="打开章节草稿"
+                disabled={blocked}
+                onPress={() =>
+                  askLeave(() => router.push(`/novel-drafts?book=${target}`))
+                }
+              />
+            ) : null}
             <Text style={s.label}>
               {target ? "编辑书籍资料" : "建立私密书籍"}
             </Text>
             <Text style={s.meta}>
-              只有你能看到。章节写作和公开发布将分阶段开放。
+              只有你能看到。章节可私密写作，公开发布尚未开放。
             </Text>
             <Text style={s.label}>书名</Text>
             <TextInput

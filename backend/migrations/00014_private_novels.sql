@@ -23,5 +23,9 @@ CREATE TABLE novel_mutations (
  CONSTRAINT novel_mutations_novel_fk FOREIGN KEY(novel_id) REFERENCES novels(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 -- +goose Down
+DROP TEMPORARY TABLE IF EXISTS tako_novel_rollback_guard;
+CREATE TEMPORARY TABLE tako_novel_rollback_guard(n BIGINT NOT NULL CHECK(n=0));
+INSERT INTO tako_novel_rollback_guard SELECT COUNT(*) FROM novels;
+DROP TEMPORARY TABLE tako_novel_rollback_guard;
 DROP TABLE novel_mutations;
 DROP TABLE novels;

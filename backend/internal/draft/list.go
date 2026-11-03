@@ -21,6 +21,8 @@ type Page struct {
 	NextCursor string    `json:"next_cursor"`
 }
 type cursor struct {
+	NovelID   uuid.UUID `json:"novel_id,omitzero"`
+	ChapterID uuid.UUID `json:"chapter_id,omitzero"`
 	Owner     uuid.UUID `json:"owner"`
 	CreatedAt time.Time `json:"created_at"`
 	ID        uuid.UUID `json:"id"`
@@ -30,8 +32,12 @@ func (s Store) List(ctx context.Context, owner uuid.UUID, limit int, token strin
 	if owner == uuid.Nil || limit < 1 || limit > 100 || len(token) > 512 {
 		return Page{}, ErrInvalid
 	}
+	if err := s.parent(ctx, owner); err != nil {
+		return Page{}, err
+	}
 	query := "SELECT id,title,revision,updated_at,created_at,recovered_from_id FROM drafts WHERE owner_id=?"
 	args := []any{owner[:]}
+	query, args = s.scoped(query, "", args...)
 	if token != "" {
 		raw, err := base64.RawURLEncoding.DecodeString(token)
 		if err != nil {
@@ -39,6 +45,13 @@ func (s Store) List(ctx context.Context, owner uuid.UUID, limit int, token strin
 		}
 		var c cursor
 		if err = json.Unmarshal(raw, &c); err != nil || c.Owner != owner || c.ID == uuid.Nil || c.CreatedAt.IsZero() {
+			return Page{}, ErrInvalid
+		}
+		if s.Chapter == nil {
+			if c.NovelID != uuid.Nil || c.ChapterID != uuid.Nil {
+				return Page{}, ErrInvalid
+			}
+		} else if c.NovelID != s.Chapter.NovelID || c.ChapterID != s.Chapter.ChapterID {
 			return Page{}, ErrInvalid
 		}
 		query += " AND (created_at<? OR (created_at=? AND id<?))"
@@ -77,7 +90,12 @@ func (s Store) List(ctx context.Context, owner uuid.UUID, limit int, token strin
 	if len(page.Items) > limit {
 		page.Items = page.Items[:limit]
 		last := page.Items[limit-1]
-		raw, err := json.Marshal(cursor{owner, last.CreatedAt, last.ID})
+		c := cursor{Owner: owner, CreatedAt: last.CreatedAt, ID: last.ID}
+		if s.Chapter != nil {
+			c.NovelID = s.Chapter.NovelID
+			c.ChapterID = s.Chapter.ChapterID
+		}
+		raw, err := json.Marshal(c)
 		if err != nil {
 			return Page{}, err
 		}

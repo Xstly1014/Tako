@@ -6,6 +6,7 @@ async function runFixture(){
   build.onResolve({filter:/^expo-router$/},()=>({path:path.join(__dirname,"../mobile-drafts-ui/router.jsx")}));
   build.onResolve({filter:/^expo-crypto$/},()=>({path:path.join(__dirname,"../mobile-drafts-ui/crypto.jsx")}));
   build.onResolve({filter:/^react-native-svg$/},()=>({path:path.join(__dirname,"../mobile-versions-ui/svg.jsx")}));
+  build.onResolve({filter:/chapters\/native$/},()=>({path:path.join(__dirname,"../mobile-drafts-ui/chapters.jsx")}));
   build.onResolve({filter:/\/auth\/context$|^\.\/native$/},()=>({path:path.join(__dirname,"stub.jsx")}));
  }}]});
  const browser=await chromium.launch({headless:true}),page=await browser.newPage();

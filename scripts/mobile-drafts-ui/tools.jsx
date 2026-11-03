@@ -13,7 +13,7 @@ const store = { read: async (o, id) => rows.get(o + "/" + id) ?? null,
     queue = result.catch(() => undefined); return result;
   } };
 const keys = new Map();
-const cipher = {
+export const cipher = {
   async seal(owner, context, plain, allowNew) {
     if (!keys.has(owner)) { if (!allowNew) throw new Error("missing_key"); keys.set(owner, await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"])); }
     const iv = crypto.getRandomValues(new Uint8Array(12)), bytes = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(context) }, keys.get(owner), new TextEncoder().encode(plain)));
@@ -27,6 +27,7 @@ const cipher = {
 const repo = new DraftRepository(store, cipher), server = new Map(), receipts = new Map();
 const revisions = new Map(), previews = new Map(), works = new Map();
 export async function fixtureHttp(path, options) {
+  if(window.chapterUi && path.startsWith("/my/novels"))return window.chapterUi.http(path,options);
   if (path === "/my/novels") return { items: [], next_cursor: "" };
   if (path === "/me") return session.snapshot().account;
   if (path === "/drafts" || path.startsWith("/drafts?")) return { items: [...server.values()].map(x => ({ ...x, created_at: x.saved_at, recovered_from: null })), next_cursor: "" };

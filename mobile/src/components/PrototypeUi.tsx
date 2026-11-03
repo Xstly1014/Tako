@@ -137,7 +137,7 @@ export function BottomNavigation({
           <View style={s.createHeading}><Text style={s.createTitle}>开始创作</Text><Pressable accessibilityLabel="关闭创作面板" onPress={() => setCreating(false)} style={s.createOption}><Text style={s.createLink}>关闭</Text></Pressable></View>
           <Pressable accessibilityLabel="短内容创作，尚未开放" onPress={() => unavailable("短内容创作")} style={s.createOption}><Text style={s.createTitle}>短内容</Text><Text style={s.createMeta}>尚未开放</Text></Pressable>
           <Pressable accessibilityLabel="中篇创作" onPress={() => { setCreating(false); router.push("/drafts"); }} style={s.createOption}><Text style={[s.createTitle, { color: t.brand }]}>中篇</Text><Text style={s.createMeta}>新建或继续写完整的故事</Text></Pressable>
-          <Pressable accessibilityLabel="长文创作，尚未开放" onPress={() => unavailable("长文创作")} style={s.createOption}><Text style={s.createTitle}>长文</Text><Text style={s.createMeta}>尚未开放</Text></Pressable>
+          <Pressable accessibilityLabel="长文创作" onPress={() => { setCreating(false); router.push("/novels"); }} style={s.createOption}><Text style={s.createTitle}>长文</Text><Text style={s.createMeta}>开书与私密章节写作</Text></Pressable>
         </View></View>
       </Modal>
       <Pressable

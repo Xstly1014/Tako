@@ -1,6 +1,13 @@
 # 主开发工作进度
 
-## 当前认领 · N1-A 私密开书与资料
+## 当前认领 · N1-B 私密章节工作稿（本机进行中）
+
+2026-11-03，main e675fcc / peer8e1e716，代理fetch无新增。已核验N1-A精确提交的Frontend／Backend／Mobile均success（链接待阶段复盘收口）。用户授权继续；本轮读business-first／tako-collab、移动约束和原草稿机制。
+
+认领ADR002、私密章节表和Draft Store显式章作用域、旧中篇读取／发布源隔离、新章节路由／契约／生成类型及对应测试；App章节工具、私密书籍入口、PrototypeUi底部创作面板的长文入口（仅路由与文案）、C1共享列表／编辑器的章节模式和auth/context未同步计数沿主开发C1／novels范围；使用独立加密域与原同步器，不改旧密文格式。不改同事M1/C2／CI／依赖锁，不做包／USB／ECS。用户已确认恢复副本为独立新章节草稿；后端恢复原子创建新章，App按书读取恢复后的新稿，不发布／不占正式序号。当前尚未提交／推送。
+
+
+## 上阶段 · N1-A 私密开书与资料
 
 2026-11-03，用户授权开发。先普通合入同事3e7c046导航修复，阶段再次fetch见8e1e716已普通合入；读取其最新progress，USB暂停，继续不做包／设备。主开发认领backend/internal/novel/**、httpapi/novels*、00014、OpenAPI及生成声明，mobile/src/novels/**、api/novels、app/novels、自己C1列表的入口与存储测试、独立小说夹具和现有C1业务门禁；不改同事M1/C2/CI工作流／诊断分类／依赖锁。
 

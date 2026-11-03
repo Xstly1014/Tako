@@ -9,13 +9,13 @@ import { draftMessage, DraftEditor, editorStatus, automaticSyncAllowed } from ".
 
 const INPUT_SYNC_DELAY_MS = 1200;
 const RETRY_SYNC_MS = 15000;
-export function DraftEditorScreen({ editor, onCopied }: { editor: DraftEditor; onCopied: (key: string) => void }) {
+export function DraftEditorScreen({ editor, onCopied, chapterBook }: { editor: DraftEditor; onCopied: (key: string) => void; chapterBook?: string }) {
   const state = useSyncExternalStore(editor.subscribe, editor.snapshot), focused = useIsFocused();
   const { drafts } = useSession();
-  const leave = () => router.canGoBack() ? router.back() : router.replace("/drafts");
+  const leave = () => router.canGoBack() ? router.back() : router.replace(chapterBook ? `/novel-drafts?book=${chapterBook}` : "/drafts");
   const unsaved = editor.hasUnstored();
   const needsSync = !!state.record && (state.record.dirty || !!state.record.pending || unsaved);
-  const publishReady = editor.canPreparePublication();
+  const publishReady = !chapterBook && editor.canPreparePublication();
   const retry = () => {
     const current = editor.snapshot();
     if (editor.hasUnstored()) return editor.save();
@@ -41,17 +41,17 @@ export function DraftEditorScreen({ editor, onCopied }: { editor: DraftEditor; o
   return <SafeAreaView style={s.screen}>
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
-        <Pressable onPress={leave} style={s.action}><Text style={s.link}>草稿箱</Text></Pressable>
-        <Text style={s.heading}>中篇草稿</Text>
-        <Pressable accessibilityRole="button" disabled={!publishReady} onPress={() => void prepare()} style={[s.publish, !publishReady && s.disabled]}><Text style={s.publishText}>{state.preparing ? "正在核对" : "准备发布"}</Text></Pressable>
+        <Pressable onPress={leave} style={s.action}><Text style={s.link}>{chapterBook ? "章节列表" : "草稿箱"}</Text></Pressable>
+        <Text style={s.heading}>{chapterBook ? "章节草稿" : "中篇草稿"}</Text>
+        {!chapterBook ? <Pressable accessibilityRole="button" disabled={!publishReady} onPress={() => void prepare()} style={[s.publish, !publishReady && s.disabled]}><Text style={s.publishText}>{state.preparing ? "正在核对" : "准备发布"}</Text></Pressable> : <View style={{width:64}}/>}
       </View>
-      <View style={s.status}><Text accessibilityLiveRegion="polite" style={s.meta}>{editorStatus(state)}</Text>{state.record?.recoveredFrom ? <Text style={s.meta}>已另存恢复副本，原稿保留</Text> : null}</View>
-      {state.error ? <View style={s.errorBox}><Text style={s.error}>{draftMessage(state.error)}</Text><Pressable onPress={() => void retry().catch(() => undefined)} style={s.action}><Text style={s.link}>重试</Text></Pressable>{state.error instanceof DraftError && state.error.code === "local_conflict" ? <Pressable onPress={() => void editor.saveAsCopy().then(onCopied).catch(() => undefined)} style={s.action}><Text style={s.link}>另存本机副本</Text></Pressable> : null}</View> : null}
+      <View style={s.status}><Text accessibilityLiveRegion="polite" style={s.meta}>{editorStatus(state)}</Text>{state.record?.recoveredFrom ? <Text style={s.meta}>{chapterBook ? "已另存为新章节草稿，原章保留" : "已另存恢复副本，原稿保留"}</Text> : null}</View>
+      {state.error ? <View style={s.errorBox}><Text style={s.error}>{draftMessage(state.error)}</Text><Pressable onPress={() => void retry().catch(() => undefined)} style={s.action}><Text style={s.link}>重试</Text></Pressable>{state.error instanceof DraftError && state.error.code === "local_conflict" ? <Pressable onPress={() => void editor.saveAsCopy().then(onCopied).catch(() => undefined)} style={s.action}><Text style={s.link}>{chapterBook ? "另存新章节草稿" : "另存本机副本"}</Text></Pressable> : null}</View> : null}
       {state.loading ? <ActivityIndicator color={t.brand} /> : state.record ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
         <TextInput accessibilityLabel="草稿标题" value={state.title} onChangeText={value => editor.input(value, state.content)} placeholder="标题" style={s.inputTitle} underlineColorAndroid="transparent" />
         <TextInput accessibilityLabel="草稿正文" value={state.content} onChangeText={value => editor.input(state.title, value)} placeholder="开始写正文" multiline textAlignVertical="top" style={s.body} underlineColorAndroid="transparent" />
       </ScrollView> : null}
-      <View style={s.footer}><Text style={[s.meta, s.footerCopy]}>{drafts.phase === "offline" ? "联网校验账号后可准备发布。" : "先同步当前输入，再准备发布。"}仅本机暂存无法抵抗卸载或清除 App 数据。</Text><Pressable disabled={state.loading || state.syncing || state.preparing || !state.record} onPress={() => void editor.synchronize().catch(() => undefined)} style={[s.action, (state.loading || state.syncing || state.preparing || !state.record) && s.disabled]}><Text style={s.link}>{state.syncing ? "同步中" : "同步"}</Text></Pressable></View>
+      <View style={s.footer}><Text style={[s.meta, s.footerCopy]}>{chapterBook ? "私密章节不会自动发布。" : drafts.phase === "offline" ? "联网校验账号后可准备发布。" : "先同步当前输入，再准备发布。"}仅本机暂存无法抵抗卸载或清除 App 数据。</Text><Pressable disabled={state.loading || state.syncing || state.preparing || !state.record} onPress={() => void editor.synchronize().catch(() => undefined)} style={[s.action, (state.loading || state.syncing || state.preparing || !state.record) && s.disabled]}><Text style={s.link}>{state.syncing ? "同步中" : "同步"}</Text></Pressable></View>
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }

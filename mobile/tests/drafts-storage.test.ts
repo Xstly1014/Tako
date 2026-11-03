@@ -214,3 +214,38 @@ test("N1-A：慢存储提交前即冻结表单，重复提交不增加请求",as
  const w=new BookWriter({async load(){return null;},async save(){if(saving){await first;saving=false;}}},{async write(){writes++;return resultFor(p);},async receipt(){throw new Error("unexpected");}},()=>true);
  await w.restore();const task=w.submit(p);assert.equal(w.snapshot().phase,"saving");await w.submit(bookPending());assert.equal(writes,0);release();await task;assert.equal(writes,1);assert.equal(w.snapshot().phase,"confirmed");
 });
+
+// N1-B: book-scoped chapter drafts reuse the same mature encrypted draft model.
+import { ChapterStorage } from "../src/novels/chapters/storage.ts";
+test("N1-B：章节和书名真实AES密文，跨书搬运拒绝，离线目录按账号隔离",async ctx=>{
+ const f=await fixture();ctx.after(f.close);const owner=randomUUID(),other=randomUUID(),bookA=randomUUID(),bookB=randomUUID(),local=randomUUID();
+ const chapters=new ChapterStorage(f.rows,f.cipher);
+ await chapters.cacheBook(owner,{id:bookA,title:"PRIVATE_CHAPTER_BOOK_合成书"});
+ await chapters.cacheBook(owner,{id:bookB,title:"PRIVATE_CHAPTER_BOOK_另一本"});
+ await chapters.repository(bookA).create(owner,local,"PRIVATE_CHAPTER_TITLE","PRIVATE_CHAPTER_BODY😀");
+ assert.equal((await chapters.books(owner)).length,2);assert.equal((await chapters.books(other)).length,0);assert.equal(await chapters.pending(owner),1);
+ const a=`draft/${bookA}/${local}`,b=`draft/${bookB}/${local}`,row=await f.rows.read(owner,a);assert.ok(row);
+ f.db.raw.prepare("INSERT INTO private_drafts_v1 VALUES(?,?,?,?)").run(owner,b,row.revision,row.ciphertext);
+ await assert.rejects(chapters.repository(bookB).load(owner,local),DraftError);
+ assert.equal((await chapters.repository(bookA).load(owner,local))?.content,"PRIVATE_CHAPTER_BODY😀");
+ for(const suffix of ["","-wal"]){const raw=readFileSync(f.db.path+suffix);for(const value of ["PRIVATE_CHAPTER_BOOK_合成书","PRIVATE_CHAPTER_TITLE","PRIVATE_CHAPTER_BODY😀"])assert.equal(raw.includes(Buffer.from(value)),false);}
+});
+test("N1-B：旧章节密钥丢失，另一书不能生成新钥覆盖原缓存",async ctx=>{
+ const f=await fixture();ctx.after(f.close);const owner=randomUUID(),book=randomUUID();const chapters=new ChapterStorage(f.rows,f.cipher);
+ await chapters.cacheBook(owner,{id:book,title:"原书"});await chapters.repository(book).create(owner,randomUUID(),"原章","原内容");
+ const keys=await f.rows.ids(owner),before=await Promise.all(keys.map(key=>f.rows.read(owner,key)));f.cipher.keys.delete(owner);
+ await assert.rejects(chapters.cacheBook(owner,{id:randomUUID(),title:"新书"}));
+ await assert.rejects(chapters.repository(randomUUID()).create(owner,randomUUID(),"新章","不覆盖原文"));
+ assert.equal(f.cipher.keys.has(owner),false);assert.deepEqual(await Promise.all(keys.map(key=>f.rows.read(owner,key))),before);
+});
+
+test("N1-A互审回归：回执GET失败不证明原写入被拒绝，保留固定请求直到读回确认",async()=>{
+ for(const status of [400,409,429]){
+  const p=bookPending();let stored:PendingBook|null=null,posts=0,reads=0;const result=resultFor(p);
+  const journal={async load(){return stored;},async save(value:PendingBook|null){stored=value;}};
+  const remote={async write(){posts++;throw new ApiError("network");},async receipt(){reads++;if(reads===1)throw new ApiError("rate_limited","",status);return result;}};
+  const writer=new BookWriter(journal,remote,()=>true);await writer.restore();await writer.submit(p);await writer.retry();
+  assert.deepEqual(stored,p);assert.equal(writer.snapshot().phase,"unknown");await writer.submit(bookPending());assert.equal(posts,1);
+  await writer.retry();assert.equal(writer.snapshot().phase,"confirmed");assert.equal(stored,null);assert.equal(posts,1);
+ }
+});
