@@ -21,3 +21,11 @@
 - 未连接ECS、构建APK、安装或操作手机；未改并行端进度/报告或其产品源码。没有新增真实用户样本。结构未变，未重复宣称新数据库恢复演练。
 
 远程CI按本次整合推送精确SHA另核验；同事addd2f0绿灯与旧main绿灯只作来源证据，不代替本次。后续peer新提交需按实际差异补审，不自动套用本报告。
+
+## 本次远程收口
+
+整合已随main `71367f4dee0832fdd076f08eec6bb918f712026c`推送，已读取该精确提交的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41594335264)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41594335263)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41594335384)，三条均completed/success。Mobile的Windows/Linux静态模型、component-fixtures及real-api四作业全部success，没有用同行旧绿灯代替本次整合。
+
+后续补录与N2界面信息层级说明仅文档，不改变被验运行树7020c4f，不需要为补录重打包。工程整合已收口，设备和真实用户结果仍未新增；同事正在推进的完整页面/HTTP验收保持原归属。
+
+补录预推送观察peer99a1a1b/082bfee已交付该整条验收脚本与新CI接线，本报告不覆盖新脚本；已读其进度/文件范围但未独立执行、未合入。它没有新增产品代码或契约，不影响本次冻结产品树；后续单独核对来源、脱敏、清理和新CI后接入。
