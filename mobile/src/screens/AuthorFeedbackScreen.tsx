@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text } from "react-native";
 import { router, usePreventRemove } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../auth/context";
@@ -94,7 +94,7 @@ function Feedback({ id, owner }: { id: string; owner: string }) {
   const ready = signedIn && data?.generation === generation;
   return (
     <SafeAreaView style={s.screen}>
-      <View style={s.content}>
+      <ScrollView contentContainerStyle={s.content}>
         <Action label="返回作品管理" onPress={back} />
         <Text style={s.heading}>作者反馈</Text>
         <Text style={s.note}>
@@ -143,7 +143,7 @@ function Feedback({ id, owner }: { id: string; owner: string }) {
             onRetry={error ? retryAccess : undefined}
           />
         )}
-      </View>
+      </ScrollView>
       {data ? (
         <CommentsPanel
           workId={data.id}

@@ -1,5 +1,11 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+## 当前：作者反馈工作台
+
+完整[复盘](../reviews/author-feedback-stage-review.md)。实际新屏/路由+原评论组件+真实HTTP/MySQL贯通归属、线程、回复/删除丢响应重查、返回、内存输入恢复/资格GET重试及切号隔离；原整链路保持。原20顺序服务、四组件+C1通过；普通合入main01bfd70为07b1b62后127模型、类型/lint/完整契约及7门禁、整条再次通过。精确CI待本包推送核对，不引用旧SHA作为本包通过。N2内核是同事成果，未在本机升级3300或独立执行其Go/迁移；USB仍暂停。
+
+上一427eff8的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41603154412)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41603154316)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41603154429)全部success，已核对实际整条步骤success，其P1关闭。main01bfd70已集成d1a47c3恢复包，427eff8和当前反馈包待主开发下一窗口整体审查。
+
 ## 当前：修订发行前核对
 
 见原[M2复盘](../reviews/author-revision-stage-review.md)追加段。122模型、20顺序服务、四组件+C1、类型/lint/契约、7门禁通过；整条真实页面已验证核对/采用R2后另存R3，仍发行R2，R3私稿完整保留。精确CI待源码推送核对，不套用旧结果。原恢复包d1a47c3的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41599964955)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41599964967)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41599964954)均success，已确认整条步骤成功，该包P1退出关闭。main411b614尚未合入这两个增量；N2和设备依赖不变。
