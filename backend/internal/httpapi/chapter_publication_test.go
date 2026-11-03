@@ -47,6 +47,9 @@ func TestChapterPublicationReservationReviewAndRecovery(t *testing.T) {
 	defer func() {
 		// Only random accounts created above, in FK order; never touch shared fixtures.
 		for _, id := range ids {
+			if _, e := db.Exec("DELETE FROM novel_management_requests WHERE actor_id=?", id[:]); e != nil {
+				t.Errorf("fixture management cleanup: %v", e)
+			}
 			if _, e := db.Exec("DELETE FROM novel_publication_requests WHERE owner_id=?", id[:]); e != nil {
 				t.Errorf("fixture receipts cleanup: %v", e)
 			}
@@ -59,6 +62,8 @@ func TestChapterPublicationReservationReviewAndRecovery(t *testing.T) {
 				"DELETE FROM chapter_versions WHERE owner_id=?",
 				"DELETE FROM chapter_submissions WHERE owner_id=?",
 				"DELETE FROM chapter_previews WHERE owner_id=?",
+				"DELETE FROM novel_metadata_versions WHERE owner_id=?",
+				"DELETE FROM novel_metadata_submissions WHERE owner_id=?",
 				"DELETE FROM novel_publications WHERE owner_id=?",
 				"UPDATE novel_chapters SET primary_draft_id=NULL WHERE owner_id=?",
 				"UPDATE chapter_drafts SET recovered_from_id=NULL WHERE owner_id=?",

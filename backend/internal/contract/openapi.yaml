@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.15.0
+  version: 0.16.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,484 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novels/{id}/formal-state:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getNovelFormalState
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelFormalState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapters/{chapter}/state:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: chapter
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getNovelChapterState
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelChapterState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/visibility:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: changeNovelVisibility
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NovelVisibilityAction'}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelVisibilityReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapters/{chapter}/visibility:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: chapter
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: changeNovelChapterVisibility
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NovelVisibilityAction'}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelVisibilityReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/visibility-requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getNovelVisibilityReceipt
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelVisibilityReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapters/{chapter}/versions:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: chapter
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: listNovelChapterVersions
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      parameters:
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991, default: 0}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelChapterVersionPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/chapters/{chapter}/versions/{version}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: chapter
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: version
+        required: true
+        schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+    get:
+      operationId: getNovelChapterVersion
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelChapterVersion'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/metadata-submissions:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: submitNovelMetadata
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SubmitNovelMetadata'}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      operationId: listNovelMetadataSubmissions
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/metadata-submissions/{submission}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getNovelMetadataSubmission
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataSubmission'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/metadata-submissions/{submission}/withdraw:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: withdrawNovelMetadata
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WithdrawChapter'}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/metadata-requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getNovelMetadataReceipt
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/novels/metadata-review-queue:
+    get:
+      operationId: listNovelMetadataReviewQueue
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+        - in: query
+          name: mode
+          schema: {type: string, enum: [pre, post], default: pre}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/novels/{id}/metadata-submissions/{submission}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getOperatorNovelMetadata
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataSubmission'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/novels/{id}/metadata-submissions/{submission}/review:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: reviewNovelMetadata
+      tags: [长文]
+      summary: 本人正式内容管理或运营资料审核
+      description: PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DecideChapter'}
+      responses:
+        '200':
+          description: 本人内容、明确管理结果或原操作回执；不代表读者可见
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelMetadataReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/ops/novels/{id}/chapter-submissions/{submission}:
     parameters:
       - in: path
@@ -2766,6 +3244,151 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    NovelFormalMetadata:
+      type: object
+      nullable: true
+      additionalProperties: false
+      required: [title, introduction, tags, revision, first_published_at, updated_at]
+      properties:
+        title: {type: string, maxLength: 200}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/NovelTags'}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        first_published_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    NovelFormalState:
+      type: object
+      additionalProperties: false
+      required: [novel_id, state_revision, author_hidden, platform_limited, completed, last_position, formal, metadata_submission_id]
+      properties:
+        novel_id: {type: string, format: uuid}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        author_hidden: {type: boolean}
+        platform_limited: {type: boolean}
+        completed: {type: boolean}
+        last_position: {type: integer, minimum: 0, maximum: 9007199254740991}
+        formal: {$ref: '#/components/schemas/NovelFormalMetadata'}
+        metadata_submission_id: {type: string, format: uuid, nullable: true}
+    NovelChapterState:
+      type: object
+      additionalProperties: false
+      required: [novel_id, chapter_id, ordinal, state_revision, last_version, display_version, author_hidden, platform_limited, parent_hidden, parent_limited, completed, current_submission_id]
+      properties:
+        novel_id: {type: string, format: uuid}
+        chapter_id: {type: string, format: uuid}
+        ordinal: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        last_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+        display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+        author_hidden: {type: boolean}
+        platform_limited: {type: boolean}
+        parent_hidden: {type: boolean}
+        parent_limited: {type: boolean}
+        completed: {type: boolean}
+        current_submission_id: {type: string, format: uuid, nullable: true}
+    NovelVisibilityAction:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, expected_revision, action]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        expected_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        action: {type: string, enum: [hide, restore]}
+    NovelVisibilityReceipt:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, novel_id, chapter_id, action, state_revision, author_hidden, platform_limited, display_version]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        novel_id: {type: string, format: uuid}
+        chapter_id: {type: string, format: uuid, nullable: true}
+        action: {type: string, enum: [hide, restore]}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        author_hidden: {type: boolean}
+        platform_limited: {type: boolean}
+        display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+    NovelChapterVersion:
+      type: object
+      additionalProperties: false
+      required: [novel_id, chapter_id, version, title, content, platform_limited, published_at]
+      properties:
+        novel_id: {type: string, format: uuid}
+        chapter_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, maxLength: 200}
+        content: {type: string}
+        platform_limited: {type: boolean}
+        published_at: {type: string, format: date-time}
+    NovelChapterVersionSummary:
+      type: object
+      additionalProperties: false
+      required: [version, title, platform_limited, published_at]
+      properties:
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, maxLength: 200}
+        platform_limited: {type: boolean}
+        published_at: {type: string, format: date-time}
+    SubmitNovelMetadata:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, source_revision, expected_revision, rights_confirmed]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        source_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        expected_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        rights_confirmed: {type: boolean, enum: [true]}
+    NovelMetadataReceipt:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, novel_id, submission_id, operation, state, revision, candidate_revision, source_revision]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        novel_id: {type: string, format: uuid}
+        submission_id: {type: string, format: uuid}
+        operation: {type: string, enum: [submit_metadata, review_metadata, withdraw_metadata]}
+        state: {type: string, enum: [pending, published, rejected, withdrawn]}
+        revision: {type: integer, minimum: 0, maximum: 9007199254740991}
+        candidate_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        source_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+    NovelMetadataSubmission:
+      type: object
+      additionalProperties: false
+      required: [id, novel_id, title, introduction, tags, source_revision, expected_revision, candidate_revision, state, current, reason, submitted_at, decided_at, post_reviewed_at]
+      properties:
+        id: {type: string, format: uuid}
+        novel_id: {type: string, format: uuid}
+        title: {type: string, maxLength: 200}
+        introduction: {type: string, maxLength: 300}
+        tags: {$ref: '#/components/schemas/NovelTags'}
+        source_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        expected_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        candidate_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        state: {type: string, enum: [pending, published, rejected, withdrawn, superseded]}
+        current: {type: boolean}
+        reason: {type: string, maxLength: 2000}
+        submitted_at: {type: string, format: date-time}
+        decided_at: {type: string, format: date-time, nullable: true}
+        post_reviewed_at: {type: string, format: date-time, nullable: true}
+    NovelChapterVersionPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_before]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: {$ref: '#/components/schemas/NovelChapterVersionSummary'}
+        next_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+    NovelMetadataPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/NovelMetadataSubmission'}
+        next_cursor: {type: string, maxLength: 512}
     ChapterSubmissionSummary:
       type: object
       additionalProperties: false
@@ -3730,7 +4353,7 @@ components:
       properties:
         error:
           type: string
-          enum: [chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

@@ -4,6 +4,327 @@
  */
 
 export interface paths {
+  "/api/my/novels/{id}/formal-state": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getNovelFormalState"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapters/{chapter}/state": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getNovelChapterState"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/visibility": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    post: operations["changeNovelVisibility"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapters/{chapter}/visibility": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    post: operations["changeNovelChapterVisibility"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/visibility-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getNovelVisibilityReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapters/{chapter}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["listNovelChapterVersions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapters/{chapter}/versions/{version}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getNovelChapterVersion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/metadata-submissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["listNovelMetadataSubmissions"];
+    put?: never;
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    post: operations["submitNovelMetadata"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/metadata-submissions/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getNovelMetadataSubmission"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/metadata-submissions/{submission}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    post: operations["withdrawNovelMetadata"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/metadata-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getNovelMetadataReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/metadata-review-queue": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["listNovelMetadataReviewQueue"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/metadata-submissions/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    get: operations["getOperatorNovelMetadata"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/metadata-submissions/{submission}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人正式内容管理或运营资料审核
+     * @description PUBLICATION_ENABLED控制；本人按会话账号和书章判权，ops需运营白名单。隐藏与平台限制独立；恢复只展示最新正式章，最新受限则拒绝，完结不取消隐藏恢复权利。资料发布冻结指定当前私有资料修订，正常作者正式生效并后审，观察期先审且读者保留原资料。同书仅当前待审可批准或驳回，被替换旧提交拒绝；已正式资料仅可批准标记后审完成，违规限制走处置链路。回执是原操作快照，未知结果查原标识，不是当前状态；资料与隐藏恢复不生成新章事件。不开放公共阅读、完结或旧版展示切换。
+     */
+    post: operations["reviewNovelMetadata"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ops/novels/{id}/chapter-submissions/{submission}": {
     parameters: {
       query?: never;
@@ -1356,6 +1677,138 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    NovelFormalMetadata: {
+      title: string;
+      introduction: string;
+      tags: components["schemas"]["NovelTags"];
+      revision: number;
+      /** Format: date-time */
+      first_published_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    } | null;
+    NovelFormalState: {
+      /** Format: uuid */
+      novel_id: string;
+      state_revision: number;
+      author_hidden: boolean;
+      platform_limited: boolean;
+      completed: boolean;
+      last_position: number;
+      formal: components["schemas"]["NovelFormalMetadata"];
+      /** Format: uuid */
+      metadata_submission_id: string | null;
+    };
+    NovelChapterState: {
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      ordinal: number | null;
+      state_revision: number;
+      last_version: number;
+      display_version: number;
+      author_hidden: boolean;
+      platform_limited: boolean;
+      parent_hidden: boolean;
+      parent_limited: boolean;
+      completed: boolean;
+      /** Format: uuid */
+      current_submission_id: string | null;
+    };
+    NovelVisibilityAction: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      /** @enum {string} */
+      action: "hide" | "restore";
+    };
+    NovelVisibilityReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string | null;
+      /** @enum {string} */
+      action: "hide" | "restore";
+      state_revision: number;
+      author_hidden: boolean;
+      platform_limited: boolean;
+      display_version: number;
+    };
+    NovelChapterVersion: {
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      version: number;
+      title: string;
+      content: string;
+      platform_limited: boolean;
+      /** Format: date-time */
+      published_at: string;
+    };
+    NovelChapterVersionSummary: {
+      version: number;
+      title: string;
+      platform_limited: boolean;
+      /** Format: date-time */
+      published_at: string;
+    };
+    SubmitNovelMetadata: {
+      /** Format: uuid */
+      mutation_id: string;
+      source_revision: number;
+      expected_revision: number;
+      /** @enum {boolean} */
+      rights_confirmed: true;
+    };
+    NovelMetadataReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      submission_id: string;
+      /** @enum {string} */
+      operation: "submit_metadata" | "review_metadata" | "withdraw_metadata";
+      /** @enum {string} */
+      state: "pending" | "published" | "rejected" | "withdrawn";
+      revision: number;
+      candidate_revision: number;
+      source_revision: number;
+    };
+    NovelMetadataSubmission: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      novel_id: string;
+      title: string;
+      introduction: string;
+      tags: components["schemas"]["NovelTags"];
+      source_revision: number;
+      expected_revision: number;
+      candidate_revision: number;
+      /** @enum {string} */
+      state: "pending" | "published" | "rejected" | "withdrawn" | "superseded";
+      current: boolean;
+      reason: string;
+      /** Format: date-time */
+      submitted_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+      /** Format: date-time */
+      post_reviewed_at: string | null;
+    };
+    NovelChapterVersionPage: {
+      items: components["schemas"]["NovelChapterVersionSummary"][];
+      next_before: number;
+    };
+    NovelMetadataPage: {
+      items: components["schemas"]["NovelMetadataSubmission"][];
+      next_cursor: string;
+    };
     ChapterSubmissionSummary: {
       /** Format: uuid */
       id: string;
@@ -1860,6 +2313,8 @@ export interface components {
     Error: {
       /** @enum {string} */
       error:
+        | "novel_state_conflict"
+        | "novel_restricted"
         | "chapter_preview_expired"
         | "chapter_publication_conflict"
         | "novel_revision_conflict"
@@ -2096,6 +2551,522 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getNovelFormalState: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelFormalState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelChapterState: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelChapterState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeNovelVisibility: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelVisibilityAction"];
+      };
+    };
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelVisibilityReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeNovelChapterVisibility: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelVisibilityAction"];
+      };
+    };
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelVisibilityReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelVisibilityReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelVisibilityReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listNovelChapterVersions: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelChapterVersionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelChapterVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelChapterVersion"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listNovelMetadataSubmissions: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  submitNovelMetadata: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubmitNovelMetadata"];
+      };
+    };
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelMetadataSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataSubmission"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  withdrawNovelMetadata: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WithdrawChapter"];
+      };
+    };
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelMetadataReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listNovelMetadataReviewQueue: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        mode?: "pre" | "post";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelMetadata: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataSubmission"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  reviewNovelMetadata: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecideChapter"];
+      };
+    };
+    responses: {
+      /** @description 本人内容、明确管理结果或原操作回执；不代表读者可见 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelMetadataReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   getOperatorChapterSubmission: {
     parameters: {
       query?: never;

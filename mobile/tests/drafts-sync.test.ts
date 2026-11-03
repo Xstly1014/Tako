@@ -8,6 +8,38 @@ import { DraftError } from "../src/drafts/model.ts";
 import { fixture, TestApi } from "./helpers/drafts.ts";
 import { ChapterPublicationApi, checkedChapterReceipt, checkedChapterPreview,
   type ChapterPreview, type ChapterReceipt } from "../src/novels/chapters/publication-api.ts";
+import { NovelManagementApi, checkedVisibilityReceipt, checkedMetadataReceipt,
+  type NovelVisibilityReceipt, type NovelMetadataReceipt } from "../src/novels/management-api.ts";
+
+test("N2管理客户端：矛盾隐藏/恢复回执不能确认操作，跨章回执拒绝",()=>{
+ const book=randomUUID(),chapter=randomUUID(),mutation=randomUUID();
+ const input={mutation_id:mutation,expected_revision:2,action:"hide" as const};
+ const receipt:NovelVisibilityReceipt={mutation_id:mutation,novel_id:book,chapter_id:chapter,action:"hide",state_revision:3,author_hidden:true,platform_limited:false,display_version:1};
+ assert.equal(checkedVisibilityReceipt(receipt,book,chapter,input).state_revision,3);
+ for(const bad of [{...receipt,author_hidden:false},{...receipt,chapter_id:randomUUID()},{...receipt,state_revision:4},{...receipt,action:"restore",author_hidden:false}]){
+  assert.throws(()=>checkedVisibilityReceipt(bad as NovelVisibilityReceipt,book,chapter,input),e=>e instanceof ApiError&&e.code==="contract");
+ }
+});
+test("N2资料客户端：未知结果只GET原记录，不能将待审当正式成功或接受另一来源",async()=>{
+ const book=randomUUID(),mutation=randomUUID(),submission=randomUUID(),calls:{path:string;method?:string}[]=[];
+ const input={mutation_id:mutation,source_revision:5,expected_revision:2,rights_confirmed:true as const};
+ const receipt:NovelMetadataReceipt={mutation_id:mutation,novel_id:book,submission_id:submission,operation:"submit_metadata",state:"pending",revision:0,candidate_revision:3,source_revision:5};
+ const api=new NovelManagementApi(async<T>(path:string,options?:{method?:string})=>{calls.push({path,method:options?.method});return receipt as T});
+ assert.equal((await api.confirmMetadata(book,input)).state,"pending");
+ assert.deepEqual(calls,[{path:`/my/novels/${book}/metadata-requests/${mutation}`,method:undefined}]);
+ assert.throws(()=>checkedMetadataReceipt({...receipt,revision:3},book,mutation,"submit_metadata"),e=>e instanceof ApiError&&e.code==="contract");
+ const wrong=new NovelManagementApi(async<T>()=>({...receipt,source_revision:6}) as T);
+ await assert.rejects(wrong.confirmMetadata(book,input),e=>e instanceof ApiError&&e.code==="contract");
+});
+test("N2本人版本客户端：受限正文可读取，但不能接受跨书正文或重复版本页",async()=>{
+ const book=randomUUID(),chapter=randomUUID();
+ const version={novel_id:book,chapter_id:chapter,version:1,title:"正式章",content:"受限本人内容",platform_limited:true,published_at:new Date().toISOString()};
+ const own=new NovelManagementApi(async<T>()=>version as T);assert.equal((await own.version(book,chapter,1)).platform_limited,true);
+ const wrong=new NovelManagementApi(async<T>()=>({...version,novel_id:randomUUID()}) as T);
+ await assert.rejects(wrong.version(book,chapter,1),e=>e instanceof ApiError&&e.code==="contract");
+ const duplicate=new NovelManagementApi(async<T>()=>({items:[version,version],next_before:0}) as T);
+ await assert.rejects(duplicate.versions(book,chapter),e=>e instanceof ApiError&&e.code==="contract");
+});
 
 function chapterPublicationFixture() {
  const book=randomUUID(),chapter=randomUUID(),preview=randomUUID(),mutation=randomUUID(),submission=randomUUID();
