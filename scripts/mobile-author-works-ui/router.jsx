@@ -11,7 +11,14 @@ export const router = {
   back: () => window.authorUi.navigate("/account"),
 };
 export function useFocusEffect(callback) {
-  useEffect(callback, [callback]);
+  useEffect(() => {
+    let cleanup = callback();
+    const blur = () => { cleanup?.(); cleanup = undefined; };
+    const focus = () => { blur(); cleanup = callback(); };
+    window.addEventListener('author-blur', blur);
+    window.addEventListener('author-focus', focus);
+    return () => { blur(); window.removeEventListener('author-blur', blur); window.removeEventListener('author-focus', focus); };
+  }, [callback]);
 }
 export function usePreventRemove(blocked) {
   useEffect(() => {

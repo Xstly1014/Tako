@@ -2,9 +2,20 @@ import type { components } from "./contract";
 import type { Transport } from "../auth/session.ts";
 import { ApiError } from "./client.ts";
 import { UUID, isWork } from "./reader.ts";
+import {
+  normalizeCatalogQuery,
+  type CatalogQuery,
+} from "../author-works/catalog.ts";
 export type WorkState = components["schemas"]["WorkState"];
 export type WorkChange = components["schemas"]["WorkChange"];
 export type WorkPage = components["schemas"]["AuthorWorkPage"];
+export type CatalogPage = {
+  items: (WorkPage["items"][number] & {
+    latest_title: string;
+    display_limited: boolean;
+  })[];
+  next_cursor: string;
+};
 export type AuthorTimeline = components["schemas"]["AuthorTimeline"];
 const positive = (v: unknown): v is number =>
   Number.isSafeInteger(v) && Number(v) > 0;
@@ -30,10 +41,67 @@ export function checkedWorkState(value: WorkState, id = value?.id) {
     fail();
   return value;
 }
+function checkedSummaries(value: WorkPage) {
+  for (const x of value.items) {
+    if (
+      !x ||
+      !UUID.test(x.id) ||
+      !UUID.test(x.draft_id) ||
+      typeof x.title !== "string" ||
+      !x.title.trim() ||
+      !positive(x.last_version) ||
+      !positive(x.display_version) ||
+      x.display_version > x.last_version ||
+      typeof x.author_hidden !== "boolean" ||
+      typeof x.platform_limited !== "boolean"
+    )
+      fail();
+  }
+}
 export class AuthorWorksApi {
   private transport: Transport;
   constructor(transport: Transport) {
     this.transport = transport;
+  }
+  async catalog(
+    input: CatalogQuery,
+    cursor = "",
+    signal?: AbortSignal,
+  ): Promise<CatalogPage> {
+    const query = normalizeCatalogQuery(input);
+    if (cursor.length > 512 || (cursor && !/^[A-Za-z0-9_-]+$/.test(cursor)))
+      throw new ApiError("invalid_input");
+    const params = new URLSearchParams({
+      ...query,
+      ...(cursor ? { cursor } : {}),
+    });
+    const value = await this.transport<CatalogPage>(
+      "/my/works?" + params.toString(),
+      { signal },
+    );
+    if (
+      !value ||
+      !Array.isArray(value.items) ||
+      value.items.length > 20 ||
+      new Set(value.items.map((x) => x?.id)).size !== value.items.length
+    )
+      fail();
+    checkedSummaries(value);
+    if (
+      typeof value.next_cursor !== "string" ||
+      value.next_cursor.length > 512 ||
+      (value.next_cursor &&
+        (!/^[A-Za-z0-9_-]+$/.test(value.next_cursor) ||
+          value.next_cursor === cursor)) ||
+      value.items.some(
+        (x) =>
+          typeof x.latest_title !== "string" ||
+          !x.latest_title.trim() ||
+          typeof x.display_limited !== "boolean",
+      )
+    )
+      fail();
+    return value;
   }
   async list(cursor = "") {
     if (cursor && !UUID.test(cursor)) throw new ApiError("invalid_input");
@@ -50,21 +118,7 @@ export class AuthorWorksApi {
       new Set(value.items.map((x) => x?.id)).size !== value.items.length
     )
       fail();
-    for (const x of value.items) {
-      if (
-        !x ||
-        !UUID.test(x.id) ||
-        !UUID.test(x.draft_id) ||
-        typeof x.title !== "string" ||
-        !x.title.trim() ||
-        !positive(x.last_version) ||
-        !positive(x.display_version) ||
-        x.display_version > x.last_version ||
-        typeof x.author_hidden !== "boolean" ||
-        typeof x.platform_limited !== "boolean"
-      )
-        fail();
-    }
+    checkedSummaries(value);
     return value;
   }
   async timeline(id: string, beforeVersion = 0, beforeEvent = 0) {
@@ -226,6 +280,8 @@ export class WorkAction {
 }
 export function authorWorkMessage(error: unknown) {
   const messages: Record<string, string> = {
+    invalid_catalog_query:
+      "标题关键词最多64字且不能含换行或控制字符，请修改后查找。",
     work_state_conflict: "作品状态已变化，本次操作未执行。刷新后重新确认。",
     version_unavailable:
       "所选版本不可展示。若最新版受限，请明确选择正常旧版恢复。",

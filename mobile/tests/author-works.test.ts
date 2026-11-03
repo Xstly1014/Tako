@@ -9,6 +9,142 @@ import {
 } from "../src/api/author-works.ts";
 import type { Transport } from "../src/auth/session.ts";
 import { ApiError } from "../src/api/client.ts";
+import {
+  AuthorCatalog,
+  emptyCatalogQuery,
+  normalizeCatalogQuery,
+} from "../src/author-works/catalog.ts";
+import type { CatalogPage } from "../src/api/author-works.ts";
+
+test("目录API显式提交条件、取消信号与新摘要校验，旧调用不受影响", async () => {
+  const controller = new AbortController();
+  let path = "";
+  const client = api(async (p, options) => {
+    path = p;
+    assert.equal(options?.signal, controller.signal);
+    return { items: [], next_cursor: "opaque_next" };
+  });
+  await client.catalog(
+    { q: "  A%_\\  ", visibility: "hidden", restriction: "restricted" },
+    "",
+    controller.signal,
+  );
+  const params = new URL("http://local" + path).searchParams;
+  assert.equal(params.get("q"), "a%_\\");
+  assert.equal(params.get("visibility"), "hidden");
+  assert.throws(() =>
+    normalizeCatalogQuery({ ...emptyCatalogQuery(), q: "😀".repeat(65) }),
+  );
+  assert.throws(() =>
+    normalizeCatalogQuery({ ...emptyCatalogQuery(), q: "bad\n" }),
+  );
+  assert.equal(
+    normalizeCatalogQuery({ ...emptyCatalogQuery(), q: "😀".repeat(64) }).q
+      .length,
+    128,
+  );
+  const malformed = api(async () => ({
+    items: [{ ...state(), title: "title" }],
+    next_cursor: "",
+  }));
+  await assert.rejects(malformed.catalog(emptyCatalogQuery()), {
+    code: "contract",
+  });
+  await malformed.list();
+});
+
+test("全量目录换条件取消迟到响应；分页失败保留游标、去重并拦截循环", async () => {
+  const pending: {
+    resolve: (page: CatalogPage) => void;
+    reject: (error: unknown) => void;
+    signal?: AbortSignal;
+    cursor?: string;
+  }[] = [];
+  const catalog = new AuthorCatalog(
+    {
+      catalog: async (_q, cursor, signal) =>
+        new Promise((resolve, reject) =>
+          pending.push({ resolve, reject, signal, cursor }),
+        ),
+    },
+    () => true,
+  );
+  const item = {
+    ...state(),
+    title: "title",
+    latest_title: "latest",
+    display_limited: false,
+  };
+  const old = catalog.apply(emptyCatalogQuery());
+  const fresh = catalog.apply({ ...emptyCatalogQuery(), q: "new" });
+  assert.equal(pending[0].signal?.aborted, true);
+  pending[1].resolve({ items: [item], next_cursor: "page2" });
+  await fresh;
+  pending[0].resolve({ items: [], next_cursor: "" });
+  await old;
+  assert.equal(catalog.snapshot().page.items.length, 1);
+  const failed = catalog.more();
+  pending[2].reject(new ApiError("network"));
+  await failed;
+  assert.equal(catalog.snapshot().page.next_cursor, "page2");
+  const retry = catalog.more();
+  assert.equal(pending[3].cursor, "page2");
+  pending[3].resolve({
+    items: [item, { ...item, id: randomUUID() }],
+    next_cursor: "page3",
+  });
+  await retry;
+  assert.equal(catalog.snapshot().page.items.length, 2);
+  const loop = catalog.more();
+  pending[4].resolve({ items: [], next_cursor: "page2" });
+  await loop;
+  assert.equal((catalog.snapshot().error as ApiError).code, "contract");
+  assert.equal(catalog.snapshot().page.next_cursor, "page3");
+});
+
+test("管理返回保留条件刷新首屏，切号或退出的迟到私密列表不可写入", async () => {
+  let valid = true,
+    release!: (page: CatalogPage) => void;
+  const calls: string[] = [];
+  const catalog = new AuthorCatalog(
+    {
+      catalog: async (q, cursor) => {
+        calls.push(q.visibility + ":" + cursor);
+        return { items: [], next_cursor: "" };
+      },
+    },
+    () => valid,
+  );
+  await catalog.apply({ ...emptyCatalogQuery(), visibility: "hidden" });
+  await catalog.refresh();
+  assert.deepEqual(calls, ["hidden:", "hidden:"]);
+  assert.equal(catalog.snapshot().refreshed, true);
+  const stale = new AuthorCatalog(
+    {
+      catalog: async () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    },
+    () => valid,
+  );
+  const request = stale.refresh();
+  valid = false;
+  stale.cancel();
+  release({
+    items: [
+      {
+        ...state(),
+        title: "private",
+        latest_title: "private",
+        display_limited: false,
+      },
+    ],
+    next_cursor: "",
+  });
+  await request;
+  assert.equal(stale.snapshot().page.items.length, 0);
+});
 const id = randomUUID(),
   draft = randomUUID();
 const state = (): WorkState => ({

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { router, useFocusEffect, usePreventRemove } from "expo-router";
@@ -18,8 +26,14 @@ import {
   authorWorkMessage,
   type AuthorTimeline,
   type WorkChange,
-  type WorkPage,
 } from "../api/author-works";
+import {
+  AuthorCatalog,
+  emptyCatalogQuery,
+  normalizeCatalogQuery,
+  sameCatalogQuery,
+  type CatalogQuery,
+} from "../author-works/catalog";
 import type { PublicWork } from "../api/reader";
 import { Action, Status } from "../components/Ui";
 import { theme as t } from "../theme";
@@ -49,7 +63,13 @@ function Button({
     </Pressable>
   );
 }
-export default function AuthorWorksScreen({ workId = "", onCloseWork }: { workId?: string; onCloseWork?: () => void }) {
+export default function AuthorWorksScreen({
+  workId = "",
+  onCloseWork,
+}: {
+  workId?: string;
+  onCloseWork?: () => void;
+}) {
   const { generation, account, phase, session } = useSession();
   if (phase !== "ready" || !account)
     return (
@@ -94,13 +114,10 @@ function Workspace({
       new AuthorWorksApi((path, options) => session.authorized(path, options)),
     [session],
   );
-  const [page, setPage] = useState<WorkPage>({ items: [], next_cursor: "" });
   const [selected, setSelected] = useState(workId);
-  const [busy, setBusy] = useState(false),
-    [loaded, setLoaded] = useState(false),
-    [error, setError] = useState<unknown>();
-  const alive = useRef(true),
-    fetching = useRef(false);
+  const [draftQuery, setDraftQuery] = useState<CatalogQuery>(emptyCatalogQuery);
+  const alive = useRef(true);
+  const returningFromRevision = useRef(false);
   const valid = useCallback(
     () =>
       alive.current &&
@@ -108,45 +125,45 @@ function Workspace({
       session.snapshot().account?.id === accountId,
     [session, generation, accountId],
   );
-  const load = useCallback(
-    async (cursor = "") => {
-      if (fetching.current) return;
-      fetching.current = true;
-      setBusy(true);
-      setError(undefined);
-      try {
-        const result = await api.list(cursor);
-        if (valid()) {
-          setPage((old) => ({
-            items: cursor
-              ? [
-                  ...old.items,
-                  ...result.items.filter(
-                    (x) => !old.items.some((y) => y.id === x.id),
-                  ),
-                ]
-              : result.items,
-            next_cursor: result.next_cursor,
-          }));
-          setLoaded(true);
-        }
-      } catch (e) {
-        if (valid()) setError(e);
-      } finally {
-        fetching.current = false;
-        if (valid()) setBusy(false);
-      }
-    },
-    [api, valid],
+  const catalog = useMemo(
+    () =>
+      new AuthorCatalog(
+        api,
+        () =>
+          session.snapshot().generation === generation &&
+          session.snapshot().account?.id === accountId,
+      ),
+    [api, session, generation, accountId],
   );
+  const { page, query, busy, loaded, error, refreshed } = useSyncExternalStore(
+    catalog.subscribe,
+    catalog.snapshot,
+  );
+  const dirty = !sameCatalogQuery(draftQuery, query);
+  const applyQuery = () => {
+    try {
+      setDraftQuery(normalizeCatalogQuery(draftQuery));
+    } catch {
+      /* The catalog presents validation feedback. */
+    }
+    void catalog.apply(draftQuery);
+  };
+  const load = useCallback(() => catalog.refresh(), [catalog]);
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
-      if (!workId) void load();
+      if (!workId) void catalog.refresh();
       return () => {
         alive.current = false;
+        catalog.cancel();
+        // Revision success replaces the publication route with a directed detail.
+        // Keep this underlying list ready for that detail's return, with its query.
+        if (!workId && returningFromRevision.current) {
+          returningFromRevision.current = false;
+          setSelected("");
+        }
       };
-    }, [load, workId]),
+    }, [catalog, workId]),
   );
   return (
     <SafeAreaView style={s.screen}>
@@ -156,8 +173,12 @@ function Workspace({
           id={selected}
           api={api}
           valid={valid}
+          onRevisionNavigate={() => { returningFromRevision.current = true; }}
           onClose={() => {
-            if (onCloseWork) { onCloseWork(); return; }
+            if (onCloseWork) {
+              onCloseWork();
+              return;
+            }
             setSelected("");
             void load();
           }}
@@ -184,6 +205,94 @@ function Workspace({
             <Text style={s.note}>
               这里管理已正式发布的中篇。编辑工作稿请使用草稿箱。
             </Text>
+            <Text style={s.section}>查找本人作品</Text>
+            <TextInput
+              accessibilityLabel="作品标题关键词"
+              placeholder="展示标题或最新正式标题，最多64字"
+              value={draftQuery.q}
+              onChangeText={(q) => setDraftQuery((old) => ({ ...old, q }))}
+              onSubmitEditing={applyQuery}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={s.input}
+            />
+            <Text style={s.note}>作者状态</Text>
+            <View style={s.filters}>
+              {(
+                [
+                  ["all", "全部作者状态"],
+                  ["shown", "作者未隐藏"],
+                  ["hidden", "作者已隐藏"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  label={
+                    (draftQuery.visibility === value ? "已选：" : "") + label
+                  }
+                  onPress={() =>
+                    setDraftQuery((old) => ({ ...old, visibility: value }))
+                  }
+                />
+              ))}
+            </View>
+            <Text style={s.note}>平台状态（作品或展示版本）</Text>
+            <View style={s.filters}>
+              {(
+                [
+                  ["all", "全部平台状态"],
+                  ["restricted", "受限"],
+                  ["unrestricted", "未受限"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  label={
+                    (draftQuery.restriction === value ? "已选：" : "") + label
+                  }
+                  onPress={() =>
+                    setDraftQuery((old) => ({ ...old, restriction: value }))
+                  }
+                />
+              ))}
+            </View>
+            <View style={s.filters}>
+              <Button label="查找作品" onPress={applyQuery} />
+              <Button
+                label="清空条件"
+                onPress={() => {
+                  const empty = emptyCatalogQuery();
+                  setDraftQuery(empty);
+                  void catalog.apply(empty);
+                }}
+              />
+            </View>
+            <Text style={s.note}>
+              已应用：{query.q ? "标题包含“" + query.q + "”" : "全部标题"} ·{" "}
+              {query.visibility === "all"
+                ? "全部作者状态"
+                : query.visibility === "shown"
+                  ? "作者未隐藏"
+                  : "作者已隐藏"}{" "}
+              ·{" "}
+              {query.restriction === "all"
+                ? "全部平台状态"
+                : query.restriction === "restricted"
+                  ? "受限"
+                  : "未受限"}{" "}
+              · 已读取 {page.items.length} 件
+            </Text>
+            {dirty ? (
+              <Text style={s.note}>
+                条件尚未应用，查找后继续翻页。刷新仍使用已应用条件。
+              </Text>
+            ) : null}
+            {refreshed ? (
+              <Text style={s.note}>
+                已按原条件刷新首屏，管理状态以本次读取为准。
+              </Text>
+            ) : null}
             {!page.items.length ? (
               busy ? (
                 <Status loading title="正在读取本人作品" />
@@ -195,8 +304,14 @@ function Workspace({
                 />
               ) : loaded ? (
                 <Status
-                  title="还没有正式作品"
-                  message="已保存的私密草稿不会自动公开。"
+                  title={
+                    query.q ||
+                    query.visibility !== "all" ||
+                    query.restriction !== "all"
+                      ? "没有符合条件的作品"
+                      : "还没有正式作品"
+                  }
+                  message="可调整条件或清空后重新查找。已保存的私密草稿不会自动公开。"
                 />
               ) : null
             ) : (
@@ -205,14 +320,23 @@ function Workspace({
                   key={item.id}
                   accessibilityRole="button"
                   accessibilityLabel={`管理作品 ${item.title}`}
-                  onPress={() => setSelected(item.id)}
+                  onPress={() => {
+                    catalog.cancel();
+                    setSelected(item.id);
+                  }}
                   style={({ pressed }) => [s.row, pressed && s.pressed]}
                 >
                   <Text style={s.workTitle}>{item.title}</Text>
+                  {item.latest_title !== item.title ? (
+                    <Text style={s.note}>
+                      最新正式标题：{item.latest_title}
+                    </Text>
+                  ) : null}
                   <Text style={s.meta}>
                     展示 V{item.display_version} · 最新 V{item.last_version} ·{" "}
                     {item.author_hidden ? "作者已隐藏" : "作者未隐藏"}
-                    {item.platform_limited ? " · 平台限制" : ""}
+                    {item.platform_limited ? " · 作品整体受限" : ""}
+                    {item.display_limited ? " · 展示版本受限" : ""}
                   </Text>
                 </Pressable>
               ))
@@ -225,7 +349,8 @@ function Workspace({
             ) : page.next_cursor ? (
               <Button
                 label={error ? "重试加载更多作品" : "加载更多作品"}
-                onPress={() => void load(page.next_cursor)}
+                disabled={dirty}
+                onPress={() => void catalog.more()}
               />
             ) : null}
           </ScrollView>
@@ -246,11 +371,13 @@ function WorkDetail({
   api,
   valid,
   onClose,
+  onRevisionNavigate,
 }: {
   id: string;
   api: AuthorWorksApi;
   valid: () => boolean;
   onClose: () => void;
+  onRevisionNavigate: () => void;
 }) {
   const [data, setData] = useState<AuthorTimeline | null>(null),
     [body, setBody] = useState<PublicWork | null>(null);
@@ -505,7 +632,14 @@ function WorkDetail({
             <Text style={s.note}>
               平台限制优先于作者设置。作品管理不更改私密工作稿。
             </Text>
-            <Button label="修订发行这部作品" disabled={disabled} onPress={() => router.push({ pathname: "/publish", params: { work_id: id } })} />
+            <Button
+              label="修订发行这部作品"
+              disabled={disabled}
+              onPress={() => {
+                onRevisionNavigate();
+                router.push({ pathname: "/publish", params: { work_id: id } });
+              }}
+            />
             {!state?.author_hidden && !state?.platform_limited ? (
               <Button
                 label="查看读者当前展示"
@@ -684,6 +818,16 @@ const s = StyleSheet.create({
   },
   heading: { fontSize: 16, fontWeight: "600", color: t.ink },
   content: { padding: 16, gap: 16, paddingBottom: 32 },
+  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  input: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: t.line,
+    padding: 12,
+    borderRadius: 4,
+    color: t.ink,
+    fontSize: 16,
+  },
   row: {
     paddingVertical: 16,
     gap: 8,

@@ -7,6 +7,11 @@ import { request, ApiError } from "../src/api/client.ts";
 import { AuthorWorksApi, WorkAction } from "../src/api/author-works.ts";
 import { community, work } from "../src/api/reader.ts";
 import type { components } from "../src/api/contract";
+import {
+  AuthorCatalog,
+  emptyCatalogQuery,
+} from "../src/author-works/catalog.ts";
+import { catalogFixture } from "./helpers/catalog-fixture.ts";
 const session = () => {
   let token: string | null = null;
   return new Session(
@@ -22,6 +27,78 @@ const session = () => {
     request,
   );
 };
+test("真实M3完整工作台：45历史作品三页、全量查找、管理后原条件刷新与账号隔离", async () => {
+  const author = session(),
+    other = session();
+  let fixture: ReturnType<typeof catalogFixture> | undefined;
+  try {
+    await author.signIn(
+      "register",
+      `catalog-${randomUUID()}@example.test`,
+      randomUUID(),
+    );
+    await author.setNickname("目录合成验收");
+    const account = author.snapshot().account;
+    assert.ok(account);
+    fixture = catalogFixture(account.id);
+    const api = new AuthorWorksApi((path, options) =>
+      author.authorized(path, options),
+    );
+    const catalog = new AuthorCatalog(
+      api,
+      () => author.snapshot().account?.id === account.id,
+    );
+    await catalog.apply(emptyCatalogQuery());
+    assert.equal(catalog.snapshot().error, null);
+    assert.equal(catalog.snapshot().page.items.length, 20);
+    await catalog.more();
+    assert.equal(catalog.snapshot().page.items.length, 40);
+    await catalog.more();
+    assert.equal(catalog.snapshot().page.items.length, 45);
+    assert.equal(catalog.snapshot().page.next_cursor, "");
+    await catalog.apply({
+      q: "CATALOG 00",
+      visibility: "hidden",
+      restriction: "unrestricted",
+    });
+    assert.equal(catalog.snapshot().page.items[0]?.id, fixture.ids[0]);
+    const initial = await api.timeline(fixture.ids[0]);
+    const action = new WorkAction(
+      initial.state.id,
+      () => author.snapshot().phase === "ready",
+      randomUUID,
+    );
+    await action.send(action.prepare(initial.state, "restore", 1), api);
+    await catalog.refresh();
+    assert.equal(catalog.snapshot().error, null);
+    assert.equal(catalog.snapshot().query.q, "catalog 00");
+    assert.equal(catalog.snapshot().page.items.length, 0);
+    await catalog.apply({
+      q: "catalog 00",
+      visibility: "shown",
+      restriction: "all",
+    });
+    assert.equal(catalog.snapshot().page.items[0]?.id, fixture.ids[0]);
+    await other.signIn(
+      "register",
+      `catalog-other-${randomUUID()}@example.test`,
+      randomUUID(),
+    );
+    const foreign = new AuthorWorksApi((path, options) =>
+      other.authorized(path, options),
+    );
+    assert.equal((await foreign.catalog(emptyCatalogQuery())).items.length, 0);
+    await assert.rejects(
+      foreign.timeline(fixture.ids[0]),
+      (e: unknown) => e instanceof ApiError && e.status === 404,
+    );
+    catalog.cancel();
+  } finally {
+    fixture?.cleanup();
+    for (const current of [author, other])
+      if (current.snapshot().phase === "ready") await current.logout();
+  }
+});
 test("真实作者管理：会话归属、丢响应重放、并发冲突、受限旧版显式恢复且工作稿不变", async () => {
   await community("", "");
   const env = Object.fromEntries(
