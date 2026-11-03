@@ -73,6 +73,7 @@ let stage = "bundle";
     stateReads = 0,
     targetReads = 0,
     targetReadFails = false,
+    reviewReadFails = true,
     directedMode = false,
     directedPublished = false,
     preparedBody,
@@ -159,6 +160,8 @@ let stage = "bundle";
           saved_at: "2026-11-02T00:00:00Z",
         });
       }
+      if (pathname === "/api/my/works/" + work + "/versions/1" && reviewReadFails) { reviewReadFails = false; return route.abort(); }
+      if (pathname === "/api/my/works/" + work + "/versions/1") return json(route, { id: work, version: 1, title: "正式旧题", content: "正式旧正文😀", introduction: "旧简介", tags: ["日常"], author_nickname: "作者", published_at: "2026-11-02T00:00:00Z" });
       if (pathname === "/api/my/works/" + work + "/versions") {
         if (targetReadFails) { targetReadFails = false; return json(route, { error: "service_unavailable" }, 503); }
         return json(route, { state: { id: work, draft_id: draft, last_version: directedPublished ? 3 : 2, display_version: directedPublished ? 3 : 1, state_revision: 2,
@@ -237,12 +240,24 @@ let stage = "bundle";
     await page.getByRole("button", { name: "保存发布笔名" }).click();
     await page.getByRole("button", { name: "发布标签 日常" }).click();
     await page.getByRole("button", { name: "确认原创或取得发布授权" }).click();
+    assert.equal(await page.getByRole("button", { name: "生成固定预览" }).isDisabled(), true);
+    await page.getByRole("button", { name: "读取本次修订与正式展示版" }).click();
+    await page.getByRole("button", { name: "读取本次修订与正式展示版" }).click({ trial: true });
+    await page.getByText("核对读取未完成，请重试读取；尚未生成预览或发布。", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "采用已核对修订 R2" }).count(), 0);
+    assert.equal(prepares, 0);
+    await page.getByRole("button", { name: "读取本次修订与正式展示版" }).click();
+    await page.getByText("正式旧正文😀", { exact: true }).waitFor();
+    await page.getByText("服务器已保存正文", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "生成固定预览" }).isDisabled(), true);
+    await page.getByRole("button", { name: "采用已核对修订 R2" }).click();
     await page.getByRole("button", { name: "生成固定预览" }).click();
     await page.getByText("固定预览 · 修订 R2", { exact: true }).waitFor();
     assert.equal(preparedBody.draft_id, draft); assert.equal(preparedBody.source_revision, 2);
     assert.equal(publishes, 0);
     targetReadFails = true;
     await page.getByRole("button", { name: "放弃此预览并重新核对" }).click();
+    assert.equal(await page.getByText("已采用核对修订 R2，尚未生成预览或发布。", { exact: true }).count(), 0);
     await page.getByText("确认本人稿件与发布记录", { exact: true }).waitFor();
     assert.equal(await page.getByText("选择服务器已保存的稿件", { exact: true }).count(), 0);
     await page.getByRole("button", { name: "重新加载", exact: true }).click();
@@ -578,6 +593,12 @@ let stage = "bundle";
     await page.getByRole("button", { name: "保存发布笔名" }).click();
     await page.getByRole("button", { name: "发布标签 日常" }).click();
     await page.getByRole("button", { name: "确认原创或取得发布授权" }).click();
+    assert.equal(await page.getByRole("button", { name: "生成固定预览" }).isDisabled(), true);
+    await page.getByRole("button", { name: "读取本次修订与正式展示版" }).click();
+    await page.getByText("正式旧正文😀", { exact: true }).waitFor();
+    await page.getByText("服务器已保存正文", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "生成固定预览" }).isDisabled(), true);
+    await page.getByRole("button", { name: "采用已核对修订 R2" }).click();
     await page.getByRole("button", { name: "生成固定预览" }).click();
     await page.getByText("固定预览 · 修订 R2", { exact: true }).waitFor();
     await page.getByRole("button", { name: "正式发布这份快照" }).click();

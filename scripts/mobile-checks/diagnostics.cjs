@@ -42,7 +42,7 @@ function fixtureStage(mode, output) {
 
 function authorWorkflowStage(output) {
   const stage = String(output).match(/^FAIL real author workflow stage=([a-z-]+)$/m)?.[1];
-  return ['bundle', 'cleanup', 'restore-eligibility', 'management-uncertain-recovery', 'appeal-uncertain-recovery', 'catalog-and-publication', 'publication-read-only-recovery', 'directed-revision-retained-stack',
+  return ['revision-prepublication-review', 'bundle', 'cleanup', 'restore-eligibility', 'management-uncertain-recovery', 'appeal-uncertain-recovery', 'catalog-and-publication', 'publication-read-only-recovery', 'directed-revision-retained-stack',
     'version-decision-and-reader', 'reader-feedback-and-author-return', 'moderation-and-appeal'].includes(stage) ? stage : 'unavailable';
 }
 module.exports = { processState, testLocations, fixtureStage, authorWorkflowStage };

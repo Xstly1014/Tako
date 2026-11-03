@@ -299,6 +299,16 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
       .fill("同一作品的第二正式版本。");
     await button("发布标签 日常").click();
     await button("确认原创或取得发布授权").click();
+    assert.equal(await button("生成固定预览").isDisabled(), true);
+    stage = "revision-prepublication-review";
+    await button("读取本次修订与正式展示版").click();
+    await text("整链路正式修订稿。\n保留独立工作稿与固定版本😀。").waitFor();
+    await text(saved.content).waitFor();
+    assert.equal(await button("生成固定预览").isDisabled(), true);
+    await button("采用已核对修订 R2").click();
+    // A later server save must not silently replace the adopted R2 snapshot.
+    await page.evaluate(async draftId => window.authorWorkflow.session.authorized("/drafts/save", { method: "POST", body: { mutation_id: crypto.randomUUID(), draft_id: draftId, base_revision: 2, title: "后续工作稿保留", content: "核对后新增的R3文字，不属于本次发行。" } }), fixture.draftId);
+    stage = "directed-revision-retained-stack";
     await button("生成固定预览").click();
     await text("固定预览 · 修订 R2").waitFor();
     await button("正式发布这份快照").click();
@@ -384,8 +394,9 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
         window.authorWorkflow.session.authorized(`/drafts/${draft}`),
       fixture.draftId,
     );
-    assert.equal(retainedDraft.revision, 2);
-    assert.equal(retainedDraft.title, fixture.nextTitle);
+    assert.equal(retainedDraft.revision, 3);
+    assert.equal(retainedDraft.title, "后续工作稿保留");
+    assert.equal(retainedDraft.content, "核对后新增的R3文字，不属于本次发行。");
     stage = "reader-feedback-and-author-return";
     await page.evaluate(async (credentials) => {
       await window.authorWorkflow.session.logout();

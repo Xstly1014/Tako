@@ -18,7 +18,8 @@ import {
   publicationMessage,
   type DraftPage,
 } from "../api/publications";
-import type { WorkState } from "../api/author-works";
+import { AuthorWorksApi, type WorkState } from "../api/author-works";
+import { readRevisionReview } from "./revision-review";
 import { PublicationFlow, type JournalStore } from "./flow";
 import { Action, Status } from "../components/Ui";
 import { theme as t } from "../theme";
@@ -41,7 +42,10 @@ export function PublicationWorkspace({
   const { session, account } = useSession();
   const api = useMemo(
     () =>
-      new PublicationsApi((path, options) => session.authorized(path, options), workId),
+      new PublicationsApi(
+        (path, options) => session.authorized(path, options),
+        workId,
+      ),
     [session, workId],
   );
   const valid = useCallback(
@@ -58,7 +62,9 @@ export function PublicationWorkspace({
     lock = useRef(false),
     initialized = useRef(false);
   const [page, setPage] = useState<DraftPage>({ items: [], next_cursor: "" });
-  const [target, setTarget] = useState<Awaited<ReturnType<PublicationsApi["revisionTarget"]>> | null>(null);
+  const [target, setTarget] = useState<Awaited<
+    ReturnType<PublicationsApi["revisionTarget"]>
+  > | null>(null);
   const [source, setSource] = useState<{
     id: string;
     revision: number;
@@ -68,6 +74,10 @@ export function PublicationWorkspace({
   const [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<unknown>();
+  const [review, setReview] = useState<Awaited<
+    ReturnType<typeof readRevisionReview>
+  > | null>(null);
+  const [reviewAccepted, setReviewAccepted] = useState(false);
   const [intro, setIntro] = useState(""),
     [tags, setTags] = useState<string[]>([]),
     [rights, setRights] = useState(false),
@@ -98,6 +108,8 @@ export function PublicationWorkspace({
     setError(undefined);
     try {
       setTarget(null);
+      setReview(null);
+      setReviewAccepted(false);
       await flow.restore();
       if (!current()) return;
       if (flow.preview) {
@@ -193,10 +205,40 @@ export function PublicationWorkspace({
   const prepare = () =>
     source &&
     void run(async () => {
+      if (
+        workId &&
+        !flow.pendingPrepare &&
+        (!reviewAccepted ||
+          !review ||
+          review.source.revision !== source.revision)
+      )
+        throw new ApiError("revision_review_required");
       await flow.prepare(source.id, source.revision, intro, tags, rights);
       if (current()) {
         render((x) => x + 1);
         await refreshState();
+      }
+    });
+  const reviewRevision = () =>
+    target &&
+    source &&
+    void run(async () => {
+      setReview(null);
+      setReviewAccepted(false);
+      try {
+        const value = await readRevisionReview(
+          api,
+          new AuthorWorksApi((path, options) =>
+            session.authorized(path, options),
+          ),
+          target.state,
+          source.revision,
+        );
+        if (current()) setReview(value);
+      } catch (e) {
+        if (e instanceof ApiError && (e.code === "network" || e.status >= 500))
+          throw new ApiError("revision_review_unavailable", e.requestId);
+        throw e;
       }
     });
   const publish = () =>
@@ -211,8 +253,13 @@ export function PublicationWorkspace({
     void run(async () => {
       await flow.reset();
       if (current()) {
-        if (workId) { setReady(false); setTarget(null); }
+        if (workId) {
+          setReady(false);
+          setTarget(null);
+        }
         setSource(null);
+        setReview(null);
+        setReviewAccepted(false);
         setCurrentState(null);
         setStateReadFailed(false);
         setIntro("");
@@ -220,10 +267,16 @@ export function PublicationWorkspace({
         setRights(false);
         if (workId) {
           const directed = await api.revisionTarget(workId);
-          if (revision > directed.source.revision) throw new ApiError("source_revision_unavailable");
+          if (revision > directed.source.revision)
+            throw new ApiError("source_revision_unavailable");
           if (current()) {
             setTarget(directed);
-            setSource({ id: directed.source.id, revision: directed.source.revision, title: directed.source.title, current: directed.source.revision });
+            setSource({
+              id: directed.source.id,
+              revision: directed.source.revision,
+              title: directed.source.title,
+              current: directed.source.revision,
+            });
             setReady(true);
           }
         } else {
@@ -273,11 +326,28 @@ export function PublicationWorkspace({
             {publicationMessage(error)}
           </Text>
         ) : null}
-        {target ? <View style={s.panel}>
-          <Text style={s.heading}>修订发行：{target.title}</Text>
-          <Text style={s.note}>追加到这部已有作品。准备时状态：正式版本 V{target.state.last_version} · 展示 V{target.state.display_version} · {target.state.author_hidden ? "作者已隐藏，发行不自动恢复公开" : "作者未隐藏"}{target.state.platform_limited ? " · 平台限制仍有效" : ""}</Text>
-          <Text style={s.meta}>工作稿：{target.source.title} · 采用服务器修订 R{source?.revision ?? revision}</Text>
-        </View> : workId && flow.preview ? <Text style={s.note}>当前优先显示已保留的发布记录，尚未采用本次目标作品；请先核对原结果。</Text> : null}
+        {target ? (
+          <View style={s.panel}>
+            <Text style={s.heading}>修订发行：{target.title}</Text>
+            <Text style={s.note}>
+              追加到这部已有作品。准备时状态：正式版本 V
+              {target.state.last_version} · 展示 V{target.state.display_version}{" "}
+              ·{" "}
+              {target.state.author_hidden
+                ? "作者已隐藏，发行不自动恢复公开"
+                : "作者未隐藏"}
+              {target.state.platform_limited ? " · 平台限制仍有效" : ""}
+            </Text>
+            <Text style={s.meta}>
+              工作稿：{target.source.title} · 采用服务器修订 R
+              {source?.revision ?? revision}
+            </Text>
+          </View>
+        ) : workId && flow.preview ? (
+          <Text style={s.note}>
+            当前优先显示已保留的发布记录，尚未采用本次目标作品；请先核对原结果。
+          </Text>
+        ) : null}
         {!flow.recoveryBlocked &&
         flow.preview &&
         targetId &&
@@ -331,9 +401,14 @@ export function PublicationWorkspace({
             )}
             <Action
               label="进入作品管理"
-              onPress={() => workId
-                ? router.replace({ pathname: "/my-works/[id]", params: { id: flow.result!.work_id } })
-                : router.dismissTo("/my-works")}
+              onPress={() =>
+                workId
+                  ? router.replace({
+                      pathname: "/my-works/[id]",
+                      params: { id: flow.result!.work_id },
+                    })
+                  : router.dismissTo("/my-works")
+              }
             />
             {currentState &&
             !currentState.author_hidden &&
@@ -349,7 +424,9 @@ export function PublicationWorkspace({
               />
             ) : null}
             <Action
-              label={workId ? "确认结果并核对目标作品" : "确认结果并选择其他稿件"}
+              label={
+                workId ? "确认结果并核对目标作品" : "确认结果并选择其他稿件"
+              }
               disabled={busy}
               onPress={reset}
             />
@@ -424,6 +501,59 @@ export function PublicationWorkspace({
                 />
               </View>
             ) : null}
+            {target ? (
+              <View style={s.panel}>
+                <Text style={s.heading}>修订内容核对</Text>
+                <Text style={s.note}>
+                  核对服务器 R{source.revision} 与当前展示指针 V
+                  {target.state.display_version}
+                  ；本人管理内容不代表读者可访问。这里只读取，不改写工作稿。
+                </Text>
+                {!review ? (
+                  <Action
+                    label="读取本次修订与正式展示版"
+                    disabled={busy || pending}
+                    onPress={reviewRevision}
+                  />
+                ) : (
+                  <>
+                    <Text style={s.meta}>
+                      标题：{review.changed.title ? "有变化" : "相同"} · 正文：
+                      {review.changed.content ? "有变化" : "相同"}
+                    </Text>
+                    <Text style={s.heading}>
+                      正式展示指针 V{review.current.version} ·{" "}
+                      {review.current.title}
+                    </Text>
+                    <Text selectable style={s.body}>
+                      {review.current.content}
+                    </Text>
+                    <Text style={s.heading}>
+                      待发行服务器 R{review.source.revision} ·{" "}
+                      {review.source.title}
+                    </Text>
+                    <Text selectable style={s.body}>
+                      {review.source.content}
+                    </Text>
+                    <Text style={s.note}>
+                      这是核对时的状态。简介与标签在下方单独填写；生成预览后请再次核对完整快照。后续改稿不会自动替换已选修订。
+                    </Text>
+                    {reviewAccepted ? (
+                      <Text style={s.note}>
+                        已采用核对修订 R{review.source.revision}
+                        ，尚未生成预览或发布。
+                      </Text>
+                    ) : (
+                      <Action
+                        label={`采用已核对修订 R${review.source.revision}`}
+                        disabled={busy || pending}
+                        onPress={() => setReviewAccepted(true)}
+                      />
+                    )}
+                  </>
+                )}
+              </View>
+            ) : null}
             <Text style={s.heading}>简介（最多 300 字）</Text>
             <TextInput
               accessibilityLabel="发布简介"
@@ -477,6 +607,7 @@ export function PublicationWorkspace({
               disabled={
                 busy ||
                 !account?.nickname ||
+                (!!workId && !reviewAccepted && !flow.pendingPrepare) ||
                 (!flow.pendingPrepare &&
                   (!rights || !tags.length || Array.from(intro).length > 300))
               }

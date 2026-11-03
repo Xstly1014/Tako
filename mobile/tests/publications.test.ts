@@ -10,6 +10,8 @@ import {
 import { PublicationFlow, type JournalStore } from "../src/publication/flow.ts";
 import type { Transport } from "../src/auth/session.ts";
 import { ApiError } from "../src/api/client.ts";
+import { AuthorWorksApi } from "../src/api/author-works.ts";
+import { readRevisionReview } from "../src/publication/revision-review.ts";
 const account = randomUUID(),
   draft = randomUUID(),
   previewId = randomUUID(),
@@ -64,56 +66,136 @@ test("不完整或含糊的发布交接拒绝，不能静默改用最新修订",
     );
 });
 test("M2只以作品标识进入；与C1修订对混用或坏标识均拒绝", () => {
-  assert.deepEqual(publicationInput({ work_id: workId }), { draftId: "", revision: 0, workId });
-  for (const work_id of ["", [workId], "00000000-0000-0000-0000-000000000000", "bad"])
+  assert.deepEqual(publicationInput({ work_id: workId }), {
+    draftId: "",
+    revision: 0,
+    workId,
+  });
+  for (const work_id of [
+    "",
+    [workId],
+    "00000000-0000-0000-0000-000000000000",
+    "bad",
+  ])
     assert.throws(() => publicationInput({ work_id }));
-  assert.throws(() => publicationInput({ work_id: workId, draft_id: draft, source_revision: "1" }));
+  assert.throws(() =>
+    publicationInput({
+      work_id: workId,
+      draft_id: draft,
+      source_revision: "1",
+    }),
+  );
 });
 const targetTimeline = () => ({
-  state: { id: workId, draft_id: draft, last_version: 2, display_version: 1, state_revision: 3,
-    author_hidden: true, history_open: false, platform_limited: false },
-  versions: [{ version: 2, title: "作品目标", published_at: "2026-11-02T00:00:00Z", platform_limited: false, review_status: "pending" }],
-  events: [], next_version_before: 0, next_event_before: 0,
+  state: {
+    id: workId,
+    draft_id: draft,
+    last_version: 2,
+    display_version: 1,
+    state_revision: 3,
+    author_hidden: true,
+    history_open: false,
+    platform_limited: false,
+  },
+  versions: [
+    {
+      version: 2,
+      title: "作品目标",
+      published_at: "2026-11-02T00:00:00Z",
+      platform_limited: false,
+      review_status: "pending",
+    },
+  ],
+  events: [],
+  next_version_before: 0,
+  next_event_before: 0,
 });
 test("定向发行从本人作品绑定读取服务器R，返回给页面的来源不含正文", async () => {
   const calls: string[] = [];
-  const target = await api(async path => {
+  const target = await api(async (path) => {
     calls.push(path);
-    return path.startsWith("/my/works/") ? targetTimeline() : { id: draft, revision: 7, title: "工作稿", content: "仅服务端正文" };
+    return path.startsWith("/my/works/")
+      ? targetTimeline()
+      : { id: draft, revision: 7, title: "工作稿", content: "仅服务端正文" };
   }).revisionTarget(workId);
   assert.equal(target.state.id, workId);
   assert.deepEqual(target.source, { id: draft, revision: 7, title: "工作稿" });
-  assert.deepEqual(calls, [`/my/works/${workId}/versions?before_version=0&before_event=0`, `/drafts/${draft}`]);
+  assert.deepEqual(calls, [
+    `/my/works/${workId}/versions?before_version=0&before_event=0`,
+    `/drafts/${draft}`,
+  ]);
 });
 test("目标归属或绑定异常不能继续读另一作品稿件", async () => {
   let calls = 0;
-  await assert.rejects(api(async () => {
-    calls++; return { ...targetTimeline(), state: { ...targetTimeline().state, id: randomUUID() } };
-  }).revisionTarget(workId));
+  await assert.rejects(
+    api(async () => {
+      calls++;
+      return {
+        ...targetTimeline(),
+        state: { ...targetTimeline().state, id: randomUUID() },
+      };
+    }).revisionTarget(workId),
+  );
   assert.equal(calls, 1);
-  await assert.rejects(api(async path => path.startsWith("/my/") ? targetTimeline() : { id: randomUUID(), revision: 1, title: "另一稿", content: "" }).revisionTarget(workId));
+  await assert.rejects(
+    api(async (path) =>
+      path.startsWith("/my/")
+        ? targetTimeline()
+        : { id: randomUUID(), revision: 1, title: "另一稿", content: "" },
+    ).revisionTarget(workId),
+  );
 });
 test("目标读取失败或最新正式版本资料缺失时拒绝猜测目标", async () => {
-  await assert.rejects(api(async () => { throw new ApiError("network"); }).revisionTarget(workId));
-  await assert.rejects(api(async () => ({ ...targetTimeline(), versions: [] })).revisionTarget(workId));
+  await assert.rejects(
+    api(async () => {
+      throw new ApiError("network");
+    }).revisionTarget(workId),
+  );
+  await assert.rejects(
+    api(async () => ({ ...targetTimeline(), versions: [] })).revisionTarget(
+      workId,
+    ),
+  );
 });
 test("定向预览前验证绑定，错误作品回执不确认且原请求保留", async () => {
   const store = vault();
-  const client = new PublicationsApi((async (path: string) => {
-    if (path === `/my/works/${workId}`) return targetTimeline().state;
-    if (path === "/publication-previews") return { ...preview(), expected_version: 2 };
-    return { ...result(), work_id: randomUUID(), version: 3 };
-  }) as Transport, workId);
+  const client = new PublicationsApi(
+    (async (path: string) => {
+      if (path === `/my/works/${workId}`) return targetTimeline().state;
+      if (path === "/publication-previews")
+        return { ...preview(), expected_version: 2 };
+      return { ...result(), work_id: randomUUID(), version: 3 };
+    }) as Transport,
+    workId,
+  );
   const f = flow(client, store);
-  await f.restore(); await f.prepare(draft, 1, "", ["日常"], true);
-  await assert.rejects(f.publish(), (e: unknown) => e instanceof ApiError && e.code === "contract");
-  assert.equal(f.result, null); assert.ok(f.pendingPublish); assert.ok(store.value());
+  await f.restore();
+  await f.prepare(draft, 1, "", ["日常"], true);
+  await assert.rejects(
+    f.publish(),
+    (e: unknown) => e instanceof ApiError && e.code === "contract",
+  );
+  assert.equal(f.result, null);
+  assert.ok(f.pendingPublish);
+  assert.ok(store.value());
   let prepared = 0;
-  const invalid = new PublicationsApi((async (path: string) => {
-    if (path === "/publication-previews") prepared++;
-    return { ...targetTimeline().state, draft_id: randomUUID() };
-  }) as Transport, workId);
-  await assert.rejects(invalid.prepare({ mutation_id: randomUUID(), draft_id: draft, source_revision: 1, introduction: "", tags: ["日常"], rights_confirmed: true }));
+  const invalid = new PublicationsApi(
+    (async (path: string) => {
+      if (path === "/publication-previews") prepared++;
+      return { ...targetTimeline().state, draft_id: randomUUID() };
+    }) as Transport,
+    workId,
+  );
+  await assert.rejects(
+    invalid.prepare({
+      mutation_id: randomUUID(),
+      draft_id: draft,
+      source_revision: 1,
+      introduction: "",
+      tags: ["日常"],
+      rights_confirmed: true,
+    }),
+  );
   assert.equal(prepared, 0);
 });
 function vault() {
@@ -479,4 +561,105 @@ test("确认过期期间记录已换成另一请求，不能清理或解除恢�
   assert.equal(reopened.recoveryBlocked, true);
   await assert.rejects(reopened.reset());
   assert.equal(store.value(), saved);
+});
+
+test("修订发行核对只读服务端所选R和展示V，精确区分标题正文并保留两份全文", async () => {
+  const state = {
+    id: workId,
+    draft_id: draft,
+    last_version: 3,
+    display_version: 1,
+    state_revision: 4,
+    author_hidden: true,
+    history_open: false,
+    platform_limited: true,
+  };
+  for (const same of [false, true]) {
+    const source = {
+      id: draft,
+      revision: 2,
+      title: same ? "原题" : "新题",
+      content: same ? "原文😀" : "原文😀\n新段",
+      saved_at: "2026-11-03T00:00:00Z",
+    };
+    const transport: Transport = async (path, opts) => {
+      assert.notEqual(opts?.method, "POST");
+      if (path === "/drafts/" + draft) return source as never;
+      if (path === "/my/works/" + workId) return state as never;
+      assert.equal(path, "/my/works/" + workId + "/versions/1");
+      return {
+        id: workId,
+        version: 1,
+        title: "原题",
+        content: "原文😀",
+        introduction: "旧简介",
+        tags: ["日常"],
+        author_nickname: "作者",
+        published_at: "2026-11-01T00:00:00Z",
+      } as never;
+    };
+    const result = await readRevisionReview(
+      new PublicationsApi(transport),
+      new AuthorWorksApi(transport),
+      state,
+      2,
+    );
+    assert.deepEqual(result.changed, { title: !same, content: !same });
+    assert.equal(result.source.content, source.content);
+    assert.equal(result.current.content, "原文😀");
+    assert.equal(result.state.author_hidden, true);
+    assert.equal(result.state.platform_limited, true);
+  }
+});
+test("核对期间改稿、作品竞争或读取失败不给可采用结果，不写入或自动追随新修订", async () => {
+  for (const fault of ["before", "during", "state", "read"] as const) {
+    const state = {
+      id: workId,
+      draft_id: draft,
+      last_version: 1,
+      display_version: 1,
+      state_revision: 1,
+      author_hidden: false,
+      history_open: false,
+      platform_limited: false,
+    };
+    let reads = 0;
+    const transport: Transport = async (path, opts) => {
+      assert.notEqual(opts?.method, "POST");
+      if (path === "/drafts/" + draft) {
+        reads++;
+        return {
+          id: draft,
+          revision:
+            fault === "before" || (fault === "during" && reads > 1) ? 3 : 2,
+          title: "服务端",
+          content: "完整正文",
+        } as never;
+      }
+      if (path === "/my/works/" + workId)
+        return { ...state, state_revision: fault === "state" ? 2 : 1 } as never;
+      if (fault === "read") throw new ApiError("network");
+      return {
+        id: workId,
+        version: 1,
+        title: "原题",
+        content: "原文",
+        introduction: "",
+        tags: ["日常"],
+        author_nickname: "作者",
+        published_at: "2026-11-01T00:00:00Z",
+      } as never;
+    };
+    await assert.rejects(
+      readRevisionReview(
+        new PublicationsApi(transport),
+        new AuthorWorksApi(transport),
+        state,
+        2,
+      ),
+      (e: unknown) =>
+        e instanceof ApiError &&
+        e.code === (fault === "read" ? "network" : "revision_review_changed"),
+    );
+  }
 });
