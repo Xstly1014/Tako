@@ -18,4 +18,4 @@ docker compose run --rm -v "${PWD}:/materials" browser-tests node /materials/doc
 
 ## V2 视觉评审
 
-当前 index.html 为克制布局版本，index-v1.html 保留上一版对照。增加角色与空状态素材页，移除工作页右上角重复合图。登录截图来自本机真实匿名页面；验证码和草稿业务未作为原型模拟实现。视觉原则与生成提示词见 ../../visual-system-v2.md。
+当前 index.html 为克制布局版本；已被替代的V1副本移出当前目录，需要对照时查看Git历史。增加角色与空状态素材页，移除工作页右上角重复合图。登录截图来自本机真实匿名页面；验证码和草稿业务未作为原型模拟实现。视觉原则与生成提示词见 ../../visual-system-v2.md。

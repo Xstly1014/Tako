@@ -104,6 +104,7 @@ python scripts/local_restart.py check
 
 | 想了解什么 | 从这里开始 |
 |---|---|
+| 文档总览 | [当前入口、业务规格与历史证据](docs/README.md) |
 | 当前工作与两端分工 | [交接入口](docs/handoff/README.md) · [主开发进度](docs/handoff/primary-progress.md) · [并行端进度](docs/handoff/parallel-progress.md) |
 | 最新业务交付 | [N1 私密写章复盘](docs/reviews/private-chapter-drafts-review.md) · [M2 修订发行复盘](docs/reviews/author-revision-stage-review.md) |
 | 业务规则与下一阶段 | [长文规格](docs/novels/README.md) · [中篇修订发行规格](docs/mobile-author-revision-stage-spec.md) |
