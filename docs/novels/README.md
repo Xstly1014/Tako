@@ -6,6 +6,7 @@
 - [交付与验收](delivery-and-acceptance.md)：纵向分期、失败场景、证据门槛及未决工程细节。
 - [N1-A 模型决策](adr-001-private-books.md)：独立书籍、CAS、载荷绑定回执与迁移边界。
 - [N1-B 章节决策](adr-002-chapter-drafts.md)：独立章稿表、固定请求、加密作用域和独立章节恢复。
+- [N2 阶段规格](n2-publication-reading-spec.md)与[ADR003](adr-003-chapter-publication.md)：多章排队、提交预约章号、独立审核、正式发布与阅读；尚未实现。
 - [主开发手册](../handoff/05-development-playbook.md)：主开发负责业务与自动化，同事负责打包和真机。
 
 阅读约定：标为“用户确认”的是已确定业务权利；“工程默认”由实现阶段验证并固化；“待定”必须在指定阶段退出前解决。候选接口不是已交付 OpenAPI，不能拿本系列文档替代实现和集成测试。现有中篇、评论、草稿和搜索继续按原契约工作。

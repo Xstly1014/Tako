@@ -1,5 +1,7 @@
 # Tako Android · 本机测试 App
 
+> 2026-11-03当前源码补充：已整合M3作品检索/状态工作台、M4本人处置/文字复核与M5正式版本核对；N1长文私密写章也已接入，N2公开章节尚未实现。117模型、20读者/服务组与组件/真实MySQL整合证据见[本轮复核](../docs/reviews/cross-review-primary-240ae2e.md)。下方旧包和历史数量不代表当前安装状态，设备仍待同事；不据此声称用户手机已更新。
+
 独立 React Native + Expo App，与 Nuxt Web 同仓库、独立页面和导航，共用 Go API。视觉以 `../docs/prototypes/mobile-app-v1/` 为依据，中篇保持无封面全宽文字列表。原型不作为真实数据来源。
 
 ## 当前源码与安装包
