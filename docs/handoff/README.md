@@ -4,6 +4,8 @@
 
 ## 当前职责（用户明确）
 
+**双方执行方式已调整：** 一次规划多个完整业务包，连续完成当前包；小提交不等于小交付，不在内部工作区之间等待用户反复说“继续”。同事下次同步请先读[并行端手册06](06-parallel-development-playbook.md)，并在自己的进度随下一必要提交记录接收情况；主开发同等规则见[手册05](05-development-playbook.md)。每次实际推送的同步、安全和必要验证仍保留。
+
 主开发只负责业务、规格、实现、自动化和集成，**不负责APK构建/安装/USB/ADB或真机测试**。每次推送在[设备任务队列](device-requests.md)交接给同事，待其确认/报告。完整规则见[主开发手册](05-development-playbook.md)，旧阶段分工不覆盖本条。
 
 ## 本轮业务规划
@@ -47,6 +49,7 @@ S2搜索已接入App源码（ce1670a），18读者/服务组、86模型、五套
 3. [并行边界](03-parallel-work.md)：当前具体认领优先于历史建议表。
 4. [接手提示](04-codex-start.md)：可复制给另一台 Codex。
 5. [主开发手册](05-development-playbook.md)：长期分工、每轮开发和设备交接。
+6. [并行端手册](06-parallel-development-playbook.md)：同等执行节奏、同步接收与原分工边界。
 6. [C1/C2 接口约定](c1-c2-interface.md)：只传已确认服务器 ID/修订，不传内存正文、不修改工作稿。
 
 根 AGENTS.md、business-first 必读；移动端另读 mobile/AGENTS.md，UI 改动读 ui-deai。技能不能取代用户授权或扩大业务范围。
