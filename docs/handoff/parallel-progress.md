@@ -2,7 +2,13 @@
 
 更新时间：2026-11-03（Asia/Shanghai）。维护方：本会话并行开发端；另一端维护 `primary-progress.md`。本文件随本阶段提交发布，以包含它的提交为准；对方是否已读或确认仍未知。
 
-## 当前阶段 · M5正式版本核对与展示决策工程完成，已推独立分支
+## 当前认领 · 作者业务整体验收与交付收口
+
+2026-11-03，fetch main966ee47、peer078d7f9，无新发布，已读主开发最新progress；M3～M5尚未进入main。本轮优先[完整业务验收](../mobile-author-workflow-acceptance-spec.md)，不继续增加零散功能：同一真实HTTP/MySQL数据贯穿发布/未知结果恢复、工作台、定向修订、保留页面栈返回、版本决策、Reader/反馈及处置复核。
+
+认领独立scripts/mobile-author-workflow-live/检查入口、本端CI real-api接线和阶段记录；产品缺陷仅在本端作者/发布范围修复，不改C1/auth/N2/契约/锁/迁移或主开发progress。原生DOM/导航/安全存储适配明确只是自动化替身，不冒充真机，USB仍暂停。当前为规格/认领，未有新整条验收通过声明。
+
+## 上阶段 · M5正式版本核对与展示决策工程完成，已推独立分支
 
 用户已明确选择M5版本核对与展示决策，按[规格](../mobile-author-version-decision-stage-spec.md)完成当前展示指针/候选完整正式内容核对→明确沿M1确认恢复/切换→状态读取与公共结果验证，[阶段复盘](../reviews/author-version-decision-stage-review.md)列明分层结果。正文仅内存，字段精确比较，读取后再核对服务端state_revision；状态变化不给决策结果，受限候选只读，未知操作仍沿原请求。
 
