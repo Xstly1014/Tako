@@ -132,8 +132,8 @@ export default function Community() {
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="长文，尚未开放"
-          onPress={() => unavailable("长文频道")}
+          accessibilityLabel="长文频道"
+          onPress={() => router.navigate("/novel-community")}
           style={s.channelButton}
         >
           <Text style={s.channelText}>长文</Text>

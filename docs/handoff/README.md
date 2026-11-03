@@ -1,5 +1,12 @@
 # Tako 开发交接入口
 
+## 当前接续点（2026-11-03）
+
+本机3300已保留数据升级0018，API0.18。N2书/章/版本最低处置与复核、正式后审、Web `/ops/novels`、公开列表/目录/正式章读取，以及App长文频道/目录/阅读已实现。**作者App固定预览/发布恢复与正式管理尚未接线，N2未整体收口**。以[主开发进度](primary-progress.md)和[N2连续复盘](../reviews/n2-publication-implementation-review.md)末段为准，下列旧检查点是历史。
+
+peer8d79作者反馈已普通合入e8c96cd，契约未退回；本窗口后来观察到dfe0ff6跨作品反馈收件箱，含共享API/CommentsPanel变更，留下一独立审查窗口，不称已合入或验证。主开发继续N2，不重复开发同事反馈收件箱。新独立组件门禁见 `scripts/check_novel_reading_components.cjs`，运营浏览器夹具见 `scripts/check_novel_ops.cjs`。本端不构建APK或操作设备/ECS。
+
+
 更新于 2026-11-03。当前优先独立 Android App；先读本页与双方进度，再读相关规格。历史阶段记录保留在 docs/reviews，旧包、旧测试数量与旧“未接入”措辞不覆盖下面的当前状态。
 
 ## 当前职责（用户明确）

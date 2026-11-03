@@ -81,7 +81,17 @@ INSERT INTO novel_publications(novel_id,owner_id,title,introduction,tags,first_p
     goose('down',False)
     if sql('SELECT COUNT(*) FROM novel_metadata_versions;',True)!='1' or sql('SELECT title,content,version FROM chapter_versions;',True)!=formal:
         raise RuntimeError('management_refused_rollback_changed_data_or_schema')
-    print('PASS N2 migrations 16/17: private/formal data retained; populated rollback refused; safe rollback and reupgrade verified.')
+    goose('up-to 18')
+    goose('down')
+    if sql('SELECT COUNT(*) FROM novel_management_requests;',True)!='1':
+        raise RuntimeError('moderation_safe_rollback_changed_management')
+    goose('up-to 18')
+    sql(f"""INSERT INTO novel_moderation_cases(novel_id,owner_id,target_id,scope,version,reason,actor_id) VALUES(UNHEX('{book}'),UNHEX('{owner}'),UNHEX('{chapter}'),'version',1,'migration case',UNHEX('{owner}'));
+INSERT INTO novel_moderation_appeals(case_id,reason) SELECT id,'migration appeal' FROM novel_moderation_cases;""",True)
+    goose('down',False)
+    if sql('SELECT COUNT(*) FROM novel_moderation_cases;',True)!='1' or sql('SELECT COUNT(*) FROM novel_moderation_appeals;',True)!='1' or sql('SELECT title,content,version FROM chapter_versions;',True)!=formal:
+        raise RuntimeError('moderation_refused_rollback_changed_data_or_schema')
+    print('PASS N2 migrations 16/17/18: private/formal/management data retained; populated rollback refused; safe rollback and reupgrade verified.')
 finally:
     if created:
         sql(f'DROP DATABASE {database};')
