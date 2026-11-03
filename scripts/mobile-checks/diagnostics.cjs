@@ -40,4 +40,9 @@ function fixtureStage(mode, output) {
   return stages[mode]?.includes(stage) ? stage : 'unavailable';
 }
 
-module.exports = { processState, testLocations, fixtureStage };
+function authorWorkflowStage(output) {
+  const stage = String(output).match(/^FAIL real author workflow stage=([a-z-]+)$/m)?.[1];
+  return ['bundle', 'cleanup', 'catalog-and-publication', 'publication-read-only-recovery', 'directed-revision-retained-stack',
+    'version-decision-and-reader', 'reader-feedback-and-author-return', 'moderation-and-appeal'].includes(stage) ? stage : 'unavailable';
+}
+module.exports = { processState, testLocations, fixtureStage, authorWorkflowStage };
