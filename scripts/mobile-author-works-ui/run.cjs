@@ -76,6 +76,9 @@ let stage = "bundle";
   const receipts = new Map(),
     attempts = [],
     errors = [];
+  let firstTimeline = true, releaseTimeline, markTimelineStarted;
+  const timelineGate = new Promise(resolve => { releaseTimeline = resolve; });
+  const timelineStarted = new Promise(resolve => { markTimelineStarted = resolve; });
   page.on("pageerror", (e) => errors.push(e.name));
   const json = (route, body, status = 200) =>
     route.fulfill({
@@ -155,6 +158,9 @@ let stage = "bundle";
         return json(route, state);
       }
       if (p.endsWith("/versions")) {
+        if (firstTimeline) {
+          firstTimeline = false; markTimelineStarted(); await timelineGate;
+        }
         if (failRead) {
           failRead = false;
           return json(route, { error: "service_unavailable" }, 503);
@@ -186,6 +192,11 @@ let stage = "bundle";
       "confirmation",
     );
     stage = "public-display-handoff";
+    await timelineStarted;
+    await page.getByText("正在读取作品状态", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).count(), 0);
+    releaseTimeline();
+    await page.getByRole("button", { name: "查看读者当前展示", exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).count(), 1);
     await page.evaluate(() => { window.authorUi.holdNavigation = true; });
     await page.getByRole("button", { name: "查看读者当前展示", exact: true }).click();
