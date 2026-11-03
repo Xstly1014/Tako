@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"time"
+	"writing.local/community/internal/novel"
 	"writing.local/community/internal/ops"
 	"writing.local/community/internal/publication"
 )
@@ -112,6 +113,9 @@ func (s Store) RunMaintenance(ctx context.Context, logger *slog.Logger) {
 		removed, err := s.CleanupRevisions(runCtx, time.Now().UTC())
 		if err == nil && os.Getenv("PUBLICATION_ENABLED") == "true" {
 			_, err = (publication.Store{DB: s.DB}).CleanupPreviews(runCtx, time.Now().UTC())
+			if err == nil {
+				_, err = (novel.Store{DB: s.DB}).PruneChapterPreviews(runCtx)
+			}
 		}
 		if err != nil {
 			_ = ops.Beat(runCtx, s.DB, "maintenance", false, 1)
