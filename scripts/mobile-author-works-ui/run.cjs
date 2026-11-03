@@ -83,6 +83,7 @@ let stage = "bundle";
   const receipts = new Map(),
     attempts = [],
     errors = [];
+  let recoveryRead = null;
   let firstTimeline = true, releaseTimeline, markTimelineStarted;
   const timelineGate = new Promise(resolve => { releaseTimeline = resolve; });
   const timelineStarted = new Promise(resolve => { markTimelineStarted = resolve; });
@@ -198,6 +199,7 @@ let stage = "bundle";
         return json(route, state);
       }
       if (p.endsWith("/versions")) {
+        if (recoveryRead) { const gate = recoveryRead; recoveryRead = null; gate.started(); await gate.wait; }
         if (pairStateChange) { pairStateChange = false; state = { ...state, state_revision: state.state_revision + 1 }; }
         if (firstTimeline) {
           firstTimeline = false; markTimelineStarted(); await timelineGate;
@@ -371,8 +373,18 @@ let stage = "bundle";
     await page.getByRole("button", { name: "刷新状态", exact: true }).click();
     await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isDisabled(), true);
+    let releaseRecovery, markRecovery;
+    const recoveryGate = new Promise(resolve => { releaseRecovery = resolve; });
+    const recoveryStarted = new Promise(resolve => { markRecovery = resolve; });
+    recoveryRead = { wait: recoveryGate, started: markRecovery };
     await page.getByRole("button", { name: "刷新状态", exact: true }).click();
-    await page.waitForFunction(() => !document.body.textContent.includes("操作已确认，暂时无法读取作品当前状态，请重试读取。"));
+    await recoveryStarted;
+    // Clearing the old error is not completion of the new GET.
+    assert.equal(await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isDisabled(), true);
+    assert.equal(attempts.length, confirmedAttempts);
+    releaseRecovery();
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === '查看读者当前展示' && !button.disabled));
     assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isEnabled(), true);
     assert.equal(attempts.length, confirmedAttempts);
     stage = "version-pair-restricted-read";
