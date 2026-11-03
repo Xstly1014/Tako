@@ -71,6 +71,10 @@ let stage = "bundle";
     nextReadFails = true,
     nextJournalVisible = false,
     stateReads = 0,
+    targetReads = 0,
+    targetReadFails = false,
+    directedMode = false,
+    directedPublished = false,
     preparedBody,
     errors = [];
   const result = {
@@ -82,15 +86,15 @@ let stage = "bundle";
   const snapshot = () => ({
     id: previewId,
     draft_id: draft,
-    source_revision: 1,
-    expected_version: 0,
+    source_revision: directedMode ? 2 : 1,
+    expected_version: directedMode ? 2 : 0,
     title: "固定快照标题",
     content: "固定快照正文",
     introduction: preparedBody?.introduction ?? "",
     tags: preparedBody?.tags ?? ["日常"],
     created_at: "2026-11-02T00:00:00Z",
     expires_at: "2099-11-03T00:00:00Z",
-    ...(published ? { published: result } : {}),
+    ...(published ? { published: { ...result, version: directedMode ? 3 : 1 } } : {}),
   });
   const json = (route, value, status = 200) =>
     route.fulfill({
@@ -118,6 +122,7 @@ let stage = "bundle";
           ? b
           : a;
       if (pathname.startsWith("/api/publication")) publicationRequests++;
+      if (pathname.startsWith("/api/my/works/") && pathname.endsWith("/versions")) targetReads++;
       if (offline) return route.abort();
       if (pathname === "/api/app/auth/login")
         return json(route, {
@@ -154,6 +159,13 @@ let stage = "bundle";
           saved_at: "2026-11-02T00:00:00Z",
         });
       }
+      if (pathname === "/api/my/works/" + work + "/versions") {
+        if (targetReadFails) { targetReadFails = false; return json(route, { error: "service_unavailable" }, 503); }
+        return json(route, { state: { id: work, draft_id: draft, last_version: directedPublished ? 3 : 2, display_version: directedPublished ? 3 : 1, state_revision: 2,
+          author_hidden: true, history_open: false, platform_limited: false },
+          versions: (directedPublished ? [3, 2, 1] : [2]).map(version => ({ version, title: "目标作品A", published_at: "2026-11-02T00:00:00Z", platform_limited: false, review_status: "pending" })),
+          events: [], next_version_before: 0, next_event_before: 0 });
+      }
       if (pathname === "/api/publication-previews") {
         prepares++;
         preparedBody = body;
@@ -179,17 +191,18 @@ let stage = "bundle";
       if (pathname === "/api/publications") {
         publishes++;
         published = true;
+        if (directedMode) directedPublished = true;
         if (publishes === 1) return route.abort();
-        return json(route, result);
+        return json(route, { ...result, version: directedMode ? 3 : 1 });
       }
       if (pathname === "/api/my/works/" + work) {
         stateReads++;
-        if (stateReads === 1) return route.abort();
+        if (!directedMode && stateReads === 1) return route.abort();
         return json(route, {
           id: work,
           draft_id: draft,
-          last_version: nextJournalVisible ? 2 : 1,
-          display_version: 1,
+          last_version: directedMode ? (directedPublished ? 3 : 2) : nextJournalVisible ? 2 : 1,
+          display_version: directedPublished ? 3 : 1,
           state_revision: 2,
           author_hidden: true,
           history_open: false,
@@ -207,13 +220,58 @@ let stage = "bundle";
       ),
       "confirmation",
     );
+    stage = "directed-revision-target";
+    directedMode = true; targetReadFails = true;
+    await page.evaluate(work_id => { window.publishUi.params = { work_id }; window.publishUi.navigate("/publish", "push"); }, work);
+    await page.getByText("确认本人稿件与发布记录", { exact: true }).waitFor();
+    assert.equal(prepares, 0); assert.equal(publishes, 0);
+    assert.equal(await page.getByText("选择服务器已保存的稿件", { exact: true }).count(), 0);
+    await page.getByRole("button", { name: "重新加载", exact: true }).click();
+    await page.getByText("修订发行：目标作品A", { exact: true }).waitFor();
+    await page.getByText("采用服务器修订 R2", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "读取已保留的发布记录" }).click();
+    await page.getByText("修订发行：目标作品A", { exact: true }).waitFor();
+    assert.equal(publishes, 0);
+    assert.match(await page.getByRole("button", { name: "确认原创或取得发布授权" }).innerText(), /^未确认/);
+    await page.getByRole("textbox", { name: "发布笔名" }).fill("定向发行作者");
+    await page.getByRole("button", { name: "保存发布笔名" }).click();
+    await page.getByRole("button", { name: "发布标签 日常" }).click();
+    await page.getByRole("button", { name: "确认原创或取得发布授权" }).click();
+    await page.getByRole("button", { name: "生成固定预览" }).click();
+    await page.getByText("固定预览 · 修订 R2", { exact: true }).waitFor();
+    assert.equal(preparedBody.draft_id, draft); assert.equal(preparedBody.source_revision, 2);
+    assert.equal(publishes, 0);
+    targetReadFails = true;
+    await page.getByRole("button", { name: "放弃此预览并重新核对" }).click();
+    await page.getByText("确认本人稿件与发布记录", { exact: true }).waitFor();
+    assert.equal(await page.getByText("选择服务器已保存的稿件", { exact: true }).count(), 0);
+    await page.getByRole("button", { name: "重新加载", exact: true }).click();
+    await page.getByText("修订发行：目标作品A", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await page.evaluate(() => {
+      window.publishUi.params = { work_id: "99999999-9999-4999-8999-999999999999" };
+      window.publishUi.navigate("/publish", "push");
+    });
+    await page.getByText("确认本人稿件与发布记录", { exact: true }).waitFor();
+    assert.equal(await page.getByText("修订发行：目标作品A", { exact: true }).count(), 0);
+    assert.equal(await page.getByText("选择服务器已保存的稿件", { exact: true }).count(), 0);
+    assert.equal(publishes, 0);
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    // The following existing scenarios have their own preparation counters.
+    await page.evaluate(async () => {
+      await window.publishUi.session.logout();
+      await window.publishUi.session.signIn("login", "a@example.test", "fixture-password");
+    });
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).waitFor();
+    directedMode = false; prepares = 0; preparedBody = undefined; stateReads = 0;
+    const sourceReadsBeforeLegacy = sourceReads;
     stage = "incomplete-editor-handoff";
     await page.evaluate((draft) => {
       window.publishUi.params = { draft_id: draft };
       window.publishUi.navigate("/publish", "push");
     }, draft);
     await page.getByText("发布入口参数无效", { exact: true }).waitFor();
-    assert.equal(sourceReads, 0);
+    assert.equal(sourceReads, sourceReadsBeforeLegacy);
     assert.equal(prepares, 0);
     assert.equal(publishes, 0);
     await page.getByRole("button", { name: "返回作品管理" }).click();
@@ -463,6 +521,18 @@ let stage = "bundle";
     await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
     await page.getByText("已确认正式版本 V2", { exact: true }).waitFor();
     assert.equal(publishes, 1);
+    stage = "directed-original-journal-priority";
+    const beforeTargetReads = targetReads;
+    const beforeDirectedSourceReads = sourceReads;
+    await page.evaluate(() => {
+      window.publishUi.params = { work_id: "99999999-9999-4999-8999-999999999999" };
+      window.publishUi.navigate("/my-works", "dismissTo");
+    });
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
+    await page.getByText("已确认正式版本 V2", { exact: true }).waitFor();
+    await page.getByText("当前优先显示已保留的发布记录，尚未采用本次目标作品；请先核对原结果。", { exact: true }).waitFor();
+    assert.equal(targetReads, beforeTargetReads); assert.equal(sourceReads, beforeDirectedSourceReads);
+    assert.equal(publishes, 1);
     stage = "account-switch";
     await page.evaluate(async () => {
       window.publishUi.params = {};
@@ -489,6 +559,42 @@ let stage = "bundle";
       await page.getByText("已确认正式版本 V2", { exact: true }).count(),
       0,
     );
+    stage = "directed-release-return";
+    await page.evaluate(async () => {
+      await window.publishUi.session.logout();
+      await window.publishUi.session.signIn("login", "a@example.test", "fixture-password");
+    });
+    await page.getByText("已确认正式版本 V2", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "确认结果并选择其他稿件" }).click();
+    await page.getByText("选择服务器已保存的稿件", { exact: true }).waitFor();
+    directedMode = true; published = false;
+    await page.evaluate(work_id => {
+      window.publishUi.params = { work_id };
+      window.publishUi.navigate("/my-works", "dismissTo");
+    }, work);
+    await page.getByRole("button", { name: "发布服务器已保存稿件" }).click();
+    await page.getByText("修订发行：目标作品A", { exact: true }).waitFor();
+    await page.getByRole("textbox", { name: "发布笔名" }).fill("修订发行作者");
+    await page.getByRole("button", { name: "保存发布笔名" }).click();
+    await page.getByRole("button", { name: "发布标签 日常" }).click();
+    await page.getByRole("button", { name: "确认原创或取得发布授权" }).click();
+    await page.getByRole("button", { name: "生成固定预览" }).click();
+    await page.getByText("固定预览 · 修订 R2", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "正式发布这份快照" }).click();
+    await page.getByText("已确认正式版本 V3", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "进入作品管理" }).click();
+    await page.getByRole("button", { name: "恢复公开并展示最新 V3" }).waitFor();
+    await page.getByText(/展示 V3 · 最新 V3/).waitFor();
+    assert.equal(await page.evaluate(() => window.publishUi.params.id), work);
+    assert.equal(publishes, 2);
+    await page.getByRole("button", { name: "返回作品列表" }).click();
+    await page.getByText("作品管理", { exact: true }).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account", "/my-works"]);
+    await page.evaluate(() => { window.publishUi.params = { id: ["bad"] }; window.publishUi.navigate("/my-works/[id]", "push"); });
+    await page.getByText("作品入口无效", { exact: true }).waitFor();
+    assert.equal(publishes, 2);
+    await page.getByRole("button", { name: "返回作品列表" }).click();
+    await page.getByText("作品管理", { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     console.log(
       "PASS publication fixtures: session envelope, strict handoff, explicit rights, durable unknown result, offline grant isolation, read-only recovery, failed replacement read hides old success and cannot acknowledge the new journal, explicit retry and account isolation. Not native-storage evidence.",
