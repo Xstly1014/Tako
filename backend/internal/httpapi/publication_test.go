@@ -103,6 +103,12 @@ func TestPublicationHTTPContractAndAccess(t *testing.T) {
 	call("GET", "/api/my/works", nil, true, 200)
 	catalog := call("GET", "/api/my/works?q=&visibility=all&restriction=all", nil, true, 200)
 	var catalogPage publication.AuthorCatalogPage
+	var catalogJSON struct {
+		Items []map[string]json.RawMessage `json:"items"`
+	}
+	if err := json.Unmarshal(catalog.Body.Bytes(), &catalogJSON); err != nil || len(catalogJSON.Items) != 1 || string(catalogJSON.Items[0]["comment_count"]) != "0" || string(catalogJSON.Items[0]["favorite_count"]) != "0" {
+		t.Fatal("catalog must return real zero-valued statistics, not omit them")
+	}
 	if err := json.Unmarshal(catalog.Body.Bytes(), &catalogPage); err != nil || len(catalogPage.Items) != 1 || catalogPage.Items[0].LatestTitle != "契约测试作品" {
 		t.Fatal("catalog summary contract")
 	}

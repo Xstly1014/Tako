@@ -13,6 +13,8 @@ export type CatalogPage = {
   items: (WorkPage["items"][number] & {
     latest_title: string;
     display_limited: boolean;
+    comment_count: number;
+    favorite_count: number;
   })[];
   next_cursor: string;
 };
@@ -97,7 +99,11 @@ export class AuthorWorksApi {
         (x) =>
           typeof x.latest_title !== "string" ||
           !x.latest_title.trim() ||
-          typeof x.display_limited !== "boolean",
+          typeof x.display_limited !== "boolean" ||
+          !Number.isSafeInteger(x.comment_count) ||
+          x.comment_count < 0 ||
+          !Number.isSafeInteger(x.favorite_count) ||
+          x.favorite_count < 0,
       )
     )
       fail();

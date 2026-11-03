@@ -2819,6 +2819,10 @@ export interface components {
       latest_title?: string;
       /** @description M3模式必返，当前展示版本的平台限制；platform_limited仍只代表作品级限制 */
       display_limited?: boolean;
+      /** @description M3模式必返；未删除或屏蔽的主评论及回复数，主评论不可见时其回复不计入；隐藏或限制作品不清空历史计数，不返回评论内容或读者身份 */
+      comment_count?: number;
+      /** @description M3模式必返；当前有效收藏关系数，取消收藏不计入；隐藏或限制作品不清空历史计数，不返回收藏账号身份 */
+      favorite_count?: number;
       /** Format: uuid */
       draft_id: string;
       author_hidden: boolean;

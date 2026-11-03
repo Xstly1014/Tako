@@ -385,6 +385,38 @@ test("目录API显式提交条件、取消信号与新摘要校验，旧调用�
   await malformed.list();
 });
 
+test("目录统计只接受真实非负安全整数，不把缺失或错误数据当零", async () => {
+  const item = {
+    ...state(),
+    title: "作品",
+    latest_title: "作品",
+    display_limited: false,
+    comment_count: 7,
+    favorite_count: 11,
+  };
+  const valid = api(async () => ({ items: [item], next_cursor: "" }));
+  const page = await valid.catalog(emptyCatalogQuery());
+  assert.equal(page.items[0].comment_count, 7);
+  assert.equal(page.items[0].favorite_count, 11);
+  for (const key of ["comment_count", "favorite_count"] as const) {
+    for (const value of [
+      undefined,
+      -1,
+      1.5,
+      Number.MAX_SAFE_INTEGER + 1,
+      "0",
+    ]) {
+      const broken = api(async () => ({
+        items: [{ ...item, [key]: value }],
+        next_cursor: "",
+      }));
+      await assert.rejects(broken.catalog(emptyCatalogQuery()), {
+        code: "contract",
+      });
+    }
+  }
+});
+
 test("全量目录换条件取消迟到响应；分页失败保留游标、去重并拦截循环", async () => {
   const pending: {
     resolve: (page: CatalogPage) => void;
@@ -406,6 +438,8 @@ test("全量目录换条件取消迟到响应；分页失败保留游标、去�
     title: "title",
     latest_title: "latest",
     display_limited: false,
+    comment_count: 0,
+    favorite_count: 0,
   };
   const old = catalog.apply(emptyCatalogQuery());
   const fresh = catalog.apply({ ...emptyCatalogQuery(), q: "new" });
@@ -470,6 +504,8 @@ test("管理返回保留条件刷新首屏，切号或退出的迟到私密列�
         title: "private",
         latest_title: "private",
         display_limited: false,
+        comment_count: 0,
+        favorite_count: 0,
       },
     ],
     next_cursor: "",

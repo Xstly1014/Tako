@@ -163,14 +163,14 @@ let stage = "bundle";
         const cursor = url.searchParams.get('cursor') ?? '';
         catalogRequests.push({ q, visibility, restriction, cursor });
         if (cursor && catalogFail) { catalogFail = false; return json(route, { error: 'internal_error' }, 500); }
-        let items = Array.from({ length: 45 }, (_, n) => ({ ...state, id: n === 44 ? id : 'aaaaaaaa-aaaa-4aaa-8aaa-' + String(n).padStart(12, '0'), title: n === 44 ? '甲的正式作品' : '目录 ' + n, latest_title: n === 44 ? '甲的最新正式标题' : '目录 ' + n, display_limited: false, author_hidden: n === 44 ? state.author_hidden : false }));
+        let items = Array.from({ length: 45 }, (_, n) => ({ ...state, id: n === 44 ? id : 'aaaaaaaa-aaaa-4aaa-8aaa-' + String(n).padStart(12, '0'), title: n === 44 ? '甲的正式作品' : '目录 ' + n, latest_title: n === 44 ? '甲的最新正式标题' : '目录 ' + n, display_limited: false, comment_count: 0, favorite_count: 0, author_hidden: n === 44 ? state.author_hidden : false }));
         items = items.filter(x => (!q || (x.title + x.latest_title).toLowerCase().includes(q)) && (visibility === 'all' || x.author_hidden === (visibility === 'hidden')) && (restriction === 'all' || (x.platform_limited || x.display_limited) === (restriction === 'restricted')));
         const offset = cursor ? Number(cursor.slice(4)) : 0;
         return json(route, { items: items.slice(offset, offset + 20), next_cursor: offset + 20 < items.length ? 'page' + (offset + 20) : '' });
       }
       if (p === "/api/my/works")
         return json(route, {
-          items: viewer === a ? [{ ...state, title: "甲的正式作品", latest_title: "甲的正式作品", display_limited: false }] : [],
+          items: viewer === a ? [{ ...state, title: "甲的正式作品", latest_title: "甲的正式作品", display_limited: false, comment_count: 0, favorite_count: 0 }] : [],
           next_cursor: "",
         });
       if (/\/my\/works\/[^/]+\/versions\/[12]$/.test(p)) {
@@ -484,7 +484,9 @@ let stage = "bundle";
     assert.equal(catalogRequests.length, beforeEditing);
     assert.equal(await page.getByRole('button', { name: '加载更多作品', exact: true }).isDisabled(), true);
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
-    await page.getByText('最新正式标题：甲的最新正式标题', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).waitFor();
+    assert.equal(await page.getByText(/最新正式标题：|展示 V/).count(), 0);
+    await page.getByText('评论 0　收藏 0', { exact: true }).waitFor();
     assert.equal(catalogRequests.at(-1).q, '甲的最新');
     await page.getByRole('button', { name: '清空条件', exact: true }).click();
     await page.getByText(/已读取 20 件/).waitFor();
@@ -495,7 +497,9 @@ let stage = "bundle";
     await page.getByRole('button', { name: '加载更多作品', exact: true }).click();
     await page.getByText(/已读取 45 件/).waitFor();
     stage = "catalog-management-return";
+    await page.getByRole('button', { name: '筛选', exact: true }).click();
     await page.getByRole('button', { name: '作者未隐藏', exact: true }).click();
+    await page.getByRole('button', { name: '应用筛选', exact: true }).click();
     await page.getByRole('textbox', { name: '作品标题关键词' }).fill('甲的最新');
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
     await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).click();
@@ -508,7 +512,9 @@ let stage = "bundle";
     assert.equal(catalogRequests.at(-1).visibility, 'shown');
     assert.equal(catalogRequests.at(-1).q, '甲的最新');
     assert.equal(attempts.length, afterHideAttempts);
+    await page.getByRole('button', { name: '筛选', exact: true }).click();
     await page.getByRole('button', { name: '作者已隐藏', exact: true }).click();
+    await page.getByRole('button', { name: '应用筛选', exact: true }).click();
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
     await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).click();
     await page.getByText('私有版本1', { exact: false }).first().waitFor();

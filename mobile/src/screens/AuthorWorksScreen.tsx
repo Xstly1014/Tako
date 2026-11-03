@@ -13,7 +13,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { router, useFocusEffect, usePreventRemove } from "expo-router";
@@ -31,12 +30,12 @@ import {
   AuthorCatalog,
   emptyCatalogQuery,
   normalizeCatalogQuery,
-  sameCatalogQuery,
   type CatalogQuery,
 } from "../author-works/catalog";
 import type { PublicWork } from "../api/reader";
 import { Action, Status } from "../components/Ui";
 import { theme as t } from "../theme";
+import AuthorCatalogView from "../author-works/AuthorCatalogView";
 import VersionDecision from "../author-works/VersionDecision";
 import { versionDecisionBlock } from "../author-works/version-decision";
 
@@ -137,18 +136,17 @@ function Workspace({
       ),
     [api, session, generation, accountId],
   );
-  const { page, query, busy, loaded, error, refreshed } = useSyncExternalStore(
+  const { page, query, busy, loaded, error } = useSyncExternalStore(
     catalog.subscribe,
     catalog.snapshot,
   );
-  const dirty = !sameCatalogQuery(draftQuery, query);
-  const applyQuery = () => {
+  const applyQuery = (input: CatalogQuery) => {
     try {
-      setDraftQuery(normalizeCatalogQuery(draftQuery));
+      setDraftQuery(normalizeCatalogQuery(input));
     } catch {
       /* The catalog presents validation feedback. */
     }
-    void catalog.apply(draftQuery);
+    void catalog.apply(input);
   };
   const load = useCallback(() => catalog.refresh(), [catalog]);
   useFocusEffect(
@@ -188,182 +186,26 @@ function Workspace({
           }}
         />
       ) : (
-        <>
-          <View style={s.header}>
-            <Button
-              label="返回我的"
-              onPress={() => router.dismissTo("/account")}
-            />
-            <Text style={s.heading}>作品管理</Text>
-            <Button
-              label="刷新作品"
-              onPress={() => void load()}
-              disabled={busy}
-            />
-          </View>
-          <ScrollView contentContainerStyle={s.content}>
-            <Action
-              label="发布服务器已保存稿件"
-              onPress={() => router.push("/publish")}
-            />
-            <Text style={s.note}>
-              这里管理已正式发布的中篇。编辑工作稿请使用草稿箱。
-            </Text>
-            <Text style={s.section}>查找本人作品</Text>
-            <Button label="读者反馈收件箱" onPress={() => router.push("/author-feedback")} />
-            <Button
-              label="查看本人处置与复核"
-              onPress={() => router.push("/my-moderation")}
-            />
-            <TextInput
-              accessibilityLabel="作品标题关键词"
-              placeholder="展示标题或最新正式标题，最多64字"
-              value={draftQuery.q}
-              onChangeText={(q) => setDraftQuery((old) => ({ ...old, q }))}
-              onSubmitEditing={applyQuery}
-              returnKeyType="search"
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={s.input}
-            />
-            <Text style={s.note}>作者状态</Text>
-            <View style={s.filters}>
-              {(
-                [
-                  ["all", "全部作者状态"],
-                  ["shown", "作者未隐藏"],
-                  ["hidden", "作者已隐藏"],
-                ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  label={
-                    (draftQuery.visibility === value ? "已选：" : "") + label
-                  }
-                  onPress={() =>
-                    setDraftQuery((old) => ({ ...old, visibility: value }))
-                  }
-                />
-              ))}
-            </View>
-            <Text style={s.note}>平台状态（作品或展示版本）</Text>
-            <View style={s.filters}>
-              {(
-                [
-                  ["all", "全部平台状态"],
-                  ["restricted", "受限"],
-                  ["unrestricted", "未受限"],
-                ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  label={
-                    (draftQuery.restriction === value ? "已选：" : "") + label
-                  }
-                  onPress={() =>
-                    setDraftQuery((old) => ({ ...old, restriction: value }))
-                  }
-                />
-              ))}
-            </View>
-            <View style={s.filters}>
-              <Button label="查找作品" onPress={applyQuery} />
-              <Button
-                label="清空条件"
-                onPress={() => {
-                  const empty = emptyCatalogQuery();
-                  setDraftQuery(empty);
-                  void catalog.apply(empty);
-                }}
-              />
-            </View>
-            <Text style={s.note}>
-              已应用：{query.q ? "标题包含“" + query.q + "”" : "全部标题"} ·{" "}
-              {query.visibility === "all"
-                ? "全部作者状态"
-                : query.visibility === "shown"
-                  ? "作者未隐藏"
-                  : "作者已隐藏"}{" "}
-              ·{" "}
-              {query.restriction === "all"
-                ? "全部平台状态"
-                : query.restriction === "restricted"
-                  ? "受限"
-                  : "未受限"}{" "}
-              · 已读取 {page.items.length} 件
-            </Text>
-            {dirty ? (
-              <Text style={s.note}>
-                条件尚未应用，查找后继续翻页。刷新仍使用已应用条件。
-              </Text>
-            ) : null}
-            {refreshed ? (
-              <Text style={s.note}>
-                已按原条件刷新首屏，管理状态以本次读取为准。
-              </Text>
-            ) : null}
-            {!page.items.length ? (
-              busy ? (
-                <Status loading title="正在读取本人作品" />
-              ) : error ? (
-                <Status
-                  title="作品未能加载"
-                  message={authorWorkMessage(error)}
-                  onRetry={() => void load()}
-                />
-              ) : loaded ? (
-                <Status
-                  title={
-                    query.q ||
-                    query.visibility !== "all" ||
-                    query.restriction !== "all"
-                      ? "没有符合条件的作品"
-                      : "还没有正式作品"
-                  }
-                  message="可调整条件或清空后重新查找。已保存的私密草稿不会自动公开。"
-                />
-              ) : null
-            ) : (
-              page.items.map((item) => (
-                <Pressable
-                  key={item.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`管理作品 ${item.title}`}
-                  onPress={() => {
-                    catalog.cancel();
-                    setSelected(item.id);
-                  }}
-                  style={({ pressed }) => [s.row, pressed && s.pressed]}
-                >
-                  <Text style={s.workTitle}>{item.title}</Text>
-                  {item.latest_title !== item.title ? (
-                    <Text style={s.note}>
-                      最新正式标题：{item.latest_title}
-                    </Text>
-                  ) : null}
-                  <Text style={s.meta}>
-                    展示 V{item.display_version} · 最新 V{item.last_version} ·{" "}
-                    {item.author_hidden ? "作者已隐藏" : "作者未隐藏"}
-                    {item.platform_limited ? " · 作品整体受限" : ""}
-                    {item.display_limited ? " · 展示版本受限" : ""}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-            {page.items.length > 0 && error ? (
-              <Text style={s.error}>{authorWorkMessage(error)}</Text>
-            ) : null}
-            {busy ? (
-              <ActivityIndicator color={t.brand} />
-            ) : page.next_cursor ? (
-              <Button
-                label={error ? "重试加载更多作品" : "加载更多作品"}
-                disabled={dirty}
-                onPress={() => void catalog.more()}
-              />
-            ) : null}
-          </ScrollView>
-        </>
+        <AuthorCatalogView
+          page={page}
+          query={query}
+          draftQuery={draftQuery}
+          busy={busy}
+          loaded={loaded}
+          error={error}
+          onDraftQuery={setDraftQuery}
+          onApply={applyQuery}
+          onRefresh={() => void load()}
+          onMore={() => void catalog.more()}
+          onBack={() => router.dismissTo("/account")}
+          onPublish={() => router.push("/publish")}
+          onFeedback={() => router.push("/author-feedback")}
+          onModeration={() => router.push("/my-moderation")}
+          onSelect={(id) => {
+            catalog.cancel();
+            setSelected(id);
+          }}
+        />
       )}
     </SafeAreaView>
   );
@@ -659,7 +501,12 @@ function WorkDetail({
               <Button
                 label="处理作品反馈"
                 disabled={disabled || !!error || stateReadFailed}
-                onPress={() => router.push({ pathname: "/my-work-feedback/[id]", params: { id } })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/my-work-feedback/[id]",
+                    params: { id },
+                  })
+                }
               />
             ) : null}
             {!state?.author_hidden && !state?.platform_limited ? (
