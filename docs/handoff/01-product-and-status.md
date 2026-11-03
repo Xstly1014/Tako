@@ -1,4 +1,4 @@
-> N1-A 当前补充：私密开书与资料管理已接入App与3300，章节／发布仍待后续阶段。详见[私密书籍复盘](../reviews/private-novels-review.md)，不要将下方历史“长文尚未实现”视作当前子链路状态。
+> N1当前补充：私密开书、章稿、加密离线续写与冲突另存独立新章节已接App与3300，公开发布/阅读仍待N2，原生待同事。详见[章节复盘](../reviews/private-chapter-drafts-review.md)，不要将下方历史“长文尚未实现”视作当前子链路状态。同事M2定向修订发行已普通合入。
 
 > 2026-11-03 当前补充：S2 搜索已有源码与自动化，设备范围见 handoff/README 和 device-requests；长文／连载小说进入[N0规格](../novels/README.md)，尚未实现。主开发不负责APK/USB/真机，完整分工见[主开发手册](05-development-playbook.md)。以下旧阶段摘要保留历史语境。
 

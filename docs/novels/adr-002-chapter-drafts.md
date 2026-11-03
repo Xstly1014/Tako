@@ -1,6 +1,6 @@
 # ADR 002：章节身份与工作副本隔离
 
-2026-11-03，N1-B进行中，业务基线longform-business-spec.md。用户已确认恢复副本作为独立的新章节草稿，原章不覆盖；本ADR不把它解释成正式发布。
+2026-11-03，N1-B工程实施与本机验证完成，证据见[阶段复盘](../reviews/private-chapter-drafts-review.md)，原生待验。业务基线longform-business-spec.md。用户已确认恢复副本作为独立的新章节草稿，原章不覆盖；本ADR不把它解释成正式发布。
 
 ## 已确定工程决策
 

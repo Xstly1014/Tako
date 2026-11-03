@@ -1,6 +1,6 @@
 # 长文／连载小说业务规格
 
-日期：2026-11-03。状态：N0 规格基线。用户已授权规划长文业务；本文件不表示完整长文功能已经上线。N1-A 私密资料链路已接入，证据见[阶段复盘](../reviews/private-novels-review.md)；章节及后续能力仍未实现。执行阶段见[交付与验收](delivery-and-acceptance.md)。
+日期：2026-11-03。状态：N0 规格基线，N1私密创作已实现。完整长文功能尚未上线；N1-A资料与N1-B加密私密写章、独立恢复已接入，证据见[书籍复盘](../reviews/private-novels-review.md)、[章节复盘](../reviews/private-chapter-drafts-review.md)。公开发布及后续能力未实现，原生验收单独记账。执行阶段见[交付与验收](delivery-and-acceptance.md)。
 
 ## 1. 背景与业务目标
 
@@ -136,7 +136,7 @@ Tako 面向有表达和创作意愿的年轻用户。短内容、中篇、长文
 
 ## 13. 契约和存量兼容
 
-以下是能力分组；私密书籍资料和原请求回执已在 N1-A 实现，其余仍为候选。各期确定精确 URI、schema、分页和错误码，并更新唯一事实源 backend/internal/contract/openapi.yaml、生成声明与路由覆盖测试。
+以下是能力分组；私密书籍资料和回执在N1-A实现，按书章稿读写／恢复和私密目录在N1-B实现；其他公共能力仍为候选。精确URI、schema、分页和错误码以 backend/internal/contract/openapi.yaml、生成声明与路由覆盖测试为准。
 
 | 能力组 | 必要语义 |
 |---|---|

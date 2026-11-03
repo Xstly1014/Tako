@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -226,5 +227,22 @@ func TestPrivateChapterDraftIsolationAndLegacyCompatibility(t *testing.T) {
 	}
 	if e = db.QueryRow("SELECT COUNT(*) FROM works WHERE owner_id=?", owner[:]).Scan(&count); e != nil || count != 0 {
 		t.Fatal("private chapter became public Work", e)
+	}
+	// The separate history table must participate in retention, while both the
+	// current source revision and the independently recovered chapter survive.
+	if _, e = db.Exec("UPDATE chapter_draft_revisions SET saved_at=? WHERE draft_id=?", time.Now().UTC().Add(-40*24*time.Hour), first.DraftID[:]); e != nil {
+		t.Fatal(e)
+	}
+	if removed, err := scoped.CleanupRevisions(ctx, time.Now().UTC()); err != nil || removed != 1 {
+		t.Fatal("chapter retention did not remove only old non-current history", err)
+	}
+	if _, err := scoped.ReadRevision(ctx, owner, first.DraftID, 1); !errors.Is(err, draft.ErrNotFound) {
+		t.Fatal("expired chapter history retained", err)
+	}
+	if _, err := scoped.ReadRevision(ctx, owner, first.DraftID, 2); err != nil {
+		t.Fatal("current chapter history removed", err)
+	}
+	if kept, err := (draft.Store{DB: db, Chapter: &draft.ChapterScope{NovelID: book.ID}}).Read(ctx, owner, recovered.DraftID); err != nil || kept.Content != recovery.Content {
+		t.Fatal("retention changed recovery chapter", err)
 	}
 }

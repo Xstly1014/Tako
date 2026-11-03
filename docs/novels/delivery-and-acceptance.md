@@ -1,6 +1,6 @@
 # 长文交付计划与验收矩阵
 
-日期：2026-11-03。基线：[业务规格](longform-business-spec.md)。N0 只交付规格；N1-A 现已实现私密书籍资料子链路，具体通过项见[阶段复盘](../reviews/private-novels-review.md)。章节／后续阶段尚未执行，不能把本表全部预期写成通过。
+日期：2026-11-03。基线：[业务规格](longform-business-spec.md)。N1-A私密资料与N1-B私密写章已实现，实际通过项分别见[书籍复盘](../reviews/private-novels-review.md)和[章节复盘](../reviews/private-chapter-drafts-review.md)。本表仍是分期验收要求，不代表真机或N2以后全部通过。
 
 ## 1. 分期与入口开放条件
 
