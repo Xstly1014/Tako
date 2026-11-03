@@ -10,6 +10,329 @@ import {
 import type { Transport } from "../src/auth/session.ts";
 import { ApiError } from "../src/api/client.ts";
 import {
+  AuthorAppealsApi,
+  type CaseDetail,
+  type CasePage,
+} from "../src/api/author-appeals.ts";
+import { AuthorAppeals } from "../src/author-works/appeals.ts";
+
+const caseDetail = (): CaseDetail => ({
+  case: {
+    id: 50,
+    work_id: id,
+    version: 1,
+    scope: "version",
+    reason: "固定版本需检查",
+    state: "active",
+    revision: 1,
+    created_at: "2026-10-01T00:00:00Z",
+    next_appeal_at: null,
+  },
+  appeals: { items: [], next: 0 },
+  work: {
+    id,
+    version: 1,
+    title: "受限正式标题",
+    content: "固定正式正文",
+    introduction: "",
+    tags: ["日常"],
+    author_nickname: "合成作者",
+    published_at: "2026-10-01T00:00:00Z",
+  },
+  revocation: null,
+});
+test("再次复核不能沿用上次成功提示；明确拒绝后保留本次理由等待重读", async () => {
+  let posts = 0;
+  const flow = new AuthorAppeals(
+    appealsApi(async (_path, options) => {
+      if (options?.method === "POST") {
+        if (++posts === 2) throw new ApiError("appeal_cooldown", "", 409);
+        return { id: 71, state: "pending", revision: 1 };
+      }
+      const detail = caseDetail();
+      if (posts) detail.case.revision = 2;
+      return detail;
+    }),
+    () => true,
+    randomUUID,
+  );
+  await flow.open(50);
+  flow.prepare("第一次申请");
+  await flow.send();
+  assert.equal(flow.snapshot().confirmed, true);
+  flow.prepare("第二次新理由");
+  assert.equal(flow.snapshot().confirmed, false);
+  await flow.send();
+  assert.equal(flow.snapshot().confirmed, false);
+  assert.equal(flow.snapshot().needsRead, true);
+  assert.equal(flow.snapshot().pending, null);
+});
+test("处置列表翻页与失焦恢复：旧请求取消，旧结果不能覆盖新读取", async () => {
+  const rows = Array.from({ length: 20 }, (_, n) => ({
+    ...caseDetail().case,
+    id: 60 - n,
+  }));
+  const pages = appealsApi(async (path) =>
+    path.includes("before=41")
+      ? { items: [{ ...caseDetail().case, id: 40 }], next: 0 }
+      : { items: rows, next: 41 },
+  );
+  const flow = new AuthorAppeals(pages, () => true, randomUUID);
+  await flow.read();
+  await flow.read(true);
+  assert.equal(flow.snapshot().page.items.length, 21);
+  const pending: { resolve: (page: CasePage) => void; signal?: AbortSignal }[] =
+    [];
+  const resumed = new AuthorAppeals(
+    appealsApi(
+      async (_path, opts) =>
+        new Promise((resolve) =>
+          pending.push({
+            resolve: resolve as (page: CasePage) => void,
+            signal: opts?.signal,
+          }),
+        ),
+    ),
+    () => true,
+    randomUUID,
+  );
+  const old = resumed.read();
+  resumed.suspend();
+  const fresh = resumed.read();
+  assert.equal(pending[0].signal?.aborted, true);
+  pending[1].resolve({ items: rows, next: 41 });
+  await fresh;
+  pending[0].resolve({ items: [], next: 0 });
+  await old;
+  assert.equal(resumed.snapshot().page.items.length, 20);
+  assert.equal(resumed.snapshot().busy, false);
+});
+const appealsApi = (
+  fn: (path: string, options?: Parameters<Transport>[1]) => Promise<unknown>,
+) => new AuthorAppealsApi(fn as Transport);
+test("处置API校验固定版本/历史归属/降序游标，不把跨账号或坏成功回执作成功", async () => {
+  let detail = caseDetail();
+  const client = appealsApi(async () => detail);
+  assert.equal((await client.detail(50)).work.version, 1);
+  detail.work.version = 2;
+  await assert.rejects(client.detail(50), { code: "contract" });
+  detail = caseDetail();
+  detail.appeals.items = [
+    {
+      id: 3,
+      case_id: 49,
+      reason: "wrong case",
+      state: "pending",
+      decision_reason: "",
+      created_at: detail.case.created_at,
+      decided_at: null,
+    },
+  ];
+  await assert.rejects(client.detail(50), { code: "contract" });
+  const reversed: CasePage = {
+    items: [
+      { ...caseDetail().case, id: 1 },
+      { ...caseDetail().case, id: 2 },
+    ],
+    next: 0,
+  };
+  await assert.rejects(appealsApi(async () => reversed).list(), {
+    code: "contract",
+  });
+  const input = {
+    mutation_id: randomUUID(),
+    expected_revision: 1,
+    decision: "appeal" as const,
+    reason: "重新核对",
+  };
+  await assert.rejects(
+    appealsApi(async () => ({ id: 7, state: "active", revision: 1 })).appeal(
+      50,
+      input,
+    ),
+    { code: "contract" },
+  );
+  await assert.rejects(
+    appealsApi(async () => ({ id: 7, state: "pending", revision: 2 })).appeal(
+      50,
+      input,
+    ),
+    { code: "contract" },
+  );
+});
+test("复核未知结果固定原请求；成功后读失败仍确认，只读重试不重复POST", async () => {
+  const writes: unknown[] = [];
+  let mode = "ready";
+  const client = appealsApi(async (_path, options) => {
+    if (options?.method === "POST") {
+      writes.push(structuredClone(options.body));
+      if (writes.length < 3)
+        throw new ApiError(
+          writes.length === 1 ? "network" : "rate_limited",
+          "",
+          writes.length === 1 ? 0 : 429,
+        );
+      mode = "read-failed";
+      return { id: 701, state: "pending", revision: 1 };
+    }
+    if (mode === "read-failed")
+      throw new ApiError("service_unavailable", "", 503);
+    const detail = caseDetail();
+    if (writes.length)
+      detail.appeals.items = [
+        {
+          id: 701,
+          case_id: 50,
+          reason: "具体位置",
+          state: "pending",
+          decision_reason: "",
+          created_at: detail.case.created_at,
+          decided_at: null,
+        },
+      ];
+    return detail;
+  });
+  const flow = new AuthorAppeals(client, () => true, randomUUID);
+  await flow.open(50);
+  flow.prepare("具体位置");
+  await flow.send();
+  const original = flow.snapshot().pending;
+  assert.ok(original);
+  assert.throws(() => flow.prepare("另一个理由"));
+  await assert.rejects(flow.open(51));
+  await flow.send();
+  assert.equal(flow.snapshot().pending, original);
+  await flow.send();
+  assert.equal(flow.snapshot().pending, null);
+  assert.equal(flow.snapshot().confirmed, true);
+  assert.equal(flow.snapshot().needsRead, true);
+  assert.throws(() => flow.prepare("新理由"));
+  assert.deepEqual(writes[0], writes[1]);
+  assert.deepEqual(writes[1], writes[2]);
+  mode = "ready";
+  await flow.read();
+  assert.equal(flow.snapshot().detail?.case.id, 50);
+  assert.equal(writes.length, 3);
+  assert.equal(flow.snapshot().needsRead, false);
+  assert.throws(() => flow.prepare("已有处理中"));
+});
+test("复核并发点击拦截；明确409释放原请求并强制刷新；手机时间不裁定冷静期", async () => {
+  let release!: () => void,
+    posts = 0;
+  const detail = caseDetail();
+  detail.case.next_appeal_at = "2099-01-01T00:00:00Z";
+  const flow = new AuthorAppeals(
+    appealsApi(async (_path, options) => {
+      if (options?.method !== "POST") return structuredClone(detail);
+      posts++;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      throw new ApiError("appeal_cooldown", "", 409);
+    }),
+    () => true,
+    randomUUID,
+  );
+  await flow.open(50);
+  flow.prepare("由服务端校验冷静期");
+  const first = flow.send();
+  await assert.rejects(flow.send());
+  release();
+  await first;
+  assert.equal(posts, 1);
+  assert.equal(flow.snapshot().pending, null);
+  assert.equal(flow.snapshot().needsRead, true);
+  assert.throws(() => flow.prepare("新理由"));
+  detail.case.state = "revoked";
+  detail.revocation = {
+    reason: "纠正误判",
+    created_at: detail.case.created_at,
+  };
+  await flow.read();
+  assert.throws(() => flow.prepare("撤销后不可申请"));
+});
+test("处置和复核各自分页，失败保留同游标，切号/离开阻断迟到私密详情", async () => {
+  let fail = true,
+    valid = true;
+  const cursors: string[] = [];
+  const detail = caseDetail();
+  detail.appeals.items = Array.from({ length: 20 }, (_, n) => ({
+    id: 30 - n,
+    case_id: 50,
+    reason: "历史理由",
+    state: "upheld" as const,
+    decision_reason: "历史结论",
+    created_at: detail.case.created_at,
+    decided_at: detail.case.created_at,
+  }));
+  detail.appeals.next = 11;
+  const flow = new AuthorAppeals(
+    appealsApi(async (path) => {
+      cursors.push(path);
+      if (path.includes("before=11")) {
+        if (fail) {
+          fail = false;
+          throw new ApiError("network");
+        }
+        return {
+          ...detail,
+          appeals: { items: [{ ...detail.appeals.items[0], id: 10 }], next: 0 },
+        };
+      }
+      return structuredClone(detail);
+    }),
+    () => valid,
+    randomUUID,
+  );
+  await flow.open(50);
+  await flow.read(true);
+  assert.equal(flow.snapshot().detail?.appeals.items.length, 20);
+  assert.equal(flow.snapshot().detail?.appeals.next, 11);
+  await flow.read(true);
+  assert.equal(flow.snapshot().detail?.appeals.items.length, 21);
+  assert.equal(cursors.at(-1), cursors.at(-2));
+  let release!: (value: CaseDetail) => void;
+  const stale = new AuthorAppeals(
+    appealsApi(
+      async () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    ),
+    () => valid,
+    randomUUID,
+  );
+  const read = stale.open(50);
+  valid = false;
+  stale.dispose();
+  release(caseDetail());
+  await read;
+  assert.equal(stale.snapshot().detail, null);
+});
+test("复核理由按Unicode码点校验，坏回执5xx均保留，重新进入不自动补发", async () => {
+  const posted: unknown[] = [];
+  const flow = new AuthorAppeals(
+    appealsApi(async (_path, options) => {
+      if (options?.method !== "POST") return caseDetail();
+      posted.push(options.body);
+      return { id: 1, state: "pending", revision: 99 };
+    }),
+    () => true,
+    randomUUID,
+  );
+  await flow.open(50);
+  assert.throws(() => flow.prepare(" "));
+  assert.throws(() => flow.prepare("😀".repeat(2001)));
+  assert.throws(() => flow.prepare("\ud800"));
+  flow.prepare("😀".repeat(2000));
+  await flow.send();
+  assert.ok(flow.snapshot().pending);
+  flow.dispose();
+  await flow.open(50);
+  assert.equal(posted.length, 1);
+  assert.equal(flow.snapshot().pending, null);
+});
+import {
   AuthorCatalog,
   emptyCatalogQuery,
   normalizeCatalogQuery,

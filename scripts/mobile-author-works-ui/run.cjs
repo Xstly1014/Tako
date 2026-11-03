@@ -28,7 +28,7 @@ let stage = "bundle";
           build.onResolve(
             { filter: /^react-native$|^react-native-safe-area-context$/ },
             () => ({
-              path: path.join(__dirname, "../mobile-comments-ui/native.jsx"),
+              path: path.join(__dirname, "native.jsx"),
             }),
           );
           build.onResolve({ filter: /^expo-router$/ }, () => ({
@@ -75,6 +75,11 @@ let stage = "bundle";
     managementRequests = 0;
   let catalogMode = false, catalogFail = false;
   const catalogRequests = [];
+  const caseTime = '2026-10-01T00:00:00Z';
+  let caseState = { id: 50, work_id: id, version: 1, scope: 'version', reason: '固定版本处置原因', state: 'active', revision: 1, created_at: caseTime, next_appeal_at: null };
+  let appealDrop = true, appealReadFail = false, appealConflict = false;
+  const appealAttempts = [], appealReceipts = new Map();
+  let appealRows = Array.from({ length: 21 }, (_, n) => ({ id: 30 - n, case_id: 50, reason: '历史复核 ' + (30 - n), state: 'upheld', decision_reason: '历史维持说明', created_at: caseTime, decided_at: caseTime }));
   const receipts = new Map(),
     attempts = [],
     errors = [];
@@ -104,11 +109,29 @@ let stage = "bundle";
         url = new URL(req.url()),
         p = url.pathname,
         body = req.postDataJSON();
-      if (p.startsWith("/api/my/works")) managementRequests++;
-      if (offline) return route.abort();
       const viewer = req.headers().authorization?.endsWith("b".repeat(64))
         ? b
         : a;
+      if (p.startsWith('/api/my/moderation')) {
+        if (viewer !== a) return p === '/api/my/moderation' ? json(route, { items: [], next: 0 }) : json(route, { error: 'resource_not_found' }, 404);
+        if (p === '/api/my/moderation') return json(route, { items: [caseState], next: 0 });
+        if (p !== '/api/my/moderation/50') return json(route, { error: 'resource_not_found' }, 404);
+        if (req.method() === 'POST') {
+          appealAttempts.push(body);
+          if (appealReceipts.has(body.mutation_id)) { appealReadFail = true; return json(route, appealReceipts.get(body.mutation_id)); }
+          if (appealConflict) return json(route, { error: 'appeal_cooldown' }, 409);
+          const receipt = { id: 701, state: 'pending', revision: caseState.revision };
+          appealReceipts.set(body.mutation_id, receipt);
+          appealRows.unshift({ id: 701, case_id: 50, reason: body.reason, state: 'pending', decision_reason: '', created_at: caseTime, decided_at: null });
+          if (appealDrop) { appealDrop = false; return route.abort(); }
+          return json(route, receipt);
+        }
+        if (appealReadFail) { appealReadFail = false; return json(route, { error: 'internal_error' }, 500); }
+        const before = Number(url.searchParams.get('before') || 0), rows = appealRows.filter(x => !before || x.id < before);
+        return json(route, { case: caseState, appeals: { items: rows.slice(0, 20), next: rows.length > 20 ? rows[19].id : 0 }, work: { id, version: 1, title: '处置对应旧版', content: '处置固定正文并非工作稿', introduction: '', tags: ['日常'], author_nickname: '作者', published_at: caseTime }, revocation: caseState.state === 'revoked' ? { reason: '主动纠正这条处置', created_at: caseTime } : null });
+      }
+      if (p.startsWith("/api/my/works")) managementRequests++;
+      if (offline) return route.abort();
       if (p === "/api/app/auth/login")
         return json(route, {
           account: {
@@ -316,6 +339,60 @@ let stage = "bundle";
     await page.waitForFunction(() => !document.body.textContent.includes("操作已确认，暂时无法读取作品当前状态，请重试读取。"));
     assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isEnabled(), true);
     assert.equal(attempts.length, confirmedAttempts);
+    stage = "appeals-entry-and-history";
+    await page.getByRole('button', { name: '返回作品列表', exact: true }).click();
+    await page.evaluate(() => { window.authorUi.holdNavigation = false; });
+    await page.getByRole('button', { name: '查看本人处置与复核', exact: true }).click();
+    await page.getByRole('button', { name: '查看处置 #50', exact: true }).click();
+    await page.getByText('处置原因：固定版本处置原因', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '查看对应正式正文', exact: true }).click();
+    await page.getByText('处置固定正文并非工作稿', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '加载更多复核记录', exact: true }).click();
+    await page.getByText('历史复核 10', { exact: true }).waitFor();
+    assert.equal(appealAttempts.length, 0);
+    stage = "appeals-unknown-and-confirmed-read";
+    await page.getByRole('textbox', { name: '文字复核理由' }).fill('请核对固定版第三段');
+    await page.getByRole('button', { name: '确认复核理由', exact: true }).click();
+    assert.equal(appealAttempts.length, 0);
+    await page.getByRole('button', { name: '提交这份复核申请', exact: true }).click();
+    await page.getByRole('button', { name: '检查原复核申请', exact: true }).waitFor();
+    assert.equal(await page.getByRole('textbox', { name: '文字复核理由' }).isDisabled(), true);
+    await page.getByRole('button', { name: '返回处置列表', exact: true }).click();
+    await page.getByRole('dialog', { name: '复核内容尚在本页' }).waitFor();
+    await page.getByRole('button', { name: '留在本页', exact: true }).click();
+    await page.getByRole('button', { name: '检查原复核申请', exact: true }).click();
+    await page.getByText('申请已确认，当前处置读取未完成。请重试读取，不会再次提交。', { exact: true }).waitFor();
+    assert.deepEqual(appealAttempts[0], appealAttempts[1]);
+    assert.equal(appealReceipts.size, 1);
+    await page.getByRole('button', { name: '重新读取处置现状', exact: true }).click();
+    await page.getByText('申请已确认，当前处置与复核记录已重新读取。', { exact: true }).waitFor();
+    assert.equal(appealAttempts.length, 2);
+    stage = "appeals-upheld-and-revoked";
+    caseState = { ...caseState, revision: 2, next_appeal_at: '2099-01-01T00:00:00Z' };
+    appealRows[0] = { ...appealRows[0], state: 'upheld', decision_reason: '维持本次处置', decided_at: caseTime };
+    appealConflict = true;
+    await page.getByRole('button', { name: '刷新处置', exact: true }).click();
+    await page.getByText('结论理由：维持本次处置', { exact: true }).waitFor();
+    await page.getByRole('textbox', { name: '文字复核理由' }).fill('补充理由由服务端校验');
+    await page.getByRole('button', { name: '确认复核理由', exact: true }).click();
+    await page.getByRole('button', { name: '提交这份复核申请', exact: true }).click();
+    await page.getByText('仍处于服务端24小时冷静期，请查看可再次申请时间。', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '检查原复核申请', exact: true }).count(), 0);
+    await page.getByRole('button', { name: '打开邮件应用联系运营', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.authorUi.lastContact), 'mailto:1125448766@qq.com');
+    await page.evaluate(() => { window.authorUi.failContact = true; });
+    await page.getByRole('button', { name: '打开邮件应用联系运营', exact: true }).click();
+    await page.getByText('未能打开邮件应用，可复制上方邮箱自行联系。', { exact: true }).waitFor();
+    caseState = { ...caseState, state: 'revoked', revision: 3 };
+    await page.getByRole('button', { name: '刷新处置', exact: true }).click();
+    await page.getByText('主动纠正这条处置', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '确认复核理由', exact: true }).count(), 0);
+    await page.getByRole('button', { name: '返回处置列表', exact: true }).click();
+    await page.getByRole('button', { name: '离开本页', exact: true }).click();
+    await page.getByRole('button', { name: '返回作品管理', exact: true }).click();
+    await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).click();
+    await page.getByText('私有版本1', { exact: false }).first().waitFor();
+    await page.evaluate(() => { window.authorUi.holdNavigation = true; });
     stage = "catalog-search-and-paging";
     await page.getByRole('button', { name: '返回作品列表', exact: true }).click();
     catalogMode = true;
@@ -391,6 +468,12 @@ let stage = "bundle";
     await page.getByText("私有版本1", { exact: false }).first().waitFor();
     assert.equal(attempts.length, beforeOfflineAttempts);
     stage = "account-switch";
+    await page.getByRole('button', { name: '返回作品列表', exact: true }).click();
+    await page.evaluate(() => { window.authorUi.holdNavigation = false; });
+    await page.getByRole('button', { name: '查看本人处置与复核', exact: true }).click();
+    await page.getByRole('button', { name: '查看处置 #50', exact: true }).click();
+    await page.getByRole('button', { name: '查看对应正式正文', exact: true }).click();
+    await page.getByText('处置固定正文并非工作稿', { exact: true }).waitFor();
     await page.evaluate(async () => {
       await window.authorUi.session.logout();
       await window.authorUi.session.signIn(
@@ -399,6 +482,9 @@ let stage = "bundle";
         "fixture-password",
       );
     });
+    await page.getByText('没有处置记录', { exact: true }).waitFor();
+    assert.equal(await page.getByText('处置固定正文并非工作稿', { exact: true }).count(), 0);
+    await page.getByRole('button', { name: '返回作品管理', exact: true }).click();
     await page.getByText("还没有正式作品", { exact: true }).waitFor();
     assert.equal(
       await page.evaluate(
@@ -416,6 +502,7 @@ let stage = "bundle";
     );
   } catch (error) {
     console.error("Author fixture failed at " + stage + ": " + error.name);
+    console.error("Author fixture locations: " + [...String(error.stack).matchAll(/run\.cjs:(\d+):(\d+)/g)].slice(0, 3).map(x => x[1] + ":" + x[2]).join(","));
     process.exitCode = 1;
   } finally {
     await browser.close();

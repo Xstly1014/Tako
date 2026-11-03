@@ -206,6 +206,7 @@ function Workspace({
               这里管理已正式发布的中篇。编辑工作稿请使用草稿箱。
             </Text>
             <Text style={s.section}>查找本人作品</Text>
+            <Button label="查看本人处置与复核" onPress={() => router.push("/my-moderation")} />
             <TextInput
               accessibilityLabel="作品标题关键词"
               placeholder="展示标题或最新正式标题，最多64字"
