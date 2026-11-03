@@ -6,8 +6,7 @@
 |---|---|
 | app-splash-prototype.png／app-login-prototype.png／app-community-prototype.png | 本仓库docs/prototypes/mobile-app-v1原型，通过Playwright禁用动画后截取.phone；未改原型源，示例内容和数字不代表真实用户或已实现功能 |
 | xstly1014-avatar.png | 本轮内置imagegen生成，用户随后指定作为本人贡献者头像；不是GitHub实际头像或真人肖像 |
-| chatgpt-chibi.webp | fywdy/chatgpt-chibi-pets的ChatGPT白发龙娘idle.webp，未修改的参考源存档；不再作为README展示图 |
-| chatgpt-avatar-v2.png | 参考上述白发龙娘身份及xstly1014头像画风，以内置imagegen重绘的单张静态头像；保留来源、CC BY-NC 4.0及NOTICE |
+| chatgpt-avatar-v2.png | 参考下方来源链接的白发龙娘身份及xstly1014头像画风，以内置imagegen重绘的单张静态头像；保留来源、CC BY-NC 4.0及NOTICE，不再重复保存已弃用的动态原图 |
 | tako-avatar-v2.png | 参考项目原Tako身份与服装、xstly1014头像画风重绘的静态头像；仅换README展示，不替换App/官网角色素材 |
 | website-desktop-current-v2.png | 2026-11-03从当前本机3300官网匿名截图，1440px宽，保留test环境提示；不是旧官网图或新设计稿 |
 
