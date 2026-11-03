@@ -1,73 +1,127 @@
-<p align="center">
-  <img src="frontend/public/images/tako-mascot-v1.png" width="220" alt="Tako 原创看板娘：蓝白街头风服装与章鱼发饰，包含精致版和 Q 版">
-</p>
+<p align="center"><img src="mobile/assets/tako-icon.svg" width="64" alt="Tako 章鱼标志"></p>
 <h1 align="center">Tako</h1>
 <p align="center"><strong>有脑洞，就开写。</strong></p>
-<p align="center">冒险故事、深夜吐槽、今天的新鲜事。长短不限，题材由你。</p>
+<p align="center">冒险、幻想、日常、吐槽。读点喜欢的，写点自己的。</p>
+<p align="center"><a href="#现在的-tako">当前能力</a> · <a href="#界面一览">界面一览</a> · <a href="#本地体验与开发">本地开发</a> · <a href="#contribution">Contribution</a></p>
 
-Tako 正在成为一个年轻、多元的文字创作社区。短内容分享日常与灵感，中篇讲完一个故事或一段经历，长篇让角色和世界继续生长。看板娘是品牌形象，创作题材由作者自己决定。
+Tako 是一个正在开发的年轻、多元的文字创作社区。你可以分享今天的新鲜事，写完一个短篇故事，也可以慢慢搭建自己的幻想世界。我们希望让文字被读到，让创作者能持续创作，并亲自参与社区的长期运营。
 
-**新电脑 / Codex 接手：[工作交接文档](docs/handoff/README.md)。** 当前优先独立 Android App，常规回归由开发者执行；源码在 `mobile/`，沿用用户手机原型。Web/API 已具备收藏与两级评论，App 已接入账号、收藏与评论页面；电脑工程验证与真机体验分开记账，设备条件恢复后补验，不据此宣称已在用户手机上通过。ECS 已停机，本轮不连接生产。
+**当前以独立 Android App 为开发重心。** App 与 Web 使用各自的页面和导航，共享 Go API。项目处于开发与内部测试阶段，暂无公开体验地址；工程进度不代表所有功能都已在最新手机安装包上完成验收。
 
-**Docker 清理后恢复：[本机重启手册](docs/restart/README.md)。** `$tako-restart` 恢复本机服务，`$tako-handoff` 整理或读取工作交接。技能随仓库保存；删除容器/镜像时保留数据卷、`.runtime/` 与 `backups/`。
+## 界面一览
 
-App 阅读页现已接入 [历史版本阅读](docs/mobile-version-reading-spec.md)：按作者授权切换正文，失败保留当前阅读，切版本不丢评论输入；[本轮复盘与验收边界](docs/reviews/mobile-version-reading-review.md)。App 中篇草稿已接入加密本机暂存、离线续写与同步恢复；评论仍仅内存。发布调用与设备体验分别验收。
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/images/readme/app-splash-prototype.png" width="240" alt="Tako App 开屏视觉原型：蓝色背景与动态看板娘"><br><strong>打开 Tako</strong></td>
+    <td align="center" width="33%"><img src="docs/images/readme/app-login-prototype.png" width="240" alt="Tako App 登录视觉原型：Q版看板娘与游客入口"><br><strong>先逛逛，也能开始写</strong></td>
+    <td align="center" width="33%"><img src="docs/images/readme/app-community-prototype.png" width="240" alt="Tako App 中篇社区视觉原型：文字列表、频道导航与创作入口"><br><strong>找到想读的内容</strong></td>
+  </tr>
+</table>
 
-[2026-11-02 项目总复盘](docs/reviews/2026-11-02-project-review.md) 保留阶段背景；App 中篇现已接入私稿编辑、确认修订交接、固定预览、正式发布与返回续写。[最新整合复验](docs/reviews/cross-review-primary-a2905e8.md) 记录 86 项模型、11 项真实服务、页面及整合包证据；设备体验与最新修复的同事独立复验仍待完成。双 agent 分工见 [协作入口](docs/handoff/03-parallel-work.md)。
-
-M1 作品管理、C2 发布与 C1 创作已整合并构建 Android 测试包，指纹见最新复盘；4c63ad0 的 Mobile/Frontend/Backend CI 全部通过，已含新 C1 路由门禁与前端依赖修复（仍有7条低危依赖链报告）。后续补设备与独立复验，见 [当前协作进度](docs/handoff/primary-progress.md)。持续双端协作用 `$tako-collab`，每次推送前核对双方分支与进度。
-
-![Tako 当前首页实拍：创作入口与原创二次元看板娘](docs/images/tako-home-desktop.png)
-
-> 官网视觉截图，三类内容卡片展示产品方向。独立社区首页已支持中篇发现与人工精选；短内容、长篇仍是规划方向。
+以上来自仓库内的 [App 视觉原型](docs/prototypes/mobile-app-v1/)，用于说明产品编排与品牌方向，**不是当前安装包的功能清单**。图中内容与数字为示例；点赞、关注、周边等未接入能力不会在真实 App 中伪装成功。实际实现与验证范围见下文。
 
 <details>
-<summary>看看手机布局</summary>
-<br>
-<img src="docs/images/tako-home-mobile.png" width="320" alt="Tako 首页 390px 宽移动端布局">
-<p>浏览器响应式截图；真实 iPhone 写作验收另见验收记录。</p>
+<summary>展开官网视觉</summary>
+
+![Tako 官网视觉：创作主题与原创二次元看板娘](docs/images/tako-home-desktop.png)
+
+这是品牌官网的历史视觉截图。官网负责介绍项目，社区负责浏览内容，二者不是同一个首页。Web 社区已支持中篇发现、精选和搜索；后续编排仍会继续调整。
+
 </details>
 
-## 现在能做什么
+## 三种内容，一个社区
 
-先把自己的文字写下来，再放心地回来继续。
-
-- 本机支持邮箱＋密码自主注册，无需邮件验证，创建笔名和私密纯文本草稿。内测暂不支持邮件找回密码。
-- 自动保存，数据库确认后显示“已保存”；关闭重开后继续写。
-- 服务断连时本机暂存；电脑和手机发生冲突时另存副本，保留双方文字。
-- 原账号重新登录恢复待同步内容，支持导出和历史恢复。
-- 从官网进入真实社区，按首次发布时间与风格找公开中篇；运营可以编排精选，隐藏或受限作品退出后不会自动回榜。
-
-**增量 A 核心链路已验收，ECS 正式数据环境采用 SSH 私有访问，暂无公开体验地址。** 真机粘贴和 Wi-Fi／蜂窝切换仍是明确的验收尾项，待稳定 HTTPS 入口补测；不能将服务断链演练当作网络切换测试。
-
-本机测试入口为 `http://127.0.0.1:3300/community`，独立数据库包含 1000 个合成账号和 20000 篇中篇，用于查看大量内容时的页面与业务状态。ECS 已停，历史 3100 SSH 转发入口当前不使用。两者的账号、正文、会话与凭据独立；[新电脑启动](docs/handoff/02-engineering-and-setup.md) · [环境说明与测试身份](docs/environments-and-synthetic-data.md)。
-
-“已保存”表示数据库已提交。每日离机备份另行运行，正常恢复点约落后一天；本机缓存也不能抵抗浏览器数据被清除。
-
-## 接下来一起把社区做出来
-
-| 阶段 | 用户可以获得什么 | 当前状态 |
+| 形态 | 想承载什么 | 当前进度 |
 |---|---|---|
-| A · 保存文字 | 登录、私密草稿、续写与冲突恢复 | 核心链路通过，两项真机补测待完成 |
-| B · 公开作品 | 中篇发布阅读、版本管理、治理与纠错 | B1/B2 与 B3.1 人工后审、复核已本人验收；B3.2 暂缓 |
-| 发现与反馈 | 社区首页、精选、风格浏览、收藏与两级评论 | Web/API 工程验证通过，两级评论本人确认；App 账号/收藏新包待真机回归 |
+| 短内容 | 日常、吐槽、灵感、创作动态，以及关联自己作品的分享 | 已确定产品方向，尚未实现独立发帖链路 |
+| 中篇 | 一次能读完的故事、经历或情绪表达，题材不限 | 创作、发布、阅读、发现、搜索、收藏、两级评论和作者管理已接入 |
+| 长文／连载 | 幻想、冒险、二次元与持续展开的世界 | 私密开书、章节草稿、加密离线续写和冲突恢复已接入；正式发章与逐章阅读待开发 |
 
-正式首发还需补齐既定的内容发现、完整治理及短内容／长篇基础能力。本机已有 B1/B2 发布阅读与版本管理、B3.1 人工后审与复核，尚未公开运营，没有推荐、支付或规模运营成果。
+三个频道独立展示，未来允许短帖关联作者自己的作品。品牌采用二次元看板娘与蓝色主题；创作内容不限定题材、风格或专业背景。
 
-## 从这里了解 Tako
+## 现在的 Tako
 
-- [增量 A 业务复盘](docs/reviews/2026-10-30-a-business-review.md)：为什么做、踩过什么坑、证据是否足够、还欠什么。
-- [A 之后的业务复盘](docs/reviews/2026-10-30-b-business-review.md)：发布、版本、人工治理与自主注册，及发现/反馈优先级纠偏。
-- [B2 版本管理与验收](docs/reviews/2026-10-30-b2-review.md)
-- [B3.1 人工后审与复核](docs/reviews/2026-10-30-b3-1-review.md)
-- [自主注册与存量账号兼容](docs/reviews/2026-10-30-password-registration.md) · [社区发现首版规格](docs/community-discovery-spec.md)
-- [社区发现、精选与共享导航复盘](docs/reviews/community-discovery-review.md)
-- [环境隔离与大量内容复盘](docs/reviews/environments-review.md)
-- [B1 开发与验证记录](docs/reviews/2026-10-30-b1-review.md) · [B 业务规格](增量B开发规格.html)
-- [验收证据与边界](docs/reviews/2026-10-30-a-acceptance.md) · [当前进度](docs/reviews/current-progress.md)
-- [业务共识](项目业务共识.html) · [增量 A 开发规格](增量A开发规格.html)
-- [看板娘与视觉方向](docs/brand-mascot-v1.md)
+### 写作与发布
 
-Go／Gin + MySQL + Nuxt／Vue／TypeScript，从模块化单体起步。当前不宣称高可用或高并发性能。
+- **账号自主注册：** 内测使用邮箱＋密码，无邀请、无邮箱验证；支持笔名。未验证邮箱不代表已证明邮箱归属，目前不开放邮件找回密码。
+- **中篇私密写作：** 加密本机暂存、离线续写、联网确认与同步；冲突保留双方文字，未知结果按原请求恢复。工作稿与正式版本相互独立。
+- **明确发布：** 先生成固定预览，再主动确认正式发布。后续改稿不会偷偷替换预览；重试不应多发一个版本。
+- **持续修订：** 从指定作品进入修订发行，核对服务器工作稿与正式版本，确认后返回对应作品；支持展示版本切换、隐藏／恢复、历史正文权限与公共阅读核对。
+- **长文私密创作：** 开书、编辑资料、创建章节、离线续写；冲突恢复为同书下的**独立新章节草稿**，原章保留，不自动发布或分配正式章节序号。
 
-开发者入口：[启动与测试](docs/development-guide.md) · [API / Swagger](docs/api.md) · [运行与恢复](docs/operations.md) · [ECS 部署](docs/ecs-test-deployment.md) · [真机验收](docs/mobile-acceptance.md)。凭据、正文、备份与开发证书不进入仓库。
+### 阅读与互动
+
+- 游客可浏览公开中篇；支持分页、刷新、人工精选与按风格浏览。
+- 搜索当前公开中篇的**标题、作者笔名和简介**，支持分页与返回阅读现场；暂不检索正文、私稿或历史版本。
+- 收藏作品与“我的收藏”；隐藏或受限时保留记录，但不泄露不可读内容。
+- 两级评论与回复；删除主评论会连同回复删除，运营屏蔽主评论时整串暂不可见。评论输入只保留在内存，关闭 App 后不恢复。
+- 读者可查看正常版本的时间线；历史正文是否可读由作者授权，受平台处置的版本不对读者展示。
+
+### 治理与数据保护
+
+已有人工后审、限制／撤销、原因留痕，以及既定范围内的站内文字复核；作者管理、运营读取与公共阅读分别验证权限。私密资源按会话账号判定归属，不能靠客户端传入作者 ID 获取内容。
+
+这些是**已实现并验证的工程能力**，不是规模运营成绩。当前没有真实用户留存、推荐效果、治理准确率或高并发容量的成果声明。
+
+## 接下来做什么
+
+| 阶段 | 要交付的用户行为 |
+|---|---|
+| N1 · 私密创作 | **工程已完成：** 开书、写章、离线续写与独立恢复；原生设备尾项单独验收 |
+| N2 · 发布与阅读 | 固定章节预览、首发／追加、正式目录、逐章阅读、书／章隐藏及最小治理 |
+| N3 · 续读与完结 | 私密跨设备续读、不可逆完结、平台指定章节的整改纠错 |
+| N4／N5 · 长文社区 | 书架追更、站内新章提醒、按章讨论与长文发现 |
+
+短帖、推荐算法、付费与周边属于后续方向。完结与整改纠错需要一起交付，不能先开放一个无法纠正的完结按钮。详见 [长文业务规格与验收计划](docs/novels/README.md)。
+
+## 工程怎么支撑业务
+
+| 层次 | 当前选择 |
+|---|---|
+| Android App | React Native 0.88 · Expo SDK 58 · TypeScript · Expo Router |
+| Web／官网 | Nuxt · Vue · TypeScript，与 App 独立界面 |
+| 服务端 | Go 1.26 · Gin，模块化单体 |
+| 数据与本机暂存 | MySQL 8.4；App SQLite＋AES-GCM＋SecureStore |
+| API 契约 | OpenAPI 为唯一 HTTP 契约源，生成类型并校验请求／响应 |
+| 验证 | 模型、页面组件、真实 HTTP／MySQL、迁移与恢复演练分别记录 |
+
+最近的 N1／M2 整合通过 **104 项模型检查**、18 项读者／服务组检查（其中含客户端与协调测试），另有实际 HTTP／MySQL 联调、迁移与恢复演练。类型／lint、契约、页面组件与后端 race 检查及对应提交的三条 CI 均通过。以上是阶段快照，不是永久有效的测试数量，也不代替真机验收。[完整证据](docs/reviews/private-chapter-drafts-review.md)
+
+## 本地体验与开发
+
+测试环境独立于正式数据，支持生成 **1000 个合成账号、20000 篇中篇**，用于观察大量内容时的展示与业务状态；这不是容量压测成绩。ECS 当前停机，开发不依赖生产环境。
+
+已有本机环境、保留配置和数据卷时，在 Docker Desktop 启动后执行：
+
+```powershell
+python scripts/local_restart.py start
+python scripts/local_restart.py check
+```
+
+浏览器入口：`http://127.0.0.1:3300/community`。App 是独立客户端，需要安装测试包并连接相应 API，不是把上述 Web 页面直接装进手机。
+
+新电脑先读 [工程与环境初始化](docs/handoff/02-engineering-and-setup.md)；已有环境重建镜像或排障读 [重启手册](docs/restart/README.md)。不要复制其他电脑的凭据或删除数据库卷来解决启动问题。
+
+| 想了解什么 | 从这里开始 |
+|---|---|
+| 当前工作与两端分工 | [交接入口](docs/handoff/README.md) · [主开发进度](docs/handoff/primary-progress.md) · [并行端进度](docs/handoff/parallel-progress.md) |
+| 最新业务交付 | [N1 私密写章复盘](docs/reviews/private-chapter-drafts-review.md) · [M2 修订发行复盘](docs/reviews/author-revision-stage-review.md) |
+| 业务规则与下一阶段 | [长文规格](docs/novels/README.md) · [中篇修订发行规格](docs/mobile-author-revision-stage-spec.md) |
+| 开发与接口 | [开发指南](docs/development-guide.md) · [API／Swagger](docs/api.md) · [App 说明](mobile/README.md) |
+| 待验事项 | [设备任务清单](docs/handoff/device-requests.md) · [运行与恢复](docs/operations.md) |
+
+## Contribution
+
+Tako 由人和 AI 一起推进：业务选择、实现、审查和真实验证都需要有人负责。
+
+<table>
+  <tr>
+    <td align="center" width="33%"><a href="https://github.com/Xstly1014"><img src="docs/images/readme/xstly1014-avatar.png" height="120" alt="xstly1014 指定的银发绿瞳 Q 版头像"></a><br><a href="https://github.com/Xstly1014"><strong>xstly1014</strong></a><br>项目发起 · 产品决策<br>开发协作 · 运营与验收</td>
+    <td align="center" width="33%"><img src="docs/images/readme/chatgpt-chibi.webp" height="120" alt="ChatGPT 白发龙娘社区 Q 版形象"><br><strong>ChatGPT</strong><br>业务讨论 · 编码协作<br>测试、审查与文档</td>
+    <td align="center" width="33%"><img src="mobile/assets/tako-chibi.png" height="120" alt="Tako 蓝发章鱼发饰 Q 版看板娘"><br><strong>Tako</strong><br>项目原创品牌形象<br>社区的视觉搭档</td>
+  </tr>
+</table>
+
+ChatGPT 为 AI 协作工具，Tako 为虚拟品牌角色。xstly1014 使用本人指定的生成头像，点击可访问 GitHub。ChatGPT Q 版来自 [fywdy/chatgpt-chibi-pets](https://github.com/fywdy/chatgpt-chibi-pets)，为非官方同人形象，按 CC BY-NC 4.0 署名用于本文档展示；项目与 OpenAI 无官方合作或背书关系。[图片来源与许可](docs/images/readme/README.md)
+
+欢迎带着对内容、业务或技术的兴趣参与。提议功能时，说明它解决谁的问题、失败时应该怎样，再讨论实现；开始修改前先核对 [协作边界](docs/handoff/03-parallel-work.md)，避免覆盖并行工作。
