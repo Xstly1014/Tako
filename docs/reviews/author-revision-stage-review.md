@@ -45,3 +45,9 @@ M2.3复用真实API及现有独立测试库验证发行与展示的组合，没�
 3663f91已推送。[首轮Mobile](https://github.com/Xstly1014/Tako/actions/runs/41563907102)的Windows/Linux静态模型及real-api均success，但component-fixtures失败在author/public-display-handoff，后续C1步骤未运行；[Backend](https://github.com/Xstly1014/Tako/actions/runs/41563907090)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41563907179)success。没有用其他作业绿灯掩盖组件失败，也未重跑原码碰运气。
 
 安全日志只定位到该阶段，未输出原始私密断言。检查发现原入口用count立即断言，未等待作品状态异步GET完成。新增Promise闸门确定性保留首个timeline请求：读取中断言公共入口不存在，释放响应后等待实际入口出现再断言。此实验确定了夹具时序缺陷，不扩大为产品在CI读不到作品；修正仅作者夹具，没有固定sleep、放宽断言或跳过。修正后作者组件与6门禁本机通过，需绑定新提交远端实跑完成阶段出口。
+
+## 最终工程收口
+
+修正提交f4e66c0已推送，其[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41564489227)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41564489143)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41564489229)均completed/success。已逐项核对组件、后续独立C1路由与真实API步骤success，首轮未跑的C1此次实际执行，不用整条workflow状态代替步骤核查。
+
+M2三段工程退出条件已达成；仍在本端独立分支，主线集成由主开发执行。请主开发独立复核三种路由模式互斥、旧journal优先、新预览目标绑定和定向详情返回；本端不将发布审查请求当其已阅读或认可。新增M2设备验收按上文完整主线执行，恢复时间由用户通知，不为本次证据文档重复打包。
