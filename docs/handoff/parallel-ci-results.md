@@ -2,9 +2,9 @@
 
 ## 最新：作者业务真实服务页面整体验收
 
-[完整报告](../reviews/author-workflow-live-acceptance-review.md)。同一真实HTTP/MySQL数据贯穿C2/M2/M3/M4/M5及Reader/评论，实际页面保留底层栈，复验原journal、查询保持/切号清理、版本决策及处置冷静期/撤销。两次完整通过；另20顺序服务、117模型、类型/lint/契约与7门禁本机通过。无产品或后端改动，新增Mobile real-api整链路步骤；精确新SHA远程待执行，尚不称CI完成。
+[完整报告](../reviews/author-workflow-live-acceptance-review.md)。同一真实HTTP/MySQL数据贯穿C2/M2/M3/M4/M5及Reader/评论，实际页面保留底层栈，复验原journal、查询保持/切号清理、版本决策及处置冷静期/撤销。两次完整通过；另20顺序服务、117模型、类型/lint/契约与7门禁本机通过。无产品或后端改动，新增Mobile real-api整链路步骤；精确99a1a1b的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41594737276)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41594737251)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41594737234)全部success，已核对real-api新增整链路步骤success；工程收口。
 
-平台/导航/安全存储适配不证明原生、杀进程或真机体验；USB暂停，未发邮件。只有test环境可运行，故障直接失败，正常业务审计保留，随机历史ID和临时文件清理；无生产/锁/构建/C1/N2变化。主开发24536ab文档清理已普通合入240ae2e，后续main71367f4已含M3～M5普通整合与独立复核（240ae2e，无确定P0/P1），已核验新增差异仅文档；本轮新验收脚本/门禁尚待推送，不将旧整合证据当新门禁完成。
+平台/导航/安全存储适配不证明原生、杀进程或真机体验；USB暂停，未发邮件。只有test环境可运行，故障直接失败，正常业务审计保留，随机历史ID和临时文件清理；无生产/锁/构建/C1/N2变化。主开发24536ab文档清理已普通合入240ae2e，后续main71367f4已含M3～M5普通整合与独立复核（240ae2e，无确定P0/P1），已核验新增差异仅文档；本轮新验收/CI已推99a1a1b并独立通过；最终maincb28692仅三份文档已读并普通合入061f00b，本次仅补录证据。主开发新夹具补审/接入仍待其完成，不把产品整合审查自动套到新脚本。
 
 ## 历史：M5正式版本核对与展示决策
 

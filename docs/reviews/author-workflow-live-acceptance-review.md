@@ -48,3 +48,9 @@
 自然检查点fetch进一步观察main71367f4，主开发普通合入240ae2e为7020c4f，并发布cross-review-primary-240ae2e，聚焦范围无确定P0/P1、独立整合测试通过。已读其原报告/进度及240ae2e..71367f4差异：新增仅审查、N2规格及交接文档，未改本端产品源码/本轮脚本；因此M3～M5已进入main，不能继续沿用“仍未集成”的开始快照。当前本轮验收改动先形成本端检查点，再普通合入该main，不接管其N2预约章号/审核实现。
 
 P1：新门禁在精确提交远程real-api执行并通过，连同既有作业通过后工程收口；发现确定失败先修复。主线集成仍由主开发整体处理M3～M5及本轮CI，不只摘页面或只摘门禁。P2：用户恢复设备条件后按同一业务链路补原生输入/存储/系统返回/生命周期，不能以本报告关闭。下一步优先集成、独立审查和真实反馈，不据此再自动扩通知或未确认的作者管理权利。
+
+## 精确提交远程收口
+
+新脚本/门禁源码082bfee，普通合入main71367f4形成99a1a1b903175533df9e8d3052089770536f4431。该精确提交的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41594737276)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41594737251)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41594737234)全部completed/success。已逐项读取Mobile Windows/Linux静态/117模型/7门禁、原组件/C1、real-api四作业；real-api新增步骤“Real author business workflow with retained page stack”实际执行success，非跳过或只声明接入。P1新门禁退出关闭，本轮工程收口。
+
+最终补录前fetch观察maincb28692：仅主开发自身进度、独立复核补录和N2信息层级文档，无运行变化，已读其原报告/差异并普通合入061f00b。本次补录只改本端文档，运行与门禁证据仍绑定99a1a1b。主开发已在cb28692声明读过99a1a1b范围但新夹具尚待其独立补审；本端不替其标为已验/已合入。M3～M5产品已进main，新验收/CI待单独接入，不阻塞其N2实现。设备/外部用户/邮件结果未新增。
