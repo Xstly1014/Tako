@@ -37,6 +37,7 @@ import {
 import type { PublicWork } from "../api/reader";
 import { Action, Status } from "../components/Ui";
 import { theme as t } from "../theme";
+import VersionDecision from "../author-works/VersionDecision";
 
 function Button({
   label,
@@ -173,7 +174,9 @@ function Workspace({
           id={selected}
           api={api}
           valid={valid}
-          onRevisionNavigate={() => { returningFromRevision.current = true; }}
+          onRevisionNavigate={() => {
+            returningFromRevision.current = true;
+          }}
           onClose={() => {
             if (onCloseWork) {
               onCloseWork();
@@ -206,7 +209,10 @@ function Workspace({
               这里管理已正式发布的中篇。编辑工作稿请使用草稿箱。
             </Text>
             <Text style={s.section}>查找本人作品</Text>
-            <Button label="查看本人处置与复核" onPress={() => router.push("/my-moderation")} />
+            <Button
+              label="查看本人处置与复核"
+              onPress={() => router.push("/my-moderation")}
+            />
             <TextInput
               accessibilityLabel="作品标题关键词"
               placeholder="展示标题或最新正式标题，最多64字"
@@ -393,6 +399,7 @@ function WorkDetail({
     lock = useRef(false);
   const confirmedAction = useRef(false);
   const [stateReadFailed, setStateReadFailed] = useState(false);
+  const [comparisonVersion, setComparisonVersion] = useState(0);
   const operation = useMemo(
     () => new WorkAction(id, valid, randomUUID),
     [id, valid],
@@ -403,6 +410,7 @@ function WorkDetail({
     if (current()) {
       setData(result);
       setBody(null);
+      setComparisonVersion(0);
       setStateReadFailed(false);
       if (confirmedAction.current)
         setNotice("操作已确认，当前状态已重新读取。工作稿未修改。");
@@ -732,6 +740,16 @@ function WorkDetail({
                   disabled={busy}
                   onPress={() => void preview(v.version)}
                 />
+                {v.version !== state?.display_version ? (
+                  <Button
+                    label={`核对展示指针与 V${v.version}`}
+                    disabled={disabled || !!error || stateReadFailed}
+                    onPress={() => {
+                      setBody(null);
+                      setComparisonVersion(v.version);
+                    }}
+                  />
+                ) : null}
                 {!v.platform_limited &&
                 !state?.platform_limited &&
                 (!state?.author_hidden ||
@@ -763,6 +781,32 @@ function WorkDetail({
                 label="加载更多正式版本"
                 disabled={disabled}
                 onPress={() => void more("versions")}
+              />
+            ) : null}
+            {comparisonVersion && state ? (
+              <VersionDecision
+                key={`${id}:${state.state_revision}:${comparisonVersion}`}
+                api={api}
+                state={state}
+                candidate={comparisonVersion}
+                valid={current}
+                disabled={disabled || !!error || stateReadFailed}
+                canChoose={
+                  !state.platform_limited &&
+                  data.versions.some(
+                    (v) =>
+                      v.version === comparisonVersion && !v.platform_limited,
+                  ) &&
+                  !error &&
+                  !stateReadFailed
+                }
+                onChoose={() =>
+                  propose(
+                    state.author_hidden ? "restore" : "switch_display",
+                    comparisonVersion,
+                  )
+                }
+                onClose={() => setComparisonVersion(0)}
               />
             ) : null}
             {body ? (

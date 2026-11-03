@@ -9,6 +9,7 @@ import {
 } from "../src/api/author-works.ts";
 import type { Transport } from "../src/auth/session.ts";
 import { ApiError } from "../src/api/client.ts";
+import { readVersionPair } from "../src/author-works/version-decision.ts";
 import {
   AuthorAppealsApi,
   type CaseDetail,
@@ -479,6 +480,123 @@ const state = (): WorkState => ({
   history_open: false,
   platform_limited: false,
   state_revision: 1,
+});
+const formal = (version: number, content = "固定全文😀\n结尾") => ({
+  id,
+  version,
+  title: "正式标题",
+  content,
+  introduction: "正式简介",
+  tags: ["日常", "幻想"],
+  author_nickname: "作者",
+  published_at: "2026-10-01T00:00:00Z",
+});
+const timeline = (current = state()) => ({
+  state: current,
+  versions: [],
+  events: [],
+  next_version_before: 0,
+  next_event_before: 0,
+});
+test("版本核对用展示指针并读取两份全文，字段精确比较，候选可以来自20条之后", async () => {
+  const snapshot = { ...state(), last_version: 30, display_version: 29 };
+  const calls: string[] = [];
+  const client = api(async (path) => {
+    calls.push(path);
+    if (path.includes("?")) return timeline(snapshot);
+    return path.endsWith("/29")
+      ? formal(29)
+      : { ...formal(1, "固定全文😀\n结尾 "), tags: ["幻想", "日常"] };
+  });
+  const result = await readVersionPair(
+    client,
+    snapshot,
+    1,
+    new AbortController().signal,
+  );
+  assert.equal(result.current.version, 29);
+  assert.equal(result.candidate.version, 1);
+  assert.equal(result.current.content, "固定全文😀\n结尾");
+  assert.equal(result.candidate.content, "固定全文😀\n结尾 ");
+  assert.deepEqual(result.changed, {
+    title: false,
+    introduction: false,
+    tags: false,
+    content: true,
+  });
+  assert.ok(calls[0].endsWith("/29"));
+  assert.ok(calls[1].endsWith("/1"));
+  assert.ok(calls[2].includes("/versions?"));
+});
+test("版本核对期间状态变化、坏版本身份或提前取消不能得到可决策结果", async () => {
+  for (const patch of [
+    { state_revision: 2 },
+    { display_version: 1 },
+    { author_hidden: true },
+    { last_version: 3 },
+  ]) {
+    const client = api(async (path) =>
+      path.includes("?")
+        ? timeline({ ...state(), ...patch })
+        : formal(path.endsWith("/1") ? 1 : 2),
+    );
+    await assert.rejects(
+      readVersionPair(client, state(), 1, new AbortController().signal),
+      { code: "comparison_state_changed" },
+    );
+  }
+  const wrong = api(async (path) =>
+    path.includes("?") ? timeline() : { ...formal(1), id: randomUUID() },
+  );
+  await assert.rejects(
+    readVersionPair(wrong, state(), 1, new AbortController().signal),
+    { code: "contract" },
+  );
+  const aborted = new AbortController();
+  aborted.abort();
+  let calls = 0;
+  await assert.rejects(
+    readVersionPair(
+      api(async () => {
+        calls++;
+        return formal(1);
+      }),
+      state(),
+      1,
+      aborted.signal,
+    ),
+    { code: "comparison_cancelled" },
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    readVersionPair(wrong, state(), 2, new AbortController().signal),
+    { code: "invalid_input" },
+  );
+});
+test("版本读取失败取消同行请求，完成前取消不会返回全文或继续状态读取", async () => {
+  let sibling: AbortSignal | undefined;
+  const failing = api(async (path, options) => {
+    if (path.endsWith("/1")) throw new ApiError("network");
+    sibling = options?.signal;
+    return formal(2);
+  });
+  await assert.rejects(
+    readVersionPair(failing, state(), 1, new AbortController().signal),
+  );
+  assert.equal(sibling?.aborted, true);
+  const releases: (() => void)[] = [],
+    cancel = new AbortController();
+  let reads = 0;
+  const slow = api(async (path) => {
+    reads++;
+    await new Promise<void>((resolve) => releases.push(resolve));
+    return formal(path.endsWith("/1") ? 1 : 2);
+  });
+  const request = readVersionPair(slow, state(), 1, cancel.signal);
+  cancel.abort();
+  releases.forEach((fn) => fn());
+  await assert.rejects(request, { code: "comparison_cancelled" });
+  assert.equal(reads, 2);
 });
 const api = (
   fn: (path: string, options?: Parameters<Transport>[1]) => Promise<unknown>,

@@ -1,6 +1,10 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
-## 最新：M4作者处置与文字复核闭环
+## 最新：M5正式版本核对与展示决策
+
+完整[阶段报告](../reviews/author-version-decision-stage-review.md)。本端新增固定正式版本核对，后续复用既有确认/CAS/幂等/公共读取；类型/lint、117模型、20顺序服务、四组件+C1组合、原契约及6门禁通过。真实HTTP/MySQL覆盖展示与latest不同、核对→切换→公共结果、核对期间真实隐藏、受限本人可读但不能公开、正常旧版恢复和私稿不变。模型/服务继续在原已分类文件，未增加漏分类入口。新SHA远程门禁待推送后核对；无后端/契约/锁/构建，设备暂停。
+
+## 历史：M4作者处置与文字复核闭环
 
 本阶段复用B3.1既有HTTP契约，完整实现App读取、固定版本核对、明确申请/原请求确认和维持/撤销结果，不扩运营后台。类型/lint、114模型、20顺序真实服务、四组件+C1组合、契约和6门禁通过；证据及首轮失败/修正见[M4复盘](../reviews/author-appeals-stage-review.md)。新增模型/服务在原已分类author-works文件，不漏分类。后端与共享契约无变更，不声称执行新迁移/恢复；真机/真实邮件未执行，USB暂停。运行源码6d463e2已推，精确SHA的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41574414281)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41574414310)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41574414194)均实际读取success，M4工程收口。本次补录仅本端文档，不将证据重标到未测试运行源码；待主开发整体合入M3/M4。
 

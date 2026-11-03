@@ -121,7 +121,12 @@ export class AuthorWorksApi {
     checkedSummaries(value);
     return value;
   }
-  async timeline(id: string, beforeVersion = 0, beforeEvent = 0) {
+  async timeline(
+    id: string,
+    beforeVersion = 0,
+    beforeEvent = 0,
+    signal?: AbortSignal,
+  ) {
     if (
       !UUID.test(id) ||
       [beforeVersion, beforeEvent].some(
@@ -131,6 +136,7 @@ export class AuthorWorksApi {
       throw new ApiError("invalid_input");
     const value = await this.transport<AuthorTimeline>(
       `/my/works/${id}/versions?before_version=${beforeVersion}&before_event=${beforeEvent}`,
+      { signal },
     );
     if (!value) fail();
     checkedWorkState(value.state, id);
@@ -185,11 +191,12 @@ export class AuthorWorksApi {
     }
     return value;
   }
-  async version(id: string, version: number) {
+  async version(id: string, version: number, signal?: AbortSignal) {
     if (!UUID.test(id) || !positive(version))
       throw new ApiError("invalid_input");
     const value = await this.transport<components["schemas"]["PublicWork"]>(
       `/my/works/${id}/versions/${version}`,
+      { signal },
     );
     if (!isWork(value) || value.id !== id || value.version !== version) fail();
     return value;

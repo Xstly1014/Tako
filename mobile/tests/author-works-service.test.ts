@@ -14,6 +14,7 @@ import {
 import { catalogFixture } from "./helpers/catalog-fixture.ts";
 import { AuthorAppealsApi, type CasePage } from "../src/api/author-appeals.ts";
 import { AuthorAppeals } from "../src/author-works/appeals.ts";
+import { readVersionPair } from "../src/author-works/version-decision.ts";
 const session = () => {
   let token: string | null = null;
   return new Session(
@@ -456,6 +457,54 @@ test("真实作者管理：会话归属、丢响应重放、并发冲突、受�
       () => author.snapshot().phase === "ready",
       randomUUID,
     );
+    const pair = await readVersionPair(
+      api,
+      (await api.timeline(id)).state,
+      1,
+      new AbortController().signal,
+    );
+    assert.equal(pair.current.version, 2);
+    assert.equal(pair.candidate.version, 1);
+    assert.equal(pair.current.title, "管理测试版本二");
+    assert.equal(pair.candidate.title, "管理测试版本一");
+    assert.equal(pair.changed.content, true);
+    await assert.rejects(
+      readVersionPair(foreign, pair.state, 1, new AbortController().signal),
+      (e: unknown) => e instanceof ApiError && e.status === 404,
+    );
+    await op.send(
+      op.prepare(pair.state, "switch_display", pair.candidate.version),
+      api,
+    );
+    assert.equal((await work(id)).version, 1);
+    const beforeRace = (await api.timeline(id)).state;
+    let race = true;
+    const racing = new AuthorWorksApi(async (path, options) => {
+      if (race && path.startsWith(`/my/works/${id}/versions?`)) {
+        race = false;
+        await api.change(id, {
+          mutation_id: randomUUID(),
+          expected_state_revision: beforeRace.state_revision,
+          action: "hide",
+        });
+      }
+      return author.authorized(path, options);
+    });
+    await assert.rejects(
+      readVersionPair(racing, beforeRace, 2, new AbortController().signal),
+      (e: unknown) =>
+        e instanceof ApiError && e.code === "comparison_state_changed",
+    );
+    assert.equal((await api.timeline(id)).state.author_hidden, true);
+    await op.send(
+      op.prepare((await api.timeline(id)).state, "restore", 2),
+      api,
+    );
+    assert.equal((await work(id)).version, 2);
+    assert.deepEqual(
+      await author.authorized(`/drafts/${draft.draft_id}`),
+      savedDraft,
+    );
     const initial = await api.timeline(id),
       hide = op.prepare(initial.state, "hide");
     let lose = true;
@@ -516,7 +565,18 @@ test("真实作者管理：会话归属、丢响应重放、并发冲突、受�
     );
     assert.equal(op.pending, null);
     current = await api.timeline(id);
-    await op.send(op.prepare(current.state, "restore", 1), api);
+    const hiddenPair = await readVersionPair(
+      api,
+      current.state,
+      1,
+      new AbortController().signal,
+    );
+    assert.equal(hiddenPair.current.version, 2);
+    assert.equal(hiddenPair.state.author_hidden, true);
+    await op.send(
+      op.prepare(hiddenPair.state, "restore", hiddenPair.candidate.version),
+      api,
+    );
     assert.equal((await work(id)).version, 1);
     current = await api.timeline(id);
     await op.send(

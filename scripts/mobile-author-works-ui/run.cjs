@@ -73,7 +73,7 @@ let stage = "bundle";
     failRead = false,
     offline = false,
     managementRequests = 0;
-  let catalogMode = false, catalogFail = false;
+  let catalogMode = false, catalogFail = false, pairFail = false, pairStateChange = false;
   const catalogRequests = [];
   const caseTime = '2026-10-01T00:00:00Z';
   let caseState = { id: 50, work_id: id, version: 1, scope: 'version', reason: '固定版本处置原因', state: 'active', revision: 1, created_at: caseTime, next_appeal_at: null };
@@ -164,6 +164,11 @@ let stage = "bundle";
           items: viewer === a ? [{ ...state, title: "甲的正式作品", latest_title: "甲的正式作品", display_limited: false }] : [],
           next_cursor: "",
         });
+      if (/\/my\/works\/[^/]+\/versions\/[12]$/.test(p)) {
+        const version = Number(p.split('/').at(-1));
+        if (pairFail && version === 1) { return json(route, { error: 'internal_error' }, 500); }
+        return json(route, { id, version, title: '核对正式标题' + version, content: '核对完整正文' + version + '\n中文😀结尾', introduction: '正式简介', tags: ['日常'], author_nickname: '作者', published_at: '2026-10-01T00:00:00Z' });
+      }
       if (p.endsWith("/actions")) {
         attempts.push(body);
         if (receipts.has(body.mutation_id))
@@ -193,6 +198,7 @@ let stage = "bundle";
         return json(route, state);
       }
       if (p.endsWith("/versions")) {
+        if (pairStateChange) { pairStateChange = false; state = { ...state, state_revision: state.state_revision + 1 }; }
         if (firstTimeline) {
           firstTimeline = false; markTimelineStarted(); await timelineGate;
         }
@@ -246,6 +252,30 @@ let stage = "bundle";
     state.platform_limited = false;
     await page.getByRole("button", { name: "刷新状态", exact: true }).click();
     await page.getByRole("button", { name: "查看读者当前展示", exact: true }).waitFor();
+    stage = "version-pair-read-and-race";
+    pairFail = true;
+    await page.getByRole('button', { name: '核对展示指针与 V1', exact: true }).click();
+    await page.getByRole('button', { name: '重试核对读取', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '按候选 V1 确认展示切换', exact: true }).count(), 0);
+    pairFail = false;
+    await page.getByRole('button', { name: '重试核对读取', exact: true }).click();
+    await page.getByRole('button', { name: '按候选 V1 确认展示切换', exact: true }).waitFor();
+    await page.getByRole('button', { name: '展开当前指针版全文', exact: true }).click();
+    await page.getByText('核对完整正文2\n中文😀结尾', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '展开候选版全文', exact: true }).click();
+    await page.getByText('核对完整正文1\n中文😀结尾', { exact: true }).waitFor();
+    assert.equal(attempts.length, 0);
+    await page.getByRole('button', { name: '按候选 V1 确认展示切换', exact: true }).click();
+    await page.getByRole('button', { name: '执行管理操作', exact: true }).waitFor();
+    assert.equal(attempts.length, 0);
+    await page.getByRole('button', { name: '取消操作', exact: true }).click();
+    await page.getByRole('button', { name: '结束本次版本核对', exact: true }).click();
+    pairStateChange = true;
+    await page.getByRole('button', { name: '核对展示指针与 V1', exact: true }).click();
+    await page.getByText('核对期间作品状态已变化。请先刷新管理状态，再重新选择候选版本。', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '按候选 V1 确认展示切换', exact: true }).count(), 0);
+    await page.getByRole('button', { name: '刷新状态', exact: true }).click();
+    await page.waitForFunction(() => !document.body.textContent.includes('核对当前展示指针'));
     stage = "lost-response";
     await page.getByRole("button", { name: "隐藏作品", exact: true }).click();
     assert.equal(attempts.length, 0);
@@ -291,6 +321,12 @@ let stage = "bundle";
       .waitFor();
     await page.getByRole("button", { name: "取消操作" }).click();
     assert.equal(receipts.size, 1);
+    stage = "version-pair-hidden-restore";
+    await page.getByRole('button', { name: '核对展示指针与 V1', exact: true }).click();
+    await page.getByRole('button', { name: '按候选 V1 确认恢复公开', exact: true }).click();
+    await page.getByText('将恢复公开并展示 V1；历史正文开放。', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '取消操作', exact: true }).click();
+    await page.getByRole('button', { name: '结束本次版本核对', exact: true }).click();
     stage = "conflict";
     conflict = true;
     await page.getByRole("button", { name: "选择 V1 恢复公开" }).click();
@@ -339,6 +375,13 @@ let stage = "bundle";
     await page.waitForFunction(() => !document.body.textContent.includes("操作已确认，暂时无法读取作品当前状态，请重试读取。"));
     assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isEnabled(), true);
     assert.equal(attempts.length, confirmedAttempts);
+    stage = "version-pair-restricted-read";
+    await page.getByRole('button', { name: '核对展示指针与 V2', exact: true }).click();
+    await page.getByText('候选或作品存在限制，或当前状态未确认；可核对本人内容，不能据此变更展示。', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '按候选 V2 确认展示切换', exact: true }).count(), 0);
+    await page.getByRole('button', { name: '展开候选版全文', exact: true }).click();
+    await page.getByText('核对完整正文2\n中文😀结尾', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '结束本次版本核对', exact: true }).click();
     stage = "appeals-entry-and-history";
     await page.getByRole('button', { name: '返回作品列表', exact: true }).click();
     await page.evaluate(() => { window.authorUi.holdNavigation = false; });
@@ -393,6 +436,24 @@ let stage = "bundle";
     await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).click();
     await page.getByText('私有版本1', { exact: false }).first().waitFor();
     await page.evaluate(() => { window.authorUi.holdNavigation = true; });
+    stage = "version-pair-decision";
+    restricted = false;
+    state = { ...state, state_revision: state.state_revision + 1 };
+    await page.getByRole('button', { name: '刷新状态', exact: true }).click();
+    await page.getByRole('button', { name: '核对展示指针与 V2', exact: true }).click();
+    await page.getByRole('button', { name: '按候选 V2 确认展示切换', exact: true }).waitFor();
+    await page.evaluate(() => window.dispatchEvent(new Event('author-blur')));
+    await page.evaluate(() => window.dispatchEvent(new Event('author-focus')));
+    await page.waitForFunction(() => !document.body.textContent.includes('核对当前展示指针'));
+    await page.getByRole('button', { name: '核对展示指针与 V2', exact: true }).click();
+    await page.getByRole('button', { name: '按候选 V2 确认展示切换', exact: true }).click();
+    const beforeDecision = attempts.length;
+    await page.getByRole('button', { name: '执行管理操作', exact: true }).click();
+    await page.getByText('操作已确认，当前状态已重新读取。工作稿未修改。', { exact: true }).waitFor();
+    assert.equal(attempts.length, beforeDecision + 1);
+    assert.equal(attempts.at(-1).action, 'switch_display'); assert.equal(attempts.at(-1).version, 2);
+    assert.equal(state.display_version, 2);
+    assert.equal(await page.getByRole('button', { name: '展开候选版全文', exact: true }).count(), 0);
     stage = "catalog-search-and-paging";
     await page.getByRole('button', { name: '返回作品列表', exact: true }).click();
     catalogMode = true;
