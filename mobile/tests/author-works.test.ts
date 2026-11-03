@@ -19,6 +19,7 @@ import {
   type CasePage,
 } from "../src/api/author-appeals.ts";
 import { AuthorAppeals } from "../src/author-works/appeals.ts";
+import { readAuthorFeedback } from "../src/author-works/feedback.ts";
 
 const caseDetail = (): CaseDetail => ({
   case: {
@@ -800,4 +801,89 @@ test("API 拒绝错误归属、重复分页、畸形正文；本人版本走私�
     }).version(id, 1),
   );
   assert.deepEqual(paths, [`/my/works/${id}/versions/1`]);
+});
+
+test("作者反馈先确认归属/可见性，只投影同作品互动上下文，不保留正文或版本", async () => {
+  const order: string[] = [];
+  const owned = {
+    timeline: async () => {
+      order.push("owner");
+      return { state: state() };
+    },
+  } as unknown as Pick<AuthorWorksApi, "timeline">;
+  const result = await readAuthorFeedback(
+    owned,
+    async (path, options) => {
+      order.push(path);
+      assert.notEqual(options?.method, "POST");
+      return {
+        id,
+        version: 1,
+        title: "本人作品",
+        content: "不进反馈状态的正文",
+        introduction: "",
+        tags: [],
+        author_nickname: "作者",
+        published_at: "2026-11-03T00:00:00Z",
+        comment_context: "server-context",
+      } as never;
+    },
+    id,
+    new AbortController().signal,
+  );
+  assert.deepEqual(order, ["owner", "/works/" + id]);
+  assert.deepEqual(result, {
+    id,
+    title: "本人作品",
+    context: "server-context",
+  });
+});
+test("作者反馈拒绝他人/隐藏/受限及取消，不向公开接口退化；坏上下文不能互动", async () => {
+  for (const kind of [
+    "owner",
+    "hidden",
+    "limited",
+    "cancelled",
+    "wrong-id",
+    "context",
+  ] as const) {
+    let publicReads = 0;
+    const abort = new AbortController();
+    const owned = {
+      timeline: async () => {
+        if (kind === "owner") throw new ApiError("resource_not_found", "", 404);
+        if (kind === "cancelled") abort.abort();
+        return {
+          state: {
+            ...state(),
+            author_hidden: kind === "hidden",
+            platform_limited: kind === "limited",
+          },
+        };
+      },
+    } as unknown as Pick<AuthorWorksApi, "timeline">;
+    await assert.rejects(
+      readAuthorFeedback(
+        owned,
+        async () => {
+          publicReads++;
+          return {
+            id: kind === "wrong-id" ? randomUUID() : id,
+            version: 1,
+            title: "作品",
+            content: "正文",
+            introduction: "",
+            tags: [],
+            author_nickname: "作者",
+            published_at: "2026-11-03T00:00:00Z",
+            comment_context: kind === "context" ? "" : "server-context",
+          } as never;
+        },
+        id,
+        abort.signal,
+      ),
+      (e: unknown) => e instanceof ApiError,
+    );
+    assert.equal(publicReads, ["wrong-id", "context"].includes(kind) ? 1 : 0);
+  }
 });

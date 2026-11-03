@@ -9,6 +9,7 @@ import { AuthorWorksApi } from "../src/api/author-works.ts";
 import { community, work } from "../src/api/reader.ts";
 import { readVersion } from "../src/api/versions.ts";
 import { readRevisionReview } from "../src/publication/revision-review.ts";
+import { readAuthorFeedback } from "../src/author-works/feedback.ts";
 import type { components } from "../src/api/contract";
 const session = () => {
   let token: string | null = null;
@@ -151,6 +152,11 @@ test("真实API修订发行闭环：同作品追加、丢响应恢复、竞争�
     const target = await directed.revisionTarget(workId);
     assert.equal(target.source.id, draft.draft_id);
     assert.equal(target.source.revision, 2);
+    const feedback = await readAuthorFeedback(author, (p, o) => a.authorized(p, o), workId, new AbortController().signal);
+    assert.equal(feedback.id, workId);
+    assert.ok(feedback.context);
+    assert.equal("content" in feedback, false);
+    await assert.rejects(readAuthorFeedback(new AuthorWorksApi((p, o) => b.authorized(p, o)), (p, o) => b.authorized(p, o), workId, new AbortController().signal));
     const reviewed = await readRevisionReview(directed, author, target.state, 2);
     assert.equal(reviewed.source.content, (await api.source(draft.draft_id)).content);
     assert.equal(reviewed.current.version, target.state.display_version);
@@ -168,6 +174,7 @@ test("真实API修订发行闭环：同作品追加、丢响应恢复、竞争�
       (e: unknown) => e instanceof ApiError && e.code === "revision_review_changed");
     const hiddenReview = await readRevisionReview(directed, author, await api.state(workId, draft.draft_id), 2);
     assert.equal(hiddenReview.state.author_hidden, true);
+    await assert.rejects(readAuthorFeedback(author, (p, o) => a.authorized(p, o), workId, new AbortController().signal), (e: unknown) => e instanceof ApiError && e.code === "feedback_unavailable");
     await assert.rejects(readRevisionReview(other, new AuthorWorksApi((p, o) => b.authorized(p, o)), target.state, 2));
     const first = await directed.prepare({
       mutation_id: randomUUID(),

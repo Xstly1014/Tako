@@ -83,7 +83,10 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     corruptManagement = true,
     failManagementRead = false,
     dropAppeal = true,
-    failAppealRead = false;
+    failAppealRead = false,
+    failFeedbackRead = true,
+    dropFeedbackReply = true,
+    dropFeedbackDelete = true;
   let dropPublication = true,
     publications = 0,
     workID = "",
@@ -223,6 +226,41 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
         await route.abort();
         return;
       }
+
+      if (
+        response.ok() &&
+        stage === "author-feedback-workspace" &&
+        failFeedbackRead &&
+        request.method() === "GET" &&
+        url.pathname === "/api/my/works/" + workID + "/versions"
+      ) {
+        faults.add("feedback-entry-read");
+        await route.abort();
+        return;
+      }
+      if (
+        response.ok() &&
+        dropFeedbackReply &&
+        request.method() === "POST" &&
+        url.pathname === "/api/works/" + workID + "/comments" &&
+        request.postDataJSON().reply_to
+      ) {
+        dropFeedbackReply = false;
+        faults.add("feedback-reply-response");
+        await route.abort();
+        return;
+      }
+      if (
+        response.ok() &&
+        dropFeedbackDelete &&
+        request.method() === "POST" &&
+        /^\/api\/comments\/[^/]+\/actions$/.test(url.pathname)
+      ) {
+        dropFeedbackDelete = false;
+        faults.add("feedback-delete-response");
+        await route.abort();
+        return;
+      }
       await route.fulfill({ response });
     });
     stage = "catalog-and-publication";
@@ -307,7 +345,20 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     assert.equal(await button("生成固定预览").isDisabled(), true);
     await button("采用已核对修订 R2").click();
     // A later server save must not silently replace the adopted R2 snapshot.
-    await page.evaluate(async draftId => window.authorWorkflow.session.authorized("/drafts/save", { method: "POST", body: { mutation_id: crypto.randomUUID(), draft_id: draftId, base_revision: 2, title: "后续工作稿保留", content: "核对后新增的R3文字，不属于本次发行。" } }), fixture.draftId);
+    await page.evaluate(
+      async (draftId) =>
+        window.authorWorkflow.session.authorized("/drafts/save", {
+          method: "POST",
+          body: {
+            mutation_id: crypto.randomUUID(),
+            draft_id: draftId,
+            base_revision: 2,
+            title: "后续工作稿保留",
+            content: "核对后新增的R3文字，不属于本次发行。",
+          },
+        }),
+      fixture.draftId,
+    );
     stage = "directed-revision-retained-stack";
     await button("生成固定预览").click();
     await text("固定预览 · 修订 R2").waitFor();
@@ -420,18 +471,9 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
         credentials.password,
       );
     }, fixture.author);
-    await button("刷新").click();
-    await text("读者整链路真实反馈").waitFor();
-    await button("回复").first().click();
-    await active()
-      .getByRole("textbox", { name: "评论正文" })
-      .fill("作者整链路真实回应");
-    await button("发表").click();
-    await button("查看回复").first().click();
-    await text("作者整链路真实回应").waitFor();
     await button("收起评论").click();
     await button("返回作品列表").click();
-    // Account changes intentionally discard the old internal detail selection.
+    // Account changes discard the previous author's old internal selection.
     await button("查看本人处置与复核").waitFor();
     assert.equal(
       await active()
@@ -443,6 +485,211 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
       await page.evaluate(() => window.authorWorkflow.stack.length),
       1,
     );
+    await active()
+      .getByRole("textbox", { name: "作品标题关键词" })
+      .fill(fixture.prefix);
+    await button("查找作品").click();
+    await button("管理作品 " + fixture.title).click();
+    await button("处理作品反馈").click({ trial: true });
+    stage = "author-feedback-workspace";
+    await button("处理作品反馈").click();
+    await text("无法读取作品反馈").waitFor();
+    failFeedbackRead = false;
+    assert.equal(await button("发表").count(), 0);
+    await button("重新加载").click();
+    await text("读者整链路真实反馈").waitFor();
+    const rootId = await page.evaluate(
+      async (id) =>
+        (
+          await window.authorWorkflow.session.authorized(
+            "/works/" + id + "/comments?cursor=0",
+          )
+        ).items[0].id,
+      workID,
+    );
+    await button("收起评论").click();
+    await button("返回作品管理").click();
+    await button("处理作品反馈").waitFor();
+    await button("返回作品列表").click();
+    assert.equal(
+      await active()
+        .getByRole("textbox", { name: "作品标题关键词" })
+        .inputValue(),
+      fixture.prefix,
+    );
+    assert.equal(
+      await page.evaluate(() => window.authorWorkflow.stack.length),
+      1,
+    );
+    await button("管理作品 " + fixture.title).click();
+    await button("处理作品反馈").click();
+    await text("读者整链路真实反馈").waitFor();
+    await button("回复").first().click();
+    await active()
+      .getByRole("textbox", { name: "评论正文" })
+      .fill("作者暂存输入");
+    await button("收起评论").click();
+    assert.equal(await button("重新确认反馈访问").isDisabled(), true);
+    await button("返回作品管理").click();
+    await page.getByRole("dialog", { name: "离开作者反馈？" }).waitFor();
+    await page.getByRole("button", { name: "继续处理", exact: true }).click();
+    await button("打开作品评论").click();
+    assert.equal(
+      await active().getByRole("textbox", { name: "评论正文" }).inputValue(),
+      "作者暂存输入",
+    );
+    failFeedbackRead = true;
+    await page.evaluate(async () => window.authorWorkflow.session.logout());
+    await text("登录后继续处理本人反馈").waitFor();
+    assert.equal(
+      await active().getByRole("textbox", { name: "评论正文" }).count(),
+      0,
+    );
+    await page.evaluate(
+      async (credentials) =>
+        window.authorWorkflow.session.signIn(
+          "login",
+          credentials.email,
+          credentials.password,
+        ),
+      fixture.author,
+    );
+    await text("无法读取作品反馈").waitFor();
+    failFeedbackRead = false;
+    await button("重新加载").click();
+    await text("恢复本账号在当前页面的未发表文字？").waitFor();
+    await button("保留文字").click();
+    assert.equal(
+      await active().getByRole("textbox", { name: "评论正文" }).inputValue(),
+      "作者暂存输入",
+    );
+    await active()
+      .getByRole("textbox", { name: "评论正文" })
+      .fill("作者整链路真实回应");
+    await button("发表").click();
+    await button("检查原发表").click({ trial: true });
+    await button("收起评论").click();
+    assert.equal(await button("重新确认反馈访问").isDisabled(), true);
+    await button("打开作品评论").click();
+    await button("检查原发表").click();
+    await text("评论已发表。").waitFor();
+    const replyWrites = writes.filter(
+      (x) => x.path === "/api/works/" + workID + "/comments" && x.body.reply_to,
+    );
+    assert.equal(replyWrites.length, 2);
+    assert.deepEqual(replyWrites[0].body, replyWrites[1].body);
+    await button("查看回复").first().click();
+    await text("作者整链路真实回应").waitFor();
+    const replyPage = await page.evaluate(
+      async ({ id, root }) =>
+        window.authorWorkflow.session.authorized(
+          "/works/" + id + "/comments?cursor=0&root=" + root,
+        ),
+      { id: workID, root: rootId },
+    );
+    assert.equal(replyPage.items.length, 1);
+    await button("删除").first().click();
+    await page
+      .getByRole("dialog", { name: "删除评论" })
+      .getByText("主评论和全部回复将一起删除，无法恢复。", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("dialog", { name: "删除评论" })
+      .getByRole("button", { name: "删除", exact: true })
+      .click();
+    await button("检查原删除操作").click({ trial: true });
+    await button("收起评论").click();
+    assert.equal(await button("重新确认反馈访问").isDisabled(), true);
+    await button("打开作品评论").click();
+    await button("检查原删除操作").click();
+    await text("评论已删除。").waitFor();
+    await text("还没有评论，读完说说你的想法。").waitFor();
+    const deleteWrites = writes.filter(
+      (x) => x.path === "/api/comments/" + rootId + "/actions",
+    );
+    assert.equal(deleteWrites.length, 2);
+    assert.deepEqual(deleteWrites[0].body, deleteWrites[1].body);
+    const afterDelete = await page.evaluate(
+      async (id) =>
+        window.authorWorkflow.session.authorized(
+          "/works/" + id + "/comments?cursor=0",
+        ),
+      workID,
+    );
+    assert.equal(afterDelete.items.length, 0);
+    const afterReplies = await page.evaluate(
+      async ({ id, root }) => {
+        try {
+          return (
+            await window.authorWorkflow.session.authorized(
+              "/works/" + id + "/comments?cursor=0&root=" + root,
+            )
+          ).items.length;
+        } catch (e) {
+          if (e.status === 404) return 0;
+          throw e;
+        }
+      },
+      { id: workID, root: rootId },
+    );
+    assert.equal(afterReplies, 0);
+    await button("收起评论").click();
+    await button("返回作品管理").click();
+    // Reauthentication intentionally clears the underlying management selection.
+    await button("查看本人处置与复核").waitFor();
+    assert.equal(
+      await active()
+        .getByRole("textbox", { name: "作品标题关键词" })
+        .inputValue(),
+      "",
+    );
+    assert.equal(
+      await page.evaluate(() => window.authorWorkflow.stack.length),
+      1,
+    );
+    // Same-page account replacement must not reveal the previous author's state.
+    await page.evaluate(
+      (id) =>
+        window.authorWorkflow.navigate("push", {
+          pathname: "/my-work-feedback/[id]",
+          params: { id },
+        }),
+      workID,
+    );
+    await active().getByRole("textbox", { name: "评论正文" }).waitFor();
+    await active()
+      .getByRole("textbox", { name: "评论正文" })
+      .fill("切号前作者私有输入");
+    await page.evaluate(async (credentials) => {
+      await window.authorWorkflow.session.logout();
+      await window.authorWorkflow.session.signIn(
+        "login",
+        credentials.email,
+        credentials.password,
+      );
+    }, fixture.reader);
+    await text("作品反馈暂不可读").waitFor();
+    assert.equal(
+      await active().getByRole("textbox", { name: "评论正文" }).count(),
+      0,
+    );
+    assert.equal(await text(fixture.title).count(), 0);
+    await page.evaluate(async (credentials) => {
+      await window.authorWorkflow.session.logout();
+      await window.authorWorkflow.session.signIn(
+        "login",
+        credentials.email,
+        credentials.password,
+      );
+    }, fixture.author);
+    await active().getByRole("textbox", { name: "评论正文" }).waitFor();
+    assert.equal(
+      await active().getByRole("textbox", { name: "评论正文" }).inputValue(),
+      "",
+    );
+    await button("收起评论").click();
+    await button("返回作品管理").click();
+    await button("查看本人处置与复核").waitFor();
     stage = "moderation-and-appeal";
     const env = Object.fromEntries(
       fs
@@ -553,6 +800,9 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     assert.deepEqual(
       [...faults].sort(),
       [
+        "feedback-entry-read",
+        "feedback-reply-response",
+        "feedback-delete-response",
         "publication-recovery-read",
         "management-receipt",
         "management-state-read",
