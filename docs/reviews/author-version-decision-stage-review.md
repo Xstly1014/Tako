@@ -40,3 +40,9 @@
 已推7ad75d5（产品源码85347b8加单次核对读取重试生命周期调整）。该SHA的[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41587782720)与[Backend](https://github.com/Xstly1014/Tako/actions/runs/41587782733)均success；[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41587782660)组件失败，Windows/Linux静态与模型通过。已读取该作业日志的安全阶段诊断：author/confirmed-action-read-retry；不是M5新核对阶段，不能将首轮重标通过。
 
 旧夹具在刷新后等待“旧读取错误消失”，立即断言读者入口已启用；但read()开始即清error，新GET仍在途，入口按busy继续禁用。新增Promise闸门实验明确复现“错误已消失但读取未结束”，断言此时入口仍禁用且没有管理写；释放GET后等待入口可用，再验证已确认状态。无固定sleep、跳过、强行放开产品入口或自动重发。修正后本机作者组件和6门禁通过；新提交远程复验仍待精确SHA。
+
+## 新提交远程收口
+
+addd2f085414f2dbcced3d789841544f2b536ebf的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41588422793)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41588422799)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41588422805)均已实际读取completed/success。Mobile Windows/Linux静态与117模型、real-api、component-fixtures逐项success，组件内原四套及C1后续步骤通过。首轮7ad75d5真实API亦success，但组件失败导致C1步骤skipped，不能把首轮算完整通过。
+
+P1远程项关闭，M5.1～M5.3工程完成。产品源码为85347b8/7ad75d5，addd2f0只修本端夹具并补录首轮结果；本次最终证据补录仅文档。主开发整体集成M3～M5仍待确认，当前不直接推main，不宣称已进APK或设备验收。P2原生全文滚动/返回/生命周期继续待用户恢复条件。

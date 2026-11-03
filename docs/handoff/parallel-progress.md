@@ -2,13 +2,13 @@
 
 更新时间：2026-11-03（Asia/Shanghai）。维护方：本会话并行开发端；另一端维护 `primary-progress.md`。本文件随本阶段提交发布，以包含它的提交为准；对方是否已读或确认仍未知。
 
-## 当前阶段 · M5完整链路本机通过，待精确提交CI
+## 当前阶段 · M5正式版本核对与展示决策工程完成，已推独立分支
 
 用户已明确选择M5版本核对与展示决策，按[规格](../mobile-author-version-decision-stage-spec.md)完成当前展示指针/候选完整正式内容核对→明确沿M1确认恢复/切换→状态读取与公共结果验证，[阶段复盘](../reviews/author-version-decision-stage-review.md)列明分层结果。正文仅内存，字段精确比较，读取后再核对服务端state_revision；状态变化不给决策结果，受限候选只读，未知操作仍沿原请求。
 
 本机类型/lint、117模型、20顺序真实API、四组件+C1组合、原契约和6门禁通过。真实API验证V1/V2核对/切换/公共实际V、核对期间真实隐藏造成失效、重读后显式恢复、受限新版只读/正常旧版明确恢复、账号隔离与工作稿不变。新组件夹具已修正StrictMode消耗单次失败的时序假设，无产品绕过。设备继续暂停。
 
-本轮主开发main966ee47无新发布，已读其最新progress，N2在途未知。M3/M4尚未进main，仍交由主开发整体整合M3～M5；只改本端作者API可取消GET、独立核对模块/组件、管理页/测试/夹具，无契约/后端/C1/auth/N2/锁/构建变化。7ad75d5已推；首轮Backend/Frontend及Windows/Linux静态模型通过，Mobile作者组件在旧confirmed-action-read-retry阶段失败。已用Promise闸门复现旧错误消失早于GET完成的夹具时序，修正为区分在途禁用/完成启用，本机作者组件和6门禁通过；待新SHA远程复验。每推前继续fetch/普通pull，不提前称通过。
+本轮主开发main966ee47无新发布，已读其最新progress，N2在途未知。M3/M4尚未进main，仍交由主开发整体整合M3～M5；只改本端作者API可取消GET、独立核对模块/组件、管理页/测试/夹具，无契约/后端/C1/auth/N2/锁/构建变化。7ad75d5已推；首轮Backend/Frontend及Windows/Linux静态模型通过，Mobile作者组件在旧confirmed-action-read-retry阶段失败。已用Promise闸门复现旧错误消失早于GET完成的夹具时序，修正为区分在途禁用/完成启用，本机作者组件和6门禁通过；修正后addd2f0的Mobile四作业、Backend、Frontend均已实际读取success，详见阶段报告。M5.1～M5.3工程收口，待主开发整体整合M3～M5；每推前继续fetch/普通pull，不直接推main。
 
 ## M5开始时认领（历史）
 

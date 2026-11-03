@@ -2,7 +2,7 @@
 
 ## 最新：M5正式版本核对与展示决策
 
-完整[阶段报告](../reviews/author-version-decision-stage-review.md)。本端新增固定正式版本核对，后续复用既有确认/CAS/幂等/公共读取；类型/lint、117模型、20顺序服务、四组件+C1组合、原契约及6门禁通过。真实HTTP/MySQL覆盖展示与latest不同、核对→切换→公共结果、核对期间真实隐藏、受限本人可读但不能公开、正常旧版恢复和私稿不变。模型/服务继续在原已分类文件，未增加漏分类入口。首轮7ad75d5 Backend/Frontend及Windows/Linux静态模型通过，Mobile组件author/confirmed-action-read-retry失败。已用明确闸门修正旧错误消失即当GET完成的夹具假设，本机作者组件和6门禁通过，新SHA远程待复验；首轮失败保留，不重标。无后端/契约/锁/构建，设备暂停。
+完整[阶段报告](../reviews/author-version-decision-stage-review.md)。本端新增固定正式版本核对，后续复用既有确认/CAS/幂等/公共读取；类型/lint、117模型、20顺序服务、四组件+C1组合、原契约及6门禁通过。真实HTTP/MySQL覆盖展示与latest不同、核对→切换→公共结果、核对期间真实隐藏、受限本人可读但不能公开、正常旧版恢复和私稿不变。模型/服务继续在原已分类文件，未增加漏分类入口。首轮7ad75d5 Backend/Frontend及Windows/Linux静态模型通过，Mobile组件author/confirmed-action-read-retry失败。已用明确闸门修正旧错误消失即当GET完成的夹具假设，本机作者组件和6门禁通过，修正后addd2f0精确SHA的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41588422793)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41588422799)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41588422805)均success，已逐项核对，M5工程收口；首轮失败/C1跳过保留，不重标。本次最终补录仅文档，待主开发整体集成M3～M5。无后端/契约/锁/构建，设备暂停。
 
 ## 历史：M4作者处置与文字复核闭环
 
