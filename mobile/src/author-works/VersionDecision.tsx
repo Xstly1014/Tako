@@ -36,16 +36,7 @@ function Button({
     </Pressable>
   );
 }
-export default function VersionDecision({
-  api,
-  state,
-  candidate,
-  valid,
-  disabled,
-  canChoose,
-  onChoose,
-  onClose,
-}: {
+type Props = {
   api: AuthorWorksApi;
   state: WorkState;
   candidate: number;
@@ -54,10 +45,30 @@ export default function VersionDecision({
   canChoose: boolean;
   onChoose: () => void;
   onClose: () => void;
-}) {
+};
+export default function VersionDecision(props: Props) {
+  const [attempt, setAttempt] = useState(0);
+  return (
+    <VersionDecisionRead
+      key={attempt}
+      {...props}
+      onRetry={() => setAttempt((x) => x + 1)}
+    />
+  );
+}
+function VersionDecisionRead({
+  api,
+  state,
+  candidate,
+  valid,
+  disabled,
+  canChoose,
+  onChoose,
+  onClose,
+  onRetry,
+}: Props & { onRetry: () => void }) {
   const [pair, setPair] = useState<VersionPair | null>(null),
-    [error, setError] = useState<unknown>(),
-    [attempt, setAttempt] = useState(0);
+    [error, setError] = useState<unknown>();
   const [currentOpen, setCurrentOpen] = useState(false),
     [candidateOpen, setCandidateOpen] = useState(false);
   useFocusEffect(
@@ -71,7 +82,7 @@ export default function VersionDecision({
           if (!controller.signal.aborted && valid()) setError(e);
         });
       return () => controller.abort();
-    }, [api, state, candidate, valid, attempt]),
+    }, [api, state, candidate, valid]),
   );
   const stale =
     error instanceof ApiError && error.code === "comparison_state_changed";
@@ -97,10 +108,7 @@ export default function VersionDecision({
           {...(error && !stale
             ? {
                 actionLabel: "重试核对读取",
-                onRetry: () => {
-                  setError(undefined);
-                  setAttempt((x) => x + 1);
-                },
+                onRetry,
               }
             : {})}
         />
