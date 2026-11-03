@@ -5,6 +5,7 @@ import AuthorAppeals from "../../mobile/src/screens/AuthorAppealsScreen.tsx";
 import Publish from "../../mobile/src/app/publish.tsx";
 import DirectedAuthorWork from "../../mobile/src/app/my-works/[id].tsx";
 import Reader from "../../mobile/src/screens/ReaderScreen.tsx";
+import AuthorFeedback from "../../mobile/src/app/my-work-feedback/[id].tsx";
 import { session } from "../mobile-author-works-ui/context.jsx";
 import { PageScope, guards } from "./router.jsx";
 window.authorWorkflow = { session, stack: [], paths: [] };
@@ -52,6 +53,8 @@ function Harness() {
           <DirectedAuthorWork />
         ) : entry.path === "/my-moderation" ? (
           <AuthorAppeals />
+        ) : entry.path === "/my-work-feedback/[id]" ? (
+          <AuthorFeedback />
         ) : entry.path === "/works/[id]" ? (
           <Reader />
         ) : entry.path === "/publish" ? (

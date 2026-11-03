@@ -656,6 +656,13 @@ function WorkDetail({
             />
             {!state?.author_hidden && !state?.platform_limited ? (
               <Button
+                label="处理作品反馈"
+                disabled={disabled || !!error || stateReadFailed}
+                onPress={() => router.push({ pathname: "/my-work-feedback/[id]", params: { id } })}
+              />
+            ) : null}
+            {!state?.author_hidden && !state?.platform_limited ? (
+              <Button
                 label="查看读者当前展示"
                 disabled={disabled || !!error || stateReadFailed}
                 onPress={() =>
