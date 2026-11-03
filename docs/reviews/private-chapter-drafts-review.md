@@ -39,3 +39,9 @@
 - P1大目录：当前服务端游标分页20，组件只验证合成少量目录，未证明千章/大量本机稿性能。N2目录开放前补千章长标题、长正文、滚动/分页及缓存压力证据，不能宣称高并发容量。
 - 下一阶段N2：固定章预览→首发/追加正式章→幂等回执→目录/逐章阅读→书/章隐藏与最小限制撤销。先冻结公开版本/序号事务和权限契约；不提前开放完结，N3需同时完成平台指定整改纠错。
 - 无ECS、公网、真实发信、付费、推荐算法或新短帖范围。本次链路工程完成不等于完整长文社区上线。
+
+## 远程收口
+
+源码/测试整合`4c3fa3e615aa8083a6d8b465697597ed1c0bdfb8`已随main `ec55ec61302f88ca4db5be75309bc8229e6654ab`推送；中间另合入同事60eb6cc纯证据文档，没有运行差异。已实际读取该精确push的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41566090453)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41566090613)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41566090599)，三者全部success；Mobile的Windows/Linux静态模型、组件/C1和真实API四作业均success。不是用同事或上轮CI代替本次整合。
+
+推送后本机`python scripts/local_restart.py check`通过、test环境身份正确、工作区干净。此后收口补录只有文档，不改变上述运行/测试源码，不要求为文档另打包。设备任务按4c3fa3e领取，仍未执行；没有将远程通过写成真机通过。
