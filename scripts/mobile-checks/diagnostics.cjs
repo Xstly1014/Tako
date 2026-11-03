@@ -21,7 +21,7 @@ function testLocations(output, files) {
 const stages = {
   comments: ['build', 'open', 'guest-input', 'login', 'transfer', 'private-records'],
   versions: ['bundle', 'closed-metadata', 'read-open-version', 'failed-switch', 'stale-switch', 'paging-retry', 'restricted-node'],
-  author: ['bundle', 'session-envelope', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'confirmed-action-read-retry',
+  author: ['bundle', 'session-envelope', 'public-display-handoff', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'confirmed-action-read-retry',
     'offline-grant-blocks-management', 'online-grant-restores-management', 'account-switch'],
   publication: ['bundle', 'session-envelope', 'incomplete-editor-handoff', 'unconfirmed-editor-revision', 'confirmed-old-editor-revision',
     'authorization-and-snapshot', 'storage-failure', 'unknown-result', 'remount-read-only',

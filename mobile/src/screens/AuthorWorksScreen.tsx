@@ -498,6 +498,15 @@ function WorkDetail({
             <Text style={s.note}>
               平台限制优先于作者设置。作品管理不更改私密工作稿。
             </Text>
+            {!state?.author_hidden && !state?.platform_limited ? (
+              <Button
+                label="查看读者当前展示"
+                disabled={disabled || !!error || stateReadFailed}
+                onPress={() =>
+                  router.push({ pathname: "/works/[id]", params: { id } })
+                }
+              />
+            ) : null}
             {state?.author_hidden ? (
               <>
                 <Button

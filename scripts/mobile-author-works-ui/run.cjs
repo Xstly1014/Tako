@@ -185,11 +185,25 @@ let stage = "bundle";
       ),
       "confirmation",
     );
+    stage = "public-display-handoff";
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).count(), 1);
+    await page.evaluate(() => { window.authorUi.holdNavigation = true; });
+    await page.getByRole("button", { name: "查看读者当前展示", exact: true }).click();
+    assert.deepEqual(await page.evaluate(() => window.authorUi.lastPush), { pathname: "/works/[id]", params: { id } });
+    assert.equal(attempts.length, 0);
+    state.platform_limited = true;
+    await page.getByRole("button", { name: "刷新状态", exact: true }).click();
+    await page.getByText("作者未隐藏 · 平台限制", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).count(), 0);
+    state.platform_limited = false;
+    await page.getByRole("button", { name: "刷新状态", exact: true }).click();
+    await page.getByRole("button", { name: "查看读者当前展示", exact: true }).waitFor();
     stage = "lost-response";
     await page.getByRole("button", { name: "隐藏作品", exact: true }).click();
     assert.equal(attempts.length, 0);
     await page.getByRole("button", { name: "执行管理操作" }).click();
     await page.getByRole("button", { name: "检查原管理操作" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isDisabled(), true);
     assert.equal(await page.evaluate(() => window.authorUi.blocked), true);
     await page.getByRole("button", { name: "检查原管理操作" }).click();
     await page
@@ -199,6 +213,7 @@ let stage = "bundle";
       .waitFor();
     assert.deepEqual(attempts[0], attempts[1]);
     assert.equal(receipts.size, 1);
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).count(), 0);
     await page.getByRole("button", { name: "关闭历史正文" }).waitFor();
     assert.equal(
       await page.getByRole("button", { name: "选择 V1 恢复公开" }).count(),
@@ -258,6 +273,7 @@ let stage = "bundle";
     await page.getByRole("button", { name: "执行管理操作" }).click();
     await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "检查原管理操作" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).count(), 0);
     const confirmedAttempts = attempts.length;
     const confirmedReceipts = receipts.size;
     await page.getByRole("button", { name: "重新加载", exact: true }).click();
@@ -265,6 +281,15 @@ let stage = "bundle";
     assert.equal(attempts.length, confirmedAttempts);
     assert.equal(receipts.size, confirmedReceipts);
     assert.equal(await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).count(), 0);
+    await page.getByRole("button", { name: "查看读者当前展示", exact: true }).waitFor();
+    failRead = true;
+    await page.getByRole("button", { name: "刷新状态", exact: true }).click();
+    await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isDisabled(), true);
+    await page.getByRole("button", { name: "刷新状态", exact: true }).click();
+    await page.waitForFunction(() => !document.body.textContent.includes("操作已确认，暂时无法读取作品当前状态，请重试读取。"));
+    assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isEnabled(), true);
+    assert.equal(attempts.length, confirmedAttempts);
     stage = "offline-grant-blocks-management";
     await page.evaluate(() => window.authorUi.session.confirmDraftAccess());
     const beforeOfflineRequests = managementRequests;
