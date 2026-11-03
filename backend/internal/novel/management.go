@@ -79,6 +79,32 @@ type ChapterVersionPage struct {
 	NextBefore uint64                  `json:"next_before"`
 }
 
+func (s Store) OperatorNovelState(ctx context.Context, book uuid.UUID) (NovelState, error) {
+	owner, err := s.formalOwner(ctx, book)
+	if err != nil {
+		return NovelState{}, err
+	}
+	return s.NovelState(ctx, owner, book)
+}
+func (s Store) OperatorChapterState(ctx context.Context, book, chapter uuid.UUID) (ChapterState, error) {
+	owner, err := s.formalOwner(ctx, book)
+	if err != nil {
+		return ChapterState{}, err
+	}
+	out, err := s.ChapterState(ctx, owner, book, chapter)
+	if err == nil && out.LastVersion == 0 {
+		return ChapterState{}, ErrNotFound
+	}
+	return out, err
+}
+func (s Store) OperatorChapterVersion(ctx context.Context, book, chapter uuid.UUID, version uint64) (ChapterVersion, error) {
+	owner, err := s.formalOwner(ctx, book)
+	if err != nil {
+		return ChapterVersion{}, err
+	}
+	return s.ChapterVersion(ctx, owner, book, chapter, version)
+}
+
 func nullableUUID(raw []byte) (*uuid.UUID, error) {
 	if len(raw) == 0 {
 		return nil, nil

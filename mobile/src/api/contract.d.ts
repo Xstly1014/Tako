@@ -4,6 +4,389 @@
  */
 
 export interface paths {
+  "/api/novels": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 公开长文发现、正式目录与单章阅读
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     */
+    get: operations["listPublicNovels"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/novels/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 公开长文发现、正式目录与单章阅读
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     */
+    get: operations["getPublicNovel"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/novels/{id}/directory": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 公开长文发现、正式目录与单章阅读
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     */
+    get: operations["getNovelDirectory"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/novels/{id}/chapters/{chapter}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 公开长文发现、正式目录与单章阅读
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     */
+    get: operations["getPublicNovelChapter"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/limits": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    post: operations["limitNovelContent"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/moderation": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["listNovelModeration"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/moderation": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["listMyNovelModeration"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/moderation/{case}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        case: number;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getOperatorNovelCase"];
+    put?: never;
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    post: operations["decideNovelCase"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/moderation/{case}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        case: number;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getMyNovelCase"];
+    put?: never;
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    post: operations["appealNovelCase"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/moderation-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getNovelCaseReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/appeals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["listPendingNovelAppeals"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/formal-state": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getOperatorNovelState"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/chapters/{chapter}/state": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getOperatorNovelChapterState"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/chapters/{chapter}/versions/{version}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getOperatorNovelChapterVersion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/post-reviews": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["listNovelPostReviews"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/post-reviews/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    post: operations["approveNovelPostReview"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/post-review-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 小说正式内容治理与文字复核
+     * @description PUBLICATION_ENABLED控制。ops仅运营白名单；my按会话归属校验，读者无此权限。仅正式书章版本可处置，不读取私有工作稿。限制与作者隐藏、其他层级限制独立；撤销仅解除当前措施，不切换展示或发新章事件。原mutation与目标/固定载荷幂等，回执不是现状。同一处置同时一条处理中复核，维持后24小时冷静期；运营仍可主动撤销。后审批准仅确认指定文本已检查，旧正式版后审不覆盖当前展示。公开阅读及App接线尚未开放。
+     */
+    get: operations["getNovelPostReviewReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novels/{id}/formal-state": {
     parameters: {
       query?: never;
@@ -1677,6 +2060,161 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    PublicNovel: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      introduction: string;
+      tags: components["schemas"]["NovelTags"];
+      author: string;
+      completed: boolean;
+      chapter_count: number;
+      /** Format: date-time */
+      first_published_at: string;
+      /** Format: date-time */
+      latest_chapter_published_at: string;
+    };
+    NovelDirectoryChapter: {
+      /** Format: uuid */
+      id: string;
+      ordinal: number;
+      readable: boolean;
+      title: string | null;
+    };
+    PublicNovelChapter: {
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      ordinal: number;
+      title: string;
+      content: string;
+      version: number;
+      /** Format: date-time */
+      published_at: string;
+    };
+    PublicNovelPage: {
+      items: components["schemas"]["PublicNovel"][];
+      next_cursor: string;
+    };
+    NovelDirectoryPage: {
+      items: components["schemas"]["NovelDirectoryChapter"][];
+      next_cursor: string;
+    };
+    LimitNovelContent: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      scope: "book" | "chapter" | "version";
+      /** Format: uuid */
+      chapter_id: string | null;
+      version: number;
+      expected_revision: number;
+      reason: string;
+    };
+    NovelCaseDecision: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      /** @enum {string} */
+      decision: "uphold" | "revoke";
+      reason: string;
+      appeal_id?: number;
+    };
+    NovelCaseAppealInput: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      reason: string;
+    };
+    NovelCaseResult: {
+      /** @enum {string} */
+      operation: "limit" | "appeal" | "uphold" | "revoke";
+      /** Format: uuid */
+      novel_id: string;
+      case_id: number;
+      id: number;
+      /** @enum {string} */
+      state: "active" | "pending" | "revoked";
+      revision: number;
+    };
+    NovelCase: {
+      id: number;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      target_id: string;
+      /** @enum {string} */
+      scope: "book" | "chapter" | "version";
+      version: number;
+      reason: string;
+      /** @enum {string} */
+      state: "active" | "revoked";
+      revision: number;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      next_appeal_at: string | null;
+      decision_reason: string;
+    };
+    NovelAppeal: {
+      /** Format: uuid */
+      novel_id: string;
+      id: number;
+      case_id: number;
+      reason: string;
+      /** @enum {string} */
+      state: "pending" | "upheld" | "revoked";
+      decision_reason: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+    };
+    NovelCaseDetail: {
+      case: components["schemas"]["NovelCase"];
+      appeals: components["schemas"]["NovelAppealPage"];
+    };
+    NovelPostReview: {
+      /** Format: uuid */
+      submission_id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      version: number;
+      title: string;
+      /** Format: date-time */
+      created_at: string;
+      current: boolean;
+    };
+    NovelPostReviewReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      operation: "post_review";
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      submission_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      version: number;
+      /** @enum {string} */
+      state: "reviewed";
+    };
+    NovelCasePage: {
+      items: components["schemas"]["NovelCase"][];
+      next: number;
+    };
+    NovelAppealPage: {
+      items: components["schemas"]["NovelAppeal"][];
+      next: number;
+    };
+    NovelPostReviewPage: {
+      items: components["schemas"]["NovelPostReview"][];
+      next_cursor: string;
+    };
     NovelFormalMetadata: {
       title: string;
       introduction: string;
@@ -2551,6 +3089,634 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listPublicNovels: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前可读正式内容或安全目录占位 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicNovelPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getPublicNovel: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前可读正式内容或安全目录占位 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicNovel"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelDirectory: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前可读正式内容或安全目录占位 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelDirectoryPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getPublicNovelChapter: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前可读正式内容或安全目录占位 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicNovelChapter"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  limitNovelContent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LimitNovelContent"];
+      };
+    };
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCaseResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listNovelModeration: {
+    parameters: {
+      query?: {
+        before?: number;
+        state?: "active" | "revoked" | "all";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCasePage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listMyNovelModeration: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCasePage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelCase: {
+    parameters: {
+      query?: {
+        before_appeal?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+        case: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCaseDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  decideNovelCase: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        case: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelCaseDecision"];
+      };
+    };
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCaseResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelCase: {
+    parameters: {
+      query?: {
+        before_appeal?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+        case: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCaseDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  appealNovelCase: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        case: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelCaseAppealInput"];
+      };
+    };
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCaseResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelCaseReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCaseResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listPendingNovelAppeals: {
+    parameters: {
+      query?: {
+        after?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelAppealPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelState: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelFormalState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelChapterState: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelChapterState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelChapterVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelChapterVersion"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listNovelPostReviews: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelPostReviewPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  approveNovelPostReview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WithdrawChapter"];
+      };
+    };
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelPostReviewReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelPostReviewReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前只读状态、固定正式内容或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelPostReviewReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   getNovelFormalState: {
     parameters: {
       query?: never;

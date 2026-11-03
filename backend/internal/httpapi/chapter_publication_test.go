@@ -199,6 +199,16 @@ func TestChapterPublicationReservationReviewAndRecovery(t *testing.T) {
 	approve := novel.DecideChapter{MutationID: uuid.New(), Decision: "approve", Reason: ""}
 	call("POST", reviewPath(b, sb), approve, owner, 403)
 	call("POST", reviewPath(b, sb), approve, operator, 200)
+	publicRoot := "/api/novels/" + b.ID.String()
+	firstPublic := novelResult[novel.PublicNovel](t, call("GET", publicRoot, nil, uuid.Nil, 200))
+	if firstPublic.Title != "B先正式资料" || firstPublic.ChapterCount != 1 {
+		t.Fatal("B-first public projection")
+	}
+	firstDirectory := novelResult[novel.DirectoryPage](t, call("GET", publicRoot+"/directory", nil, uuid.Nil, 200))
+	if len(firstDirectory.Items) != 1 || firstDirectory.Items[0].Ordinal != 2 || firstDirectory.Items[0].ID != cb {
+		t.Fatal("pending A exposed or B renumbered")
+	}
+	call("GET", publicRoot+"/chapters/"+ca.String(), nil, uuid.Nil, 404)
 	// Observation cancellation must not automatically approve A.
 	if _, err = db.Exec("UPDATE publication_policies SET observation_until=NULL WHERE owner_id=?", owner[:]); err != nil {
 		t.Fatal(err)
@@ -209,6 +219,10 @@ func TestChapterPublicationReservationReviewAndRecovery(t *testing.T) {
 	}
 	approve.MutationID = uuid.New()
 	call("POST", reviewPath(b, sa), approve, operator, 200)
+	laterDirectory := novelResult[novel.DirectoryPage](t, call("GET", publicRoot+"/directory", nil, uuid.Nil, 200))
+	if len(laterDirectory.Items) != 2 || laterDirectory.Items[0].Ordinal != 1 || laterDirectory.Items[1].Ordinal != 2 {
+		t.Fatal("late A did not fill original position")
+	}
 	var title string
 	if err = db.QueryRow("SELECT title FROM novel_publications WHERE novel_id=?", b.ID[:]).Scan(&title); err != nil || title != "B先正式资料" {
 		t.Fatal("late A reverted metadata", err)

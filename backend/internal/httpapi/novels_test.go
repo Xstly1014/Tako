@@ -178,11 +178,11 @@ func TestPrivateNovelsContractIsolationAndConcurrency(t *testing.T) {
 	if e = db.QueryRow("SELECT COUNT(*) FROM drafts WHERE owner_id=?", a.Account.ID[:]).Scan(&count); e != nil || count != 0 {
 		t.Fatal("novel created mid draft", e)
 	}
-	// No public longform route is installed in this private phase.
+	// Public reading remains disabled in this private-only API configuration.
 	req := httptest.NewRequest("GET", "/api/novels/"+book.ID.String(), nil)
 	res := httptest.NewRecorder()
 	r.ServeHTTP(res, req)
-	if res.Code != 400 && res.Code != 404 {
+	if res.Code != 503 {
 		t.Fatal("private book exposed")
 	}
 }

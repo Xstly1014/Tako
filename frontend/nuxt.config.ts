@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     '/works/**': { headers: { 'cache-control': 'no-store' } },
     '/community': { headers: { 'cache-control': 'no-store' } },
     '/ops/curation': { ssr: false },
+    '/ops/novels': { ssr: false },
   },
   runtimeConfig: {
     publicationApiBase: 'http://api:8080',

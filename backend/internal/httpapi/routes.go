@@ -300,6 +300,8 @@ func (a API) Register(r *gin.Engine) error {
 	a.registerChapterDrafts(protected)
 	a.registerChapterPublication(protected)
 	a.registerNovelManagement(protected)
+	a.registerNovelModeration(protected)
+	a.registerNovelReading(api)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -60,6 +61,7 @@ func TestNovelManagementMetadataAndVisibility(t *testing.T) {
 		}
 		for _, id := range ids {
 			for _, q := range []string{
+				"DELETE a FROM novel_moderation_appeals a JOIN novel_moderation_cases c ON c.id=a.case_id WHERE c.owner_id=?", "DELETE FROM novel_moderation_cases WHERE owner_id=?",
 				"DELETE FROM novel_metadata_versions WHERE owner_id=?", "DELETE FROM novel_metadata_submissions WHERE owner_id=?",
 				"DELETE FROM chapter_release_events WHERE owner_id=?", "DELETE FROM chapter_post_review_tasks WHERE owner_id=?", "DELETE FROM chapter_versions WHERE owner_id=?", "DELETE FROM chapter_submissions WHERE owner_id=?", "DELETE FROM chapter_previews WHERE owner_id=?", "DELETE FROM novel_publications WHERE owner_id=?",
 				"UPDATE novel_chapters SET primary_draft_id=NULL WHERE owner_id=?", "UPDATE chapter_drafts SET recovered_from_id=NULL WHERE owner_id=?", "DELETE FROM chapter_draft_mutations WHERE owner_id=?", "DELETE FROM chapter_drafts WHERE owner_id=?", "DELETE FROM novel_chapters WHERE owner_id=?", "DELETE FROM novel_mutations WHERE owner_id=?", "DELETE FROM novels WHERE owner_id=?", "DELETE FROM publication_policies WHERE owner_id=?", "DELETE FROM sessions WHERE account_id=?", "DELETE FROM accounts WHERE id=?",
@@ -336,5 +338,118 @@ func TestNovelManagementMetadataAndVisibility(t *testing.T) {
 	private, e := s.Read(ctx, owner, book.ID)
 	if e != nil || private.Revision != 5 || private.Title != "后续私有资料五" {
 		t.Fatal("formal metadata rewrote private source", e)
+	}
+
+	// Layered formal restrictions and text appeals never alter hidden/private
+	// state or restore another scope. Fixture reset only removes the earlier
+	// manually injected flag, before testing actual governance operations.
+	if _, err = db.Exec("UPDATE novels SET platform_limited=FALSE WHERE id=?", book.ID[:]); err != nil {
+		t.Fatal(err)
+	}
+	opsRoot := "/api/ops/novels/" + book.ID.String()
+	call("GET", opsRoot+"/formal-state", nil, owner, 403)
+	call("GET", opsRoot+"/formal-state", nil, operator, 200)
+	call("GET", opsRoot+"/chapters/"+chapter.String()+"/state", nil, operator, 200)
+	limit := func(scope string, version uint64) novel.NovelCaseResult {
+		t.Helper()
+		st, _ := s.NovelState(ctx, owner, book.ID)
+		revision := st.StateRevision
+		var target *uuid.UUID
+		if scope != "book" {
+			target = &chapter
+			chapterState, _ := s.ChapterState(ctx, owner, book.ID, chapter)
+			revision = chapterState.StateRevision
+		}
+		in := novel.LimitNovel{MutationID: uuid.New(), Scope: scope, ChapterID: target, Version: version, ExpectedRevision: revision, Reason: "测试明确内容问题"}
+		call("POST", opsRoot+"/limits", in, owner, 403)
+		return novelResult[novel.NovelCaseResult](t, call("POST", opsRoot+"/limits", in, operator, 200))
+	}
+	bookCase, chapterCase, versionCase := limit("book", 0), limit("chapter", 0), limit("version", 2)
+	casePath := func(ops bool, id uint64) string {
+		base := root
+		if ops {
+			base = opsRoot
+		}
+		return base + "/moderation/" + strconv.FormatUint(id, 10)
+	}
+	call("GET", casePath(false, versionCase.ID), nil, other, 404)
+	call("GET", casePath(true, versionCase.ID), nil, owner, 403)
+	call("GET", opsRoot+"/chapters/"+chapter.String()+"/versions/2", nil, operator, 200)
+	appealMutation := uuid.New()
+	appealInput := map[string]any{"mutation_id": appealMutation, "expected_revision": 1, "reason": "申请重新核对"}
+	call("POST", casePath(false, versionCase.ID), appealInput, other, 404)
+	appeal := novelResult[novel.NovelCaseResult](t, call("POST", casePath(false, versionCase.ID), appealInput, owner, 200))
+	if appeal.State != "pending" || appeal.Operation != "appeal" {
+		t.Fatal("appeal not recorded")
+	}
+	call("POST", casePath(false, versionCase.ID), appealInput, owner, 200)
+	call("POST", casePath(false, versionCase.ID), map[string]any{"mutation_id": uuid.New(), "expected_revision": 1, "reason": "重复申请"}, owner, 409)
+	call("GET", "/api/ops/novels/appeals", nil, owner, 403)
+	appeals := novelResult[novel.NovelAppealPage](t, call("GET", "/api/ops/novels/appeals", nil, operator, 200))
+	matched := false
+	for _, item := range appeals.Items {
+		if item.ID == appeal.ID && item.NovelID == book.ID {
+			matched = true
+		}
+	}
+	if !matched {
+		t.Fatal("pending appeal missing")
+	}
+	uphold := novel.NovelCaseAction{MutationID: uuid.New(), ExpectedRevision: 1, Decision: "uphold", Reason: "复核后维持", AppealID: appeal.ID}
+	call("POST", casePath(true, versionCase.ID), uphold, operator, 200)
+	cd := novelResult[novel.NovelCaseDetail](t, call("GET", casePath(false, versionCase.ID), nil, owner, 200))
+	if cd.Case.Revision != 2 || cd.Case.NextAppealAt == nil || cd.Appeals.Items[0].State != "upheld" {
+		t.Fatal("uphold missing cooldown")
+	}
+	call("POST", casePath(false, versionCase.ID), map[string]any{"mutation_id": uuid.New(), "expected_revision": 2, "reason": "冷静期再提交"}, owner, 409)
+	call("GET", root+"/moderation-requests/"+appealMutation.String(), nil, owner, 200)
+	call("GET", root+"/moderation-requests/"+appealMutation.String(), nil, other, 404)
+	call("GET", root+"/metadata-requests/"+appealMutation.String(), nil, owner, 404)
+	// The older V1 post-review can be acknowledged without changing V2.
+	post := novelResult[novel.NovelPostReviewPage](t, call("GET", "/api/ops/novels/post-reviews", nil, operator, 200))
+	var task uuid.UUID
+	for _, item := range post.Items {
+		if item.NovelID == book.ID && item.Version == 1 {
+			task = item.SubmissionID
+			if item.Current {
+				t.Fatal("old version marked current")
+			}
+		}
+		if item.NovelID == book.ID && item.Version == 2 {
+			t.Fatal("restricted version remains in post queue")
+		}
+	}
+	if task == uuid.Nil {
+		t.Fatal("old formal post-review missing")
+	}
+	postMutation := novel.WithdrawChapter{MutationID: uuid.New()}
+	postPath := opsRoot + "/post-reviews/" + task.String()
+	call("POST", postPath, postMutation, owner, 403)
+	call("POST", postPath, postMutation, operator, 200)
+	call("POST", postPath, postMutation, operator, 200)
+	call("GET", opsRoot+"/post-review-requests/"+postMutation.MutationID.String(), nil, operator, 200)
+	call("POST", postPath, novel.WithdrawChapter{MutationID: uuid.New()}, operator, 409)
+	// Active revoke is allowed even during appeal cooldown. It clears only V2.
+	revoke := novel.NovelCaseAction{MutationID: uuid.New(), ExpectedRevision: 2, Decision: "revoke", Reason: "主动纠错撤销"}
+	call("POST", casePath(true, versionCase.ID), revoke, operator, 200)
+	cs, _ = s.ChapterState(ctx, owner, book.ID, chapter)
+	if !cs.PlatformLimited || !cs.ParentLimited || cs.DisplayVersion != 2 {
+		t.Fatal("version revoke changed another dimension")
+	}
+	call("POST", chapterRoot+"/visibility", novel.VisibilityAction{MutationID: uuid.New(), ExpectedRevision: cs.StateRevision, Action: "restore"}, owner, 409)
+	for _, caseID := range []uint64{chapterCase.ID, bookCase.ID} {
+		call("POST", casePath(true, caseID), novel.NovelCaseAction{MutationID: uuid.New(), ExpectedRevision: 1, Decision: "revoke", Reason: "独立撤销此措施"}, operator, 200)
+	}
+	cs, _ = s.ChapterState(ctx, owner, book.ID, chapter)
+	final, _ = s.NovelState(ctx, owner, book.ID)
+	if cs.PlatformLimited || cs.ParentLimited || !final.AuthorHidden || !final.Completed || cs.DisplayVersion != 2 {
+		t.Fatal("governance cleared hiding/lifecycle or retained revoked restriction")
+	}
+	if err = db.QueryRow("SELECT COUNT(*) FROM chapter_release_events WHERE novel_id=?", book.ID[:]).Scan(&events); err != nil || events != 1 {
+		t.Fatal("governance emitted chapter event", err)
+	}
+	allCases := novelResult[novel.NovelCasePage](t, call("GET", root+"/moderation", nil, owner, 200))
+	if len(allCases.Items) != 3 {
+		t.Fatal("missing author history")
 	}
 }
