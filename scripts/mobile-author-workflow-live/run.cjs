@@ -78,6 +78,12 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
   const errors = [],
     writes = [],
     requests = [];
+  const faults = new Set();
+  let failPublicationRecovery = false,
+    corruptManagement = true,
+    failManagementRead = false,
+    dropAppeal = true,
+    failAppealRead = false;
   let dropPublication = true,
     publications = 0,
     workID = "",
@@ -146,9 +152,76 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
         if (response.ok()) workID = (await response.json()).work_id;
         if (dropPublication) {
           dropPublication = false;
+          failPublicationRecovery = true;
           await route.abort();
           return;
         }
+      }
+      if (
+        response.ok() &&
+        request.method() === "GET" &&
+        failPublicationRecovery &&
+        url.pathname.startsWith("/api/publication-previews/")
+      ) {
+        failPublicationRecovery = false;
+        faults.add("publication-recovery-read");
+        await route.abort();
+        return;
+      }
+      if (
+        response.ok() &&
+        request.method() === "POST" &&
+        url.pathname === "/api/my/works/" + workID + "/actions" &&
+        request.postDataJSON().action === "switch_display"
+      ) {
+        if (corruptManagement) {
+          corruptManagement = false;
+          faults.add("management-receipt");
+          const value = await response.json();
+          assert.equal(request.postDataJSON().version, 1);
+          assert.equal(value.display_version, 1);
+          await route.fulfill({
+            response,
+            json: { ...value, display_version: value.last_version },
+          });
+          return;
+        }
+        failManagementRead = true;
+      }
+      if (
+        response.ok() &&
+        request.method() === "GET" &&
+        failManagementRead &&
+        url.pathname === "/api/my/works/" + workID + "/versions"
+      ) {
+        failManagementRead = false;
+        faults.add("management-state-read");
+        await route.abort();
+        return;
+      }
+      if (
+        response.ok() &&
+        request.method() === "POST" &&
+        /^\/api\/my\/moderation\/\d+$/.test(url.pathname)
+      ) {
+        if (dropAppeal) {
+          dropAppeal = false;
+          faults.add("appeal-response");
+          await route.abort();
+          return;
+        }
+        failAppealRead = true;
+      }
+      if (
+        response.ok() &&
+        request.method() === "GET" &&
+        failAppealRead &&
+        /^\/api\/my\/moderation\/\d+$/.test(url.pathname)
+      ) {
+        failAppealRead = false;
+        faults.add("appeal-state-read");
+        await route.abort();
+        return;
       }
       await route.fulfill({ response });
     });
@@ -183,6 +256,10 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     await page.getByRole("dialog", { name: "离开发布页？" }).waitFor();
     await page.getByRole("button", { name: "离开", exact: true }).click();
     await button("发布服务器已保存稿件").click();
+    await button("重新加载").waitFor();
+    assert.equal(await button("选择服务器稿件 " + fixture.title).count(), 0);
+    assert.equal(publications, 1);
+    await button("重新加载").click();
     await button("进入作品管理").waitFor();
     assert.equal(publications, 1);
     assert.ok(workID);
@@ -236,6 +313,42 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     await button("管理作品 " + fixture.nextTitle).click();
     assert.equal(publications, 2);
     assert.equal(workID, originalWorkID);
+    stage = "restore-eligibility";
+    await button("隐藏作品").click();
+    await button("执行管理操作").click();
+    await text("操作已确认，当前状态已重新读取。工作稿未修改。").waitFor();
+    await button("核对展示指针与 V1").click();
+    await text(
+      "最新版 V2 正常，恢复需展示最新版；此候选仍可核对。请在管理区选择恢复最新版本。",
+    ).waitFor();
+    assert.equal(await button("按候选 V1 确认恢复公开").count(), 0);
+    const rejectedRestore = await page.evaluate(async (id) => {
+      const state = await window.authorWorkflow.session.authorized(
+        "/my/works/" + id,
+      );
+      try {
+        await window.authorWorkflow.session.authorized(
+          "/my/works/" + id + "/actions",
+          {
+            method: "POST",
+            body: {
+              mutation_id: crypto.randomUUID(),
+              expected_state_revision: state.state_revision,
+              action: "restore",
+              version: 1,
+            },
+          },
+        );
+        return 200;
+      } catch (error) {
+        return error.status;
+      }
+    }, workID);
+    assert.equal(rejectedRestore, 400);
+    await button("结束本次版本核对").click();
+    await button("恢复公开并展示最新 V2").click();
+    await button("执行管理操作").click();
+    await text("操作已确认，当前状态已重新读取。工作稿未修改。").waitFor();
     stage = "version-decision-and-reader";
     await button("核对展示指针与 V1").click();
     await button("展开当前指针版全文").click();
@@ -243,8 +356,26 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     await button("展开候选版全文").click();
     await text(saved.content).waitFor();
     await button("按候选 V1 确认展示切换").click();
+    stage = "management-uncertain-recovery";
     await button("执行管理操作").click();
+    await button("检查原管理操作").click({ trial: true });
+    assert.equal(await button("查看读者当前展示").isDisabled(), true);
+    assert.equal(await button("修订发行这部作品").isDisabled(), true);
+    assert.equal((await api("/works/" + workID)).version, 1);
+    await button("检查原管理操作").click();
+    await text("操作已确认，暂时无法读取作品当前状态，请重试读取。").waitFor();
+    assert.equal(await button("检查原管理操作").count(), 0);
+    const switches = () =>
+      writes.filter(
+        (x) =>
+          x.path === "/api/my/works/" + workID + "/actions" &&
+          x.body?.action === "switch_display",
+      );
+    assert.equal(switches().length, 2);
+    assert.deepEqual(switches()[0].body, switches()[1].body);
+    await button("重新加载").click();
     await text("操作已确认，当前状态已重新读取。工作稿未修改。").waitFor();
+    assert.equal(switches().length, 2);
     await button("查看读者当前展示").click();
     await text(fixture.title).waitFor();
     await text(saved.content).waitFor();
@@ -338,8 +469,32 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
       .getByRole("textbox", { name: "文字复核理由" })
       .fill("作者整体验收申请重新核对。");
     await button("确认复核理由").click();
+    stage = "appeal-uncertain-recovery";
     await button("提交这份复核申请").click();
+    await button("检查原复核申请").waitFor();
+    assert.equal(
+      await active()
+        .getByRole("textbox", { name: "文字复核理由" })
+        .isDisabled(),
+      true,
+    );
+    await button("返回处置列表").click();
+    await page.getByRole("dialog", { name: "复核内容尚在本页" }).waitFor();
+    await page.getByRole("button", { name: "留在本页", exact: true }).click();
+    await button("检查原复核申请").click();
+    await text(
+      "申请已确认，当前处置读取未完成。请重试读取，不会再次提交。",
+    ).waitFor();
+    const appeals = () =>
+      writes.filter(
+        (x) => x.path === "/api/my/moderation/" + caseID && x.method === "POST",
+      );
+    assert.equal(appeals().length, 2);
+    assert.deepEqual(appeals()[0].body, appeals()[1].body);
+    await button("重新读取处置现状").click();
     await text("申请已确认，当前处置与复核记录已重新读取。").waitFor();
+    assert.equal(appeals().length, 2);
+    stage = "moderation-and-appeal";
     let detail = await api(`/ops/moderation/${caseID}`, operatorToken);
     assert.equal(detail.appeals.items.length, 1);
     await api(`/ops/moderation/${caseID}`, operatorToken, {
@@ -382,7 +537,17 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
       writes.filter(
         (x) => x.path === `/api/my/moderation/${caseID}` && x.method === "POST",
       ).length,
-      2,
+      3,
+    );
+    assert.deepEqual(
+      [...faults].sort(),
+      [
+        "publication-recovery-read",
+        "management-receipt",
+        "management-state-read",
+        "appeal-response",
+        "appeal-state-read",
+      ].sort(),
     );
     assert.deepEqual(
       await page.evaluate(
@@ -423,11 +588,13 @@ async function api(route, token = "", body, method = body ? "POST" : "GET") {
     console.error("workflow_page_errors=" + errors.length);
     const line = String(error.stack).match(/run\.cjs:(\d+):\d+/)?.[1];
     if (line) console.error("workflow_line=" + Number(line));
+
     const allowed = [
       "invalid_input",
       "rate_limited",
       "authentication_required",
       "review_conflict",
+      "resource_not_found",
       "appeal_cooldown",
       "environment",
     ];

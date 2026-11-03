@@ -2,9 +2,29 @@ import { ApiError } from "../api/client.ts";
 import {
   checkedWorkState,
   type AuthorWorksApi,
+  type AuthorTimeline,
   type WorkState,
 } from "../api/author-works.ts";
 import type { PublicWork } from "../api/reader.ts";
+
+export function versionDecisionBlock(
+  state: WorkState,
+  candidate: number,
+  versions: AuthorTimeline["versions"],
+) {
+  const selected = versions.find((item) => item.version === candidate);
+  if (state.platform_limited || !selected || selected.platform_limited)
+    return "unavailable";
+  if (state.author_hidden) {
+    const latest = versions.find((item) => item.version === state.last_version);
+    if (!latest) return "unavailable";
+    // Existing restore rights permit an explicit old version only when the
+    // latest version is unavailable; a healthy latest version must be restored.
+    if (!latest.platform_limited && candidate !== state.last_version)
+      return "restore_latest_required";
+  }
+  return "";
+}
 
 export type VersionPair = {
   state: WorkState;

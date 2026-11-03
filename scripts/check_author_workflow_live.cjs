@@ -125,7 +125,7 @@ async function main() {
       const line = String(result.stderr).match(/^workflow_line=(\d+)$/m)?.[1];
       if (line) console.error("DIAG author-workflow line=" + Number(line));
       for (const match of String(result.stderr).matchAll(
-        /^workflow_(phase=(?:loading|guest|ready|offline)|code=(?:rate_limited|origin_rejected|invalid_login|network|environment)|requests=(?:(?:auth|catalog|other):\d{3},?)*|page_errors=\d+)$/gm,
+        /^workflow_(phase=(?:loading|guest|ready|offline)|code=(?:rate_limited|origin_rejected|invalid_login|invalid_input|resource_not_found|network|environment)|requests=(?:(?:auth|catalog|other):\d{3},?)*|page_errors=\d+)$/gm,
       ))
         console.error("DIAG " + match[0]);
       throw Error("author_workflow_failed");

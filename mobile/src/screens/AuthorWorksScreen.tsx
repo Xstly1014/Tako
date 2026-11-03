@@ -38,6 +38,7 @@ import type { PublicWork } from "../api/reader";
 import { Action, Status } from "../components/Ui";
 import { theme as t } from "../theme";
 import VersionDecision from "../author-works/VersionDecision";
+import { versionDecisionBlock } from "../author-works/version-decision";
 
 function Button({
   label,
@@ -582,6 +583,10 @@ function WorkDetail({
   const state = data?.state,
     disabled = busy || pending || !!confirmation;
   const latest = data?.versions.find((x) => x.version === state?.last_version);
+  const comparisonBlock =
+    state && data
+      ? versionDecisionBlock(state, comparisonVersion, data.versions)
+      : "unavailable";
   return (
     <>
       <View style={s.header}>
@@ -791,14 +796,9 @@ function WorkDetail({
                 candidate={comparisonVersion}
                 valid={current}
                 disabled={disabled || !!error || stateReadFailed}
-                canChoose={
-                  !state.platform_limited &&
-                  data.versions.some(
-                    (v) =>
-                      v.version === comparisonVersion && !v.platform_limited,
-                  ) &&
-                  !error &&
-                  !stateReadFailed
+                canChoose={!comparisonBlock && !error && !stateReadFailed}
+                restoreLatestRequired={
+                  comparisonBlock === "restore_latest_required"
                 }
                 onChoose={() =>
                   propose(

@@ -9,7 +9,10 @@ import {
 } from "../src/api/author-works.ts";
 import type { Transport } from "../src/auth/session.ts";
 import { ApiError } from "../src/api/client.ts";
-import { readVersionPair } from "../src/author-works/version-decision.ts";
+import {
+  readVersionPair,
+  versionDecisionBlock,
+} from "../src/author-works/version-decision.ts";
 import {
   AuthorAppealsApi,
   type CaseDetail,
@@ -601,6 +604,87 @@ test("版本读取失败取消同行请求，完成前取消不会返回全文�
 const api = (
   fn: (path: string, options?: Parameters<Transport>[1]) => Promise<unknown>,
 ) => new AuthorWorksApi(fn as Transport);
+test("成功HTTP的管理回执必须反映原动作与合法修订，矛盾回执保留待确认请求", async () => {
+  for (const example of [
+    { action: "hide", patch: { author_hidden: false } },
+    { action: "switch_display", version: 1, patch: { display_version: 2 } },
+    {
+      action: "restore",
+      version: 1,
+      patch: { author_hidden: true, display_version: 1 },
+    },
+    { action: "restore", patch: { display_version: 1 } },
+    { action: "set_history", history: true, patch: { history_open: false } },
+    { action: "hide", patch: { state_revision: 0 } },
+    { action: "hide", patch: { state_revision: 4 } },
+  ] as const) {
+    const op = new WorkAction(id, () => true, randomUUID);
+    const body = op.prepare(
+      { ...state(), author_hidden: example.action === "restore" },
+      example.action,
+      "version" in example ? example.version : undefined,
+      "history" in example ? example.history : undefined,
+    );
+    const malformed = api(async () => ({
+      ...state(),
+      author_hidden: example.action === "hide",
+      history_open: true,
+      state_revision: 2,
+      ...example.patch,
+    }));
+    await assert.rejects(
+      op.send(body, malformed),
+      (error: unknown) =>
+        error instanceof ApiError && error.code === "contract",
+    );
+    assert.equal(op.pending, body);
+  }
+});
+test("管理无变化回执和晚重放仍有效，回执不能替代重新读取当前状态", async () => {
+  const op = new WorkAction(id, () => true, randomUUID);
+  const snapshot = { ...state(), author_hidden: true };
+  const noChange = op.prepare(snapshot, "hide");
+  const receipt = await op.send(
+    noChange,
+    api(async () => snapshot),
+  );
+  assert.equal(receipt.state_revision, 1);
+  assert.equal(op.pending, null);
+  const old = { ...state(), state_revision: 2, author_hidden: true };
+  assert.equal(
+    (
+      await api(async () => old).change(id, {
+        mutation_id: randomUUID(),
+        expected_state_revision: 1,
+        action: "hide",
+      })
+    ).state_revision,
+    2,
+  );
+});
+test("隐藏作品恢复遵守既有资格：新版正常须恢复新版，只有新版受限才允许正常旧版", () => {
+  const versions = [2, 1].map((version) => ({
+    version,
+    title: "正式版",
+    published_at: "2026-10-01T00:00:00Z",
+    platform_limited: false,
+    review_status: "pending",
+  }));
+  const hidden = { ...state(), author_hidden: true };
+  assert.equal(
+    versionDecisionBlock(hidden, 1, versions),
+    "restore_latest_required",
+  );
+  assert.equal(versionDecisionBlock(hidden, 2, versions), "");
+  versions[0].platform_limited = true;
+  assert.equal(versionDecisionBlock(hidden, 1, versions), "");
+  assert.equal(versionDecisionBlock(hidden, 2, versions), "unavailable");
+  assert.equal(
+    versionDecisionBlock({ ...hidden, platform_limited: true }, 1, versions),
+    "unavailable",
+  );
+  assert.equal(versionDecisionBlock(hidden, 1, [versions[1]]), "unavailable");
+});
 test("管理操作丢响应只重发同一请求，不能插入第二个操作；回执不作现状", async () => {
   const op = new WorkAction(id, () => true, randomUUID),
     calls: unknown[] = [];
@@ -658,7 +742,7 @@ test("切号或销毁后不能提交，迟到回执不能确认旧账号操作",
       await new Promise<void>((resolve) => {
         release = resolve;
       });
-      return state();
+      return { ...state(), author_hidden: true, state_revision: 2 };
     }),
   );
   current = false;

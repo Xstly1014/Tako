@@ -1,5 +1,9 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+## 当前：作者异常恢复与一致性包
+
+同一[整体验收报告](../reviews/author-workflow-live-acceptance-review.md)追加两项产品修复和五处真实提交后故障验证：正常新版恢复资格、管理回执语义校验，以及发布/管理/复核原请求重查与读取失败恢复。本机120模型、20顺序服务、四组件+C1、类型/lint/契约、7门禁及完整HTTP/MySQL页面链路均通过。精确CI待本包源码推送后核对，下面99a1a1b不覆盖此增量。main411b614已独立复核合入上一验收；本包仍交主开发另行整体审查。USB暂停，无原生/外部服务新结果。
+
 ## 最新：作者业务真实服务页面整体验收
 
 [完整报告](../reviews/author-workflow-live-acceptance-review.md)。同一真实HTTP/MySQL数据贯穿C2/M2/M3/M4/M5及Reader/评论，实际页面保留底层栈，复验原journal、查询保持/切号清理、版本决策及处置冷静期/撤销。两次完整通过；另20顺序服务、117模型、类型/lint/契约与7门禁本机通过。无产品或后端改动，新增Mobile real-api整链路步骤；精确99a1a1b的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41594737276)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41594737251)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41594737234)全部success，已核对real-api新增整链路步骤success；工程收口。
