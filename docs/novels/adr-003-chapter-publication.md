@@ -1,6 +1,6 @@
 # ADR003：章号预约、独立审核与正式阅读
 
-2026-11-03。N2实施前裁决，尚无N2运行接口或迁移。业务基线N-D01～N-D12，[阶段规格](n2-publication-reading-spec.md)。N1独立书/章稿结构不变，不把长文塞入中篇Work。
+2026-11-03。N2实施裁决，固定预览/受理/独立审核内核已开始实现；不是完整N2已交付声明，证据见[连续实施记录](../reviews/n2-publication-implementation-review.md)。业务基线N-D01～N-D12，[阶段规格](n2-publication-reading-spec.md)。N1独立书/章稿结构不变，不把长文塞入中篇Work。
 
 ## 1. 章号不是审核通过次序
 

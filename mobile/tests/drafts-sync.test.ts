@@ -6,6 +6,47 @@ import { DraftSynchronizer, type DraftIdentity } from "../src/drafts/sync.ts";
 import { ApiError } from "../src/api/client.ts";
 import { DraftError } from "../src/drafts/model.ts";
 import { fixture, TestApi } from "./helpers/drafts.ts";
+import { ChapterPublicationApi, checkedChapterReceipt, checkedChapterPreview,
+  type ChapterPreview, type ChapterReceipt } from "../src/novels/chapters/publication-api.ts";
+
+function chapterPublicationFixture() {
+ const book=randomUUID(),chapter=randomUUID(),preview=randomUUID(),mutation=randomUUID(),submission=randomUUID();
+ const snapshot:ChapterPreview={id:preview,novel_id:book,chapter_id:chapter,draft_id:randomUUID(),source_revision:1,title:"第一章",content:"真实传输另行验收",book_title:"长文",introduction:"",tags:["冒险"],ordinal:1,reserved:false,expected_last_position:0,expected_version:0,candidate_version:1,review_required:true,book_hidden:false,chapter_hidden:false,restricted:false,expires_at:new Date().toISOString()};
+ const receipt:ChapterReceipt={mutation_id:mutation,operation:"submit",novel_id:book,chapter_id:chapter,preview_id:preview,submission_id:submission,ordinal:1,state:"pending",version:0,accepted_at:new Date().toISOString()};
+ return {book,chapter,preview,mutation,submission,snapshot,receipt};
+}
+test("N2客户端：待审不是正式版，回执按账号传输的书、原标识及预览精确核对",async()=>{
+ const f=chapterPublicationFixture(),calls:string[]=[];
+ const api=new ChapterPublicationApi(async<T>(path:string)=>{calls.push(path);return f.receipt as T});
+ const result=await api.submit(f.book,{mutation_id:f.mutation,preview_id:f.preview,rights_confirmed:true},f.snapshot);
+ assert.equal(result.state,"pending");assert.equal(result.version,0);assert.deepEqual(calls,[`/my/novels/${f.book}/chapter-submissions`]);
+ const expected={novel:f.book,mutation:f.mutation,operation:"submit" as const,preview:f.preview};
+ for(const bad of [{...f.receipt,novel_id:randomUUID()},{...f.receipt,mutation_id:randomUUID()},{...f.receipt,preview_id:randomUUID()},{...f.receipt,state:"published",version:0},{...f.receipt,state:"pending",version:1},{...f.receipt,submission_id:null}]){
+  assert.throws(()=>checkedChapterReceipt(bad as ChapterReceipt,expected),e=>e instanceof ApiError&&e.code==="contract");
+ }
+ const wrong=new ChapterPublicationApi(async<T>()=>({...f.receipt,ordinal:2}) as T);
+ await assert.rejects(wrong.submit(f.book,{mutation_id:f.mutation,preview_id:f.preview,rights_confirmed:true},f.snapshot),e=>e instanceof ApiError&&e.code==="contract");
+});
+test("N2客户端：冻结正文和预约关系校验，跨书或不同来源不作为可确认预览",async()=>{
+ const f=chapterPublicationFixture();
+ assert.equal(checkedChapterPreview(f.snapshot,f.book,f.preview).source_revision,1);
+ for(const bad of [{...f.snapshot,novel_id:randomUUID()},{...f.snapshot,ordinal:2},{...f.snapshot,candidate_version:2},{...f.snapshot,content:" "},{...f.snapshot,reserved:true,expected_last_position:0},{...f.snapshot,book_title:""}]){
+  assert.throws(()=>checkedChapterPreview(bad,f.book,f.preview),e=>e instanceof ApiError&&e.code==="contract");
+ }
+ const api=new ChapterPublicationApi(async<T>()=>f.snapshot as T);
+ await assert.rejects(api.preview(f.book,f.preview,{draft:randomUUID(),revision:1}),e=>e instanceof ApiError&&e.code==="contract");
+});
+test("N2客户端：查原回执只读，不重发；记录列表重复或详情目标矛盾则拒绝",async()=>{
+ const f=chapterPublicationFixture(),calls:{path:string;method?:string}[]=[];
+ const api=new ChapterPublicationApi(async<T>(path:string,options?:{method?:string})=>{calls.push({path,method:options?.method});return f.receipt as T});
+ await api.receipt({novel:f.book,mutation:f.mutation,operation:"submit",preview:f.preview});
+ assert.deepEqual(calls,[{path:`/my/novels/${f.book}/publication-requests/${f.mutation}`,method:undefined}]);
+ const item={id:f.submission,novel_id:f.book,chapter_id:f.chapter,preview_id:f.preview,title:f.snapshot.title,ordinal:1,candidate_version:1,state:"pending",current:true,reason:"",submitted_at:new Date().toISOString(),decided_at:null};
+ const duplicate=new ChapterPublicationApi(async<T>()=>({items:[item,item],next_cursor:""}) as T);
+ await assert.rejects(duplicate.list(f.book),e=>e instanceof ApiError&&e.code==="contract");
+ const mismatch=new ChapterPublicationApi(async<T>()=>({submission:{...item,chapter_id:randomUUID()},preview:f.snapshot}) as T);
+ await assert.rejects(mismatch.detail(f.book,f.submission),e=>e instanceof ApiError&&e.code==="contract");
+});
 
 async function setup(ctx: { after(fn: () => void): void }) {
   const f = await fixture(); ctx.after(f.close);

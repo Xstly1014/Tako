@@ -4,6 +4,212 @@
  */
 
 export interface paths {
+  "/api/ops/novels/{id}/chapter-submissions/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 固定提交记录或运营待审队列
+     * @description 本人接口按会话和书判权；ops仅白名单。列表不含正文，每页20条。队列只列当前待审；详情读取受理快照而非私密工作稿，驳回与被替换记录仍仅本人和运营可见。
+     */
+    get: operations["getOperatorChapterSubmission"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/chapter-review-queue": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 固定提交记录或运营待审队列
+     * @description 本人接口按会话和书判权；ops仅白名单。列表不含正文，每页20条。队列只列当前待审；详情读取受理快照而非私密工作稿，驳回与被替换记录仍仅本人和运营可见。
+     */
+    get: operations["listChapterReviewQueue"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-submissions/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 固定提交记录或运营待审队列
+     * @description 本人接口按会话和书判权；ops仅白名单。列表不含正文，每页20条。队列只列当前待审；详情读取受理快照而非私密工作稿，驳回与被替换记录仍仅本人和运营可见。
+     */
+    get: operations["getChapterSubmission"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-previews": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 固定本人章稿修订及候选章号
+     * @description PUBLICATION_ENABLED控制。归属取会话；同标识固定载荷幂等。正常作者同事务正式发布，观察期仅待审；多个待审按首次受理预约号独立审核。驳回或撤回不退号。正式发布不解除隐藏或限制；未开放公共长文入口。
+     */
+    post: operations["prepareChapterPublication"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-previews/{preview}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        preview: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 读取固定预览；未提交24小时过期
+     * @description PUBLICATION_ENABLED控制。归属取会话；同标识固定载荷幂等。正常作者同事务正式发布，观察期仅待审；多个待审按首次受理预约号独立审核。驳回或撤回不退号。正式发布不解除隐藏或限制；未开放公共长文入口。
+     */
+    get: operations["getChapterPublicationPreview"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-submissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 固定提交记录或运营待审队列
+     * @description 本人接口按会话和书判权；ops仅白名单。列表不含正文，每页20条。队列只列当前待审；详情读取受理快照而非私密工作稿，驳回与被替换记录仍仅本人和运营可见。
+     */
+    get: operations["listChapterSubmissions"];
+    put?: never;
+    /**
+     * 明确授权后受理；首次按提交顺序预约章号
+     * @description PUBLICATION_ENABLED控制。归属取会话；同标识固定载荷幂等。正常作者同事务正式发布，观察期仅待审；多个待审按首次受理预约号独立审核。驳回或撤回不退号。正式发布不解除隐藏或限制；未开放公共长文入口。
+     */
+    post: operations["submitChapterPublication"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/publication-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 查询原操作回执；不是当前状态
+     * @description PUBLICATION_ENABLED控制。归属取会话；同标识固定载荷幂等。正常作者同事务正式发布，观察期仅待审；多个待审按首次受理预约号独立审核。驳回或撤回不退号。正式发布不解除隐藏或限制；未开放公共长文入口。
+     */
+    get: operations["getChapterPublicationReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-submissions/{submission}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 撤回本章当前待审；保留章号及私稿
+     * @description PUBLICATION_ENABLED控制。归属取会话；同标识固定载荷幂等。正常作者同事务正式发布，观察期仅待审；多个待审按首次受理预约号独立审核。驳回或撤回不退号。正式发布不解除隐藏或限制；未开放公共长文入口。
+     */
+    post: operations["withdrawChapterSubmission"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/chapter-submissions/{submission}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 运营精确审核当前待审；别章审核不阻塞早章
+     * @description PUBLICATION_ENABLED控制。归属取会话；同标识固定载荷幂等。正常作者同事务正式发布，观察期仅待审；多个待审按首次受理预约号独立审核。驳回或撤回不退号。正式发布不解除隐藏或限制；未开放公共长文入口。
+     */
+    post: operations["reviewChapterSubmission"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novels/{id}/chapters": {
     parameters: {
       query?: never;
@@ -1150,6 +1356,111 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ChapterSubmissionSummary: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      /** Format: uuid */
+      preview_id: string;
+      title: string;
+      ordinal: number;
+      candidate_version: number;
+      /** @enum {string} */
+      state: "pending" | "published" | "rejected" | "withdrawn" | "superseded";
+      current: boolean;
+      reason: string;
+      /** Format: date-time */
+      submitted_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+    };
+    ChapterSubmissionDetail: {
+      submission: components["schemas"]["ChapterSubmissionSummary"];
+      preview: components["schemas"]["ChapterPublicationPreview"];
+    };
+    ChapterSubmissionPage: {
+      items: components["schemas"]["ChapterSubmissionSummary"][];
+      next_cursor: string;
+    };
+    PrepareChapter: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      draft_id: string;
+      source_revision: number;
+      book_revision: number;
+    };
+    SubmitChapter: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      preview_id: string;
+      /** @enum {boolean} */
+      rights_confirmed: true;
+    };
+    WithdrawChapter: {
+      /** Format: uuid */
+      mutation_id: string;
+    };
+    DecideChapter: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      decision: "approve" | "reject";
+      /** @description 驳回必填非空原因 */
+      reason: string;
+    };
+    ChapterPublicationReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      operation: "prepare" | "submit" | "review" | "withdraw";
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      /** Format: uuid */
+      preview_id: string;
+      /** Format: uuid */
+      submission_id: string | null;
+      ordinal: number;
+      /** @enum {string} */
+      state: "prepared" | "pending" | "published" | "rejected" | "withdrawn";
+      version: number;
+      /** Format: date-time */
+      accepted_at: string;
+    };
+    ChapterPublicationPreview: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      /** Format: uuid */
+      draft_id: string;
+      source_revision: number;
+      title: string;
+      /** @description 固定正文，最大1MiB UTF-8字节 */
+      content: string;
+      book_title: string;
+      introduction: string;
+      tags: components["schemas"]["NovelTags"];
+      ordinal: number;
+      reserved: boolean;
+      expected_last_position: number;
+      expected_version: number;
+      candidate_version: number;
+      review_required: boolean;
+      book_hidden: boolean;
+      chapter_hidden: boolean;
+      restricted: boolean;
+      /** Format: date-time */
+      expires_at: string;
+    };
     ChapterSummary: {
       /** Format: uuid */
       id: string;
@@ -1549,6 +1860,8 @@ export interface components {
     Error: {
       /** @enum {string} */
       error:
+        | "chapter_preview_expired"
+        | "chapter_publication_conflict"
         | "novel_revision_conflict"
         | "comment_conflict"
         | "reading_context_invalid"
@@ -1783,6 +2096,356 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getOperatorChapterSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 提交记录；当前状态与原回执分开 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSubmissionDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listChapterReviewQueue: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 提交记录；当前状态与原回执分开 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSubmissionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getChapterSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 提交记录；当前状态与原回执分开 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSubmissionDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  prepareChapterPublication: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PrepareChapter"];
+      };
+    };
+    responses: {
+      /** @description 固定快照或不可变回执；受理待审不等于公开成功 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPublicationReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getChapterPublicationPreview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        preview: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定快照或不可变回执；受理待审不等于公开成功 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPublicationPreview"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listChapterSubmissions: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 提交记录；当前状态与原回执分开 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSubmissionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  submitChapterPublication: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubmitChapter"];
+      };
+    };
+    responses: {
+      /** @description 固定快照或不可变回执；受理待审不等于公开成功 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPublicationReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getChapterPublicationReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定快照或不可变回执；受理待审不等于公开成功 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPublicationReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  withdrawChapterSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WithdrawChapter"];
+      };
+    };
+    responses: {
+      /** @description 固定快照或不可变回执；受理待审不等于公开成功 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPublicationReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  reviewChapterSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecideChapter"];
+      };
+    };
+    responses: {
+      /** @description 固定快照或不可变回执；受理待审不等于公开成功 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPublicationReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listPrivateChapters: {
     parameters: {
       query?: {

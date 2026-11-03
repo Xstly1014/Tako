@@ -11,6 +11,17 @@ import (
 func novelError(c *gin.Context, err error) {
 	status, code := 503, "service_unavailable"
 	switch {
+	case errors.Is(err, novel.ErrPreviewExpired):
+		status, code = 410, "chapter_preview_expired"
+	case errors.Is(err, novel.ErrPublicationConflict):
+		status, code = 409, "chapter_publication_conflict"
+	case errors.Is(err, novel.ErrSourceUnavailable):
+		status, code = 409, "source_revision_unavailable"
+	case errors.Is(err, novel.ErrNickname):
+		status, code = 409, "nickname_required"
+	case errors.Is(err, novel.ErrPublicationLimited):
+		status, code = 429, "rate_limited"
+		c.Header("Retry-After", "3600")
 	case errors.Is(err, novel.ErrInvalid):
 		status, code = 400, "invalid_input"
 	case errors.Is(err, novel.ErrNotFound):
