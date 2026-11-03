@@ -1,5 +1,11 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+## 最新检查点：整合与本机 Android 验收（2026-11-04）
+
+普通合入 main `ca91ffe` 为冻结 `0ab7b50`，API0.18/0018 与反馈增量完整保留，声明从契约生成。135模型、20顺序真实服务、类型/lint/生成契约、四组件及小说阅读组件通过；本机新建APK/验签/保留数据安装/安装后哈希一致，vivo Android14实测账号收藏/冷启动/受控断网退出与切号、收件箱回复删除重算、目录翻页/长文/后台/隐藏重入、修订发行丢响应重开只读恢复通过。细项、失败工具纠正、源码与包SHA及剩余C1设备队列见[整合真机复盘](../reviews/android-integrated-device-review.md)。首次原生发布操作内有同标识POST传输重试，后端仅一版；重开POST增量0，不掩盖该差异。
+
+前一 `dfe0ff6` 精确 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41656705940)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41656705974)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41656705857) 全部 success，真实整条步骤亦成功；不能当成本次尚未推送提交的CI。主开发已合入8d79e56，收件箱dfe0ff6仍待其下一窗口审查。不改其primary-progress、不直接推main、不改共享锁文件。
+
 ## 当前：跨作品反馈收件箱全链路
 
 [完整复盘](../reviews/author-feedback-inbox-stage-review.md)。新增两个只读API/错误语义/限定OpenAPI及生成类型，App服务端分页、待回应筛选、具体线程定位和原回复/删除闭环。完整Go race/vet/真实MySQL/契约/路由覆盖通过，补403后聚焦HTTP回归通过；132模型、20顺序服务、四组件+C1、类型/lint/生成契约、7门禁及实际整条HTTP/MySQL页面通过。运行API已沿原卷/凭据保留身份及计数更新至当前代码/迁移17，非Web/ECS/原生升级。精确CI待推送核验，不套用旧SHA。
