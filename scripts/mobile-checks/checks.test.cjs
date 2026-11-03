@@ -147,7 +147,7 @@ test('component CLI reports approved stage and process failures without forwardi
 });
 
 test('diagnostic projections reject unknown stages, paths and error codes', () => {
-  const { processState, testLocations, fixtureStage } = require('./diagnostics.cjs');
+  const { processState, testLocations, fixtureStage, authorWorkflowStage } = require('./diagnostics.cjs');
   assert.equal(processState({status: null, error: {code: 'PRIVATE_SENTINEL'}}), 'exit=none reason=runner_error');
   assert.equal(processState({status: null, error: {code: '__proto__'}}), 'exit=none reason=runner_error');
   assert.equal(processState({status: null, signal: 'PRIVATE_SENTINEL'}), 'exit=none reason=terminated');
@@ -156,6 +156,32 @@ test('diagnostic projections reject unknown stages, paths and error codes', () =
   assert.equal(fixtureStage('versions', 'Version component stage: failed-switch; page errors: ["PRIVATE_SENTINEL"]'), 'failed-switch');
   assert.equal(fixtureStage('author', 'Author fixture failed at conflict: PRIVATE_SENTINEL'), 'conflict');
   assert.equal(fixtureStage('publication', 'Publication fixture failed at PRIVATE_SENTINEL: Error'), 'unavailable');
+  assert.equal(authorWorkflowStage('FAIL real author workflow stage=directed-revision-retained-stack'), 'directed-revision-retained-stack');
+  assert.equal(authorWorkflowStage('FAIL real author workflow stage=PRIVATE_TOKEN'), 'unavailable');
+});
+
+test('real author workflow refuses unavailable or non-test service before writes and redacts errors', () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'tako-live-author-gate-'));
+  try {
+    const preload = path.join(fixture, 'preflight.cjs');
+    fs.writeFileSync(preload, `let calls=0;
+global.fetch=async url=>{ calls++; if(url!=='http://127.0.0.1:3300/api/community') throw Error('PRIVATE_TOKEN');
+ if(process.env.PREFLIGHT_MODE==='missing') throw Error('PRIVATE_TOKEN');
+ return new Response('PRIVATE_BODY',{status:200,headers:{'X-Tako-Environment':'not_test'}}); };
+require('node:child_process').spawnSync=()=>{throw Error('PRIVATE_TOKEN');};
+process.on('exit',()=>{if(calls!==1)process.exitCode=3;});`);
+    for (const mode of ['missing', 'wrong-environment']) {
+      const result = spawnSync(process.execPath, ['--require', preload, path.join(root, 'scripts/check_author_workflow_live.cjs')], {
+        encoding: 'utf8', timeout: 10000, env: { ...process.env, PREFLIGHT_MODE: mode },
+      });
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /FAIL author workflow:/);
+      assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE_BODY|PRIVATE_TOKEN/);
+    }
+  } finally {
+    assert.equal(path.dirname(fixture), os.tmpdir());
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
 });
 
 test('C1 route CLI propagates failure and projects safe stage/line without raw child output', () => {
