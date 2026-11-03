@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import AuthorWorks from "../../mobile/src/screens/AuthorWorksScreen.tsx";
 import Publish from "../../mobile/src/app/publish.tsx";
 import Account from "../../mobile/src/app/account.tsx";
+import DirectedAuthorWork from "../../mobile/src/app/my-works/[id].tsx";
 import { session } from "./context.jsx";
 window.publishUi = {
   session,
@@ -23,7 +24,7 @@ function Harness() {
     return [...old.slice(0, -1), path];
   });
   const route = history.at(-1);
-  return route === "/account" ? <Account /> : route === "/my-works" ? <AuthorWorks /> : <Publish />;
+  return route === "/account" ? <Account /> : route === "/my-works" ? <AuthorWorks /> : route === "/my-works/[id]" ? <DirectedAuthorWork /> : <Publish />;
 }
 (async () => {
   await session.restore();

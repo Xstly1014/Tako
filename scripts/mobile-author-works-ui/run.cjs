@@ -190,6 +190,8 @@ let stage = "bundle";
     await page.evaluate(() => { window.authorUi.holdNavigation = true; });
     await page.getByRole("button", { name: "查看读者当前展示", exact: true }).click();
     assert.deepEqual(await page.evaluate(() => window.authorUi.lastPush), { pathname: "/works/[id]", params: { id } });
+    await page.getByRole("button", { name: "修订发行这部作品", exact: true }).click();
+    assert.deepEqual(await page.evaluate(() => window.authorUi.lastPush), { pathname: "/publish", params: { work_id: id } });
     assert.equal(attempts.length, 0);
     state.platform_limited = true;
     await page.getByRole("button", { name: "刷新状态", exact: true }).click();
@@ -204,6 +206,7 @@ let stage = "bundle";
     await page.getByRole("button", { name: "执行管理操作" }).click();
     await page.getByRole("button", { name: "检查原管理操作" }).waitFor();
     assert.equal(await page.getByRole("button", { name: "查看读者当前展示", exact: true }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "修订发行这部作品", exact: true }).isDisabled(), true);
     assert.equal(await page.evaluate(() => window.authorUi.blocked), true);
     await page.getByRole("button", { name: "检查原管理操作" }).click();
     await page

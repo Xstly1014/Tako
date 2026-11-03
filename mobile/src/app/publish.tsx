@@ -13,6 +13,7 @@ export default function PublishRoute() {
   const params = useLocalSearchParams<{
     draft_id?: string;
     source_revision?: string;
+    work_id?: string;
   }>();
   const accountId = account?.id;
   const store = useMemo(
@@ -40,12 +41,13 @@ export default function PublishRoute() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.surface }}>
       {phase === "ready" && account && store ? (
         <PublicationWorkspace
-          key={`${generation}:${input.draftId}:${input.revision}`}
+          key={`${generation}:${input.draftId}:${input.revision}:${input.workId ?? ""}`}
           store={store}
           accountId={account.id}
           generation={generation}
           draftId={input.draftId}
           revision={input.revision}
+          workId={input.workId}
         />
       ) : (
         <View>

@@ -2,7 +2,7 @@ import type { components, paths } from "./contract";
 import type { Transport } from "../auth/session.ts";
 import { ApiError } from "./client.ts";
 import { UUID } from "./reader.ts";
-import { checkedWorkState, type WorkState } from "./author-works.ts";
+import { AuthorWorksApi, checkedWorkState, type WorkState } from "./author-works.ts";
 export type Preview = components["schemas"]["PublicationPreview"];
 export type Published = components["schemas"]["PublicationResult"];
 export type Prepare = components["schemas"]["PreparePublication"];
@@ -13,12 +13,22 @@ export const publicationTags = ["幻想", "冒险", "日常", "情感", "悬疑"
 export const positive = (v: unknown): v is number =>
   Number.isSafeInteger(v) && Number(v) > 0;
 // C1 hands over a server-confirmed pair; an incomplete pair must never pick
-// the current revision implicitly. No parameters means the explicit picker.
+// the current revision implicitly. M2 supplies only a work ID and resolves its
+// source after recovery. No parameters means the explicit picker.
 export function publicationInput(params: {
   draft_id?: unknown;
   source_revision?: unknown;
+  work_id?: unknown;
 }) {
-  if (params.draft_id === undefined && params.source_revision === undefined)
+  if (params.work_id !== undefined) {
+    if (
+      params.draft_id !== undefined || params.source_revision !== undefined ||
+      typeof params.work_id !== "string" || !UUID.test(params.work_id) ||
+      params.work_id === "00000000-0000-0000-0000-000000000000"
+    ) throw new ApiError("invalid_input");
+    return { draftId: "", revision: 0, workId: params.work_id };
+  }
+  if (params.draft_id === undefined && params.source_revision === undefined && params.work_id === undefined)
     return { draftId: "", revision: 0 };
   if (
     typeof params.draft_id !== "string" ||
@@ -83,8 +93,13 @@ export function checkedPreview(
 }
 export class PublicationsApi {
   private transport: Transport;
-  constructor(transport: Transport) {
+  private targetWorkId?: string;
+  // Only newly prepared previews are bound here. A recovered journal may belong
+  // to a different work and must keep its original identity.
+  private preparedTargets = new Map<string, string>();
+  constructor(transport: Transport, targetWorkId?: string) {
     this.transport = transport;
+    this.targetWorkId = targetWorkId;
   }
   async drafts(cursor = "") {
     const value = await this.transport<DraftPage>(
@@ -123,14 +138,29 @@ export class PublicationsApi {
       throw new ApiError("contract");
     return value;
   }
+  async revisionTarget(workId: string) {
+    const timeline = await new AuthorWorksApi(this.transport).timeline(workId);
+    const latest = timeline.versions.find(x => x.version === timeline.state.last_version);
+    if (!latest) throw new ApiError("contract");
+    const source = await this.source(timeline.state.draft_id);
+    return { state: timeline.state, title: latest.title,
+      source: { id: source.id, revision: source.revision, title: source.title } };
+  }
   async prepare(body: Prepare) {
-    return checkedPreview(
+    if (this.targetWorkId) await this.state(this.targetWorkId, body.draft_id);
+    const preview = checkedPreview(
       await this.transport<Preview>("/publication-previews", {
         method: "POST",
         body,
       }),
       body,
     );
+    if (this.targetWorkId) {
+      if (preview.expected_version < 1 || (preview.published && preview.published.work_id !== this.targetWorkId))
+        throw new ApiError("contract");
+      this.preparedTargets.set(preview.id, this.targetWorkId);
+    }
+    return preview;
   }
   async read(id: string) {
     if (!UUID.test(id)) throw new ApiError("invalid_input");
@@ -149,9 +179,12 @@ export class PublicationsApi {
     );
     if (result.version !== body.expected_version + 1)
       throw new ApiError("contract");
+    const target = this.preparedTargets.get(body.preview_id);
+    if (target && result.work_id !== target) throw new ApiError("contract");
     return result;
   }
   async state(workId: string, draftId: string) {
+    if (!UUID.test(workId) || !UUID.test(draftId)) throw new ApiError("invalid_input");
     const state = checkedWorkState(
       await this.transport<WorkState>(`/my/works/${workId}`),
       workId,

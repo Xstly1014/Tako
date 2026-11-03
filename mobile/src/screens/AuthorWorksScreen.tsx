@@ -49,7 +49,7 @@ function Button({
     </Pressable>
   );
 }
-export default function AuthorWorksScreen() {
+export default function AuthorWorksScreen({ workId = "", onCloseWork }: { workId?: string; onCloseWork?: () => void }) {
   const { generation, account, phase, session } = useSession();
   if (phase !== "ready" || !account)
     return (
@@ -69,18 +69,24 @@ export default function AuthorWorksScreen() {
     );
   return (
     <Workspace
-      key={generation}
+      key={`${generation}:${workId}`}
       generation={generation}
       accountId={account.id}
+      workId={workId}
+      onCloseWork={onCloseWork}
     />
   );
 }
 function Workspace({
   generation,
   accountId,
+  workId,
+  onCloseWork,
 }: {
   generation: number;
   accountId: string;
+  workId: string;
+  onCloseWork?: () => void;
 }) {
   const { session } = useSession();
   const api = useMemo(
@@ -89,7 +95,7 @@ function Workspace({
     [session],
   );
   const [page, setPage] = useState<WorkPage>({ items: [], next_cursor: "" });
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(workId);
   const [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState<unknown>();
@@ -136,11 +142,11 @@ function Workspace({
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
-      void load();
+      if (!workId) void load();
       return () => {
         alive.current = false;
       };
-    }, [load]),
+    }, [load, workId]),
   );
   return (
     <SafeAreaView style={s.screen}>
@@ -151,6 +157,7 @@ function Workspace({
           api={api}
           valid={valid}
           onClose={() => {
+            if (onCloseWork) { onCloseWork(); return; }
             setSelected("");
             void load();
           }}
@@ -498,6 +505,7 @@ function WorkDetail({
             <Text style={s.note}>
               平台限制优先于作者设置。作品管理不更改私密工作稿。
             </Text>
+            <Button label="修订发行这部作品" disabled={disabled} onPress={() => router.push({ pathname: "/publish", params: { work_id: id } })} />
             {!state?.author_hidden && !state?.platform_limited ? (
               <Button
                 label="查看读者当前展示"
