@@ -877,6 +877,9 @@ export interface paths {
     /**
      * 列出本人的作品，按创建时间稳定分页
      * @description B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+     *     显式传q、visibility或restriction时为M3工作台：q字面匹配当前展示/最新正式标题（不含正文/私稿），状态条件取交集。
+     *     M3响应摘要包含latest_title和display_limited；游标绑定会话账号与归一化条件，不能跨条件复用。未提供这些参数时保留旧UUID游标。
+     *     分页为实时结果而非冻结快照；状态改变后刷新首屏。重复参数、坏游标或非法条件返回400，不当作空结果。
      */
     get: operations["listAuthorWorks"];
     put?: never;
@@ -1459,6 +1462,10 @@ export interface components {
       /** Format: uuid */
       id: string;
       title: string;
+      /** @description M3模式必返，最新正式版本标题，不是工作稿标题 */
+      latest_title?: string;
+      /** @description M3模式必返，当前展示版本的平台限制；platform_limited仍只代表作品级限制 */
+      display_limited?: boolean;
       /** Format: uuid */
       draft_id: string;
       author_hidden: boolean;
@@ -3416,6 +3423,12 @@ export interface operations {
   listAuthorWorks: {
     parameters: {
       query?: {
+        /** @description 去首尾空白后最多64码点；空值不限关键词；拒绝控制字符，百分号/下划线/反斜线按字面匹配 */
+        q?: string;
+        /** @description 作者全部/未隐藏/已隐藏；shown不代表已公开或审核通过 */
+        visibility?: "all" | "shown" | "hidden";
+        /** @description 作品整体或当前展示版本受限即restricted；不改变作者隐藏状态 */
+        restriction?: "all" | "restricted" | "unrestricted";
         cursor?: string;
       };
       header?: never;

@@ -1,6 +1,20 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
-## 最新：M2修订发行与版本管理完整工程链路
+## 最新：M5正式版本核对与展示决策
+
+完整[阶段报告](../reviews/author-version-decision-stage-review.md)。本端新增固定正式版本核对，后续复用既有确认/CAS/幂等/公共读取；类型/lint、117模型、20顺序服务、四组件+C1组合、原契约及6门禁通过。真实HTTP/MySQL覆盖展示与latest不同、核对→切换→公共结果、核对期间真实隐藏、受限本人可读但不能公开、正常旧版恢复和私稿不变。模型/服务继续在原已分类文件，未增加漏分类入口。首轮7ad75d5 Backend/Frontend及Windows/Linux静态模型通过，Mobile组件author/confirmed-action-read-retry失败。已用明确闸门修正旧错误消失即当GET完成的夹具假设，本机作者组件和6门禁通过，修正后addd2f0精确SHA的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41588422793)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41588422799)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41588422805)均success，已逐项核对，M5工程收口；首轮失败/C1跳过保留，不重标。本次最终补录仅文档，待主开发整体集成M3～M5。无后端/契约/锁/构建，设备暂停。
+
+## 历史：M4作者处置与文字复核闭环
+
+本阶段复用B3.1既有HTTP契约，完整实现App读取、固定版本核对、明确申请/原请求确认和维持/撤销结果，不扩运营后台。类型/lint、114模型、20顺序真实服务、四组件+C1组合、契约和6门禁通过；证据及首轮失败/修正见[M4复盘](../reviews/author-appeals-stage-review.md)。新增模型/服务在原已分类author-works文件，不漏分类。后端与共享契约无变更，不声称执行新迁移/恢复；真机/真实邮件未执行，USB暂停。运行源码6d463e2已推，精确SHA的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41574414281)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41574414310)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41574414194)均实际读取success，M4工程收口。本次补录仅本端文档，不将证据重标到未测试运行源码；待主开发整体合入M3/M4。
+
+## 历史：M3作者目录完整前后端链路
+
+本次源码/本机验证随包含本段的提交交付，完整场景见[阶段复盘](../reviews/author-catalog-stage-review.md)。类型/lint、107模型、契约生成一致性、6门禁、四组件+C1组合、19项顺序真实服务通过；独立MySQL全Go race/vet通过。55条后端真实查询、45条App协调器+真实HTTP/MySQL三页及管理返回、45条DOM工作台交互分别记录，不混称设备证据。初轮55次预览触发保护已如实保留，以历史合成夹具替代，不改生产保护。
+
+origin/main=f3196c7的主开发记录已确认M3共享片段。运行源码33e595f，推送前再次fetch发现main=966ee47（仅文档/图片），普通pull形成整合b4b077c，无冲突；合入后契约一致性通过。已推168235b，精确SHA的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41570503029)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41570503011)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41570503145)已读取并全部success，工程收口；本次补录仅文档，证据仍绑定168235b；主开发应整体集成M3源码、OpenAPI与生成类型，不单摘页面。无迁移/依赖/锁/C1/auth/N2改动；USB暂停，ECS不推进。
+
+## 历史：M2修订发行与版本管理完整工程链路
 
 按9d65d33规格实施M2.1～M2.3，工作入口、固定预览、同作品正式发行、定向返回详情、展示/隐藏/历史与公共结果一起验证。[M2报告](../reviews/author-revision-stage-review.md)列明每个场景与证据层级。本机类型/lint、99模型、契约、6门禁、四组件+C1组合通过；两个顺序执行的真实API聚合用例均1/1通过，覆盖同账号A/B作品、丢响应/竞争、隐藏再发行、恢复/切旧版/历史可读及私稿保留。本次远程整合待新SHA，USB暂停，未构建/验机。模型/服务新增用例位于原已分类文件，没有漏跑新文件。
 

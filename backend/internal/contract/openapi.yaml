@@ -1566,11 +1566,30 @@ paths:
       summary: 列出本人的作品，按创建时间稳定分页
       description: |
         B2 私有测试，PUBLICATION_ENABLED 默认关闭。每页 20，版本和事件独立游标。所有响应 no-store。
+        显式传q、visibility或restriction时为M3工作台：q字面匹配当前展示/最新正式标题（不含正文/私稿），状态条件取交集。
+        M3响应摘要包含latest_title和display_limited；游标绑定会话账号与归一化条件，不能跨条件复用。未提供这些参数时保留旧UUID游标。
+        分页为实时结果而非冻结快照；状态改变后刷新首屏。重复参数、坏游标或非法条件返回400，不当作空结果。
       parameters:
+        - name: q
+          in: query
+          required: false
+          allowEmptyValue: true
+          schema: {type: string}
+          description: 去首尾空白后最多64码点；空值不限关键词；拒绝控制字符，百分号/下划线/反斜线按字面匹配
+        - name: visibility
+          in: query
+          required: false
+          schema: {type: string, enum: [all, shown, hidden]}
+          description: 作者全部/未隐藏/已隐藏；shown不代表已公开或审核通过
+        - name: restriction
+          in: query
+          required: false
+          schema: {type: string, enum: [all, restricted, unrestricted]}
+          description: 作品整体或当前展示版本受限即restricted；不改变作者隐藏状态
         - name: cursor
           in: query
           required: false
-          schema: {type: string, format: uuid}
+          schema: {type: string, maxLength: 512}
       responses:
         '200':
           description: 经过服务端权限和状态校验的结果
@@ -3196,6 +3215,8 @@ components:
       properties:
         id: {type: string, format: uuid}
         title: {type: string, minLength: 1, maxLength: 200}
+        latest_title: {type: string, minLength: 1, maxLength: 200, description: M3模式必返，最新正式版本标题，不是工作稿标题}
+        display_limited: {type: boolean, description: M3模式必返，当前展示版本的平台限制；platform_limited仍只代表作品级限制}
         draft_id: {type: string, format: uuid}
         author_hidden: {type: boolean}
         platform_limited: {type: boolean}

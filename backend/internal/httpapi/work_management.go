@@ -39,6 +39,25 @@ func (a API) registerWorkManagement(api, protected *gin.RouterGroup, s publicati
 		if !enabled(c) {
 			return
 		}
+		params := c.Request.URL.Query()
+		for _, name := range []string{"q", "visibility", "restriction", "cursor"} {
+			if len(params[name]) > 1 {
+				publicationError(c, publication.ErrInvalid)
+				return
+			}
+		}
+		_, q := params["q"]
+		_, visibility := params["visibility"]
+		_, restriction := params["restriction"]
+		if q || visibility || restriction {
+			out, e := s.AuthorCatalog(c.Request.Context(), owner(c), publication.AuthorCatalogQuery{Query: c.Query("q"), Visibility: c.Query("visibility"), Restriction: c.Query("restriction")}, c.Query("cursor"))
+			if e != nil {
+				publicationError(c, e)
+				return
+			}
+			c.JSON(200, out)
+			return
+		}
 		out, e := s.AuthorWorks(c.Request.Context(), owner(c), c.Query("cursor"))
 		if e != nil {
 			publicationError(c, e)

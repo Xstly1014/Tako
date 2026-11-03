@@ -101,6 +101,15 @@ func TestPublicationHTTPContractAndAccess(t *testing.T) {
 	call("GET", path, nil, false, 200)
 	call("GET", path+"/versions/1", nil, false, 200)
 	call("GET", "/api/my/works", nil, true, 200)
+	catalog := call("GET", "/api/my/works?q=&visibility=all&restriction=all", nil, true, 200)
+	var catalogPage publication.AuthorCatalogPage
+	if err := json.Unmarshal(catalog.Body.Bytes(), &catalogPage); err != nil || len(catalogPage.Items) != 1 || catalogPage.Items[0].LatestTitle != "契约测试作品" {
+		t.Fatal("catalog summary contract")
+	}
+	for _, query := range []string{"q=a&q=b", "visibility=public", "restriction=unknown", "cursor=bad&q=", "q=%0A", "visibility=all&visibility=hidden"} {
+		call("GET", "/api/my/works?"+query, nil, true, 400)
+	}
+	call("GET", "/api/my/works?q=", nil, false, 401)
 	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions", nil, true, 200)
 	call("GET", "/api/my/works/"+result.WorkID.String()+"/versions/1", nil, true, 200)
 	call("GET", path+"/timeline", nil, false, 200)

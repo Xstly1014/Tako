@@ -21,7 +21,7 @@ function testLocations(output, files) {
 const stages = {
   comments: ['build', 'open', 'guest-input', 'login', 'transfer', 'private-records'],
   versions: ['bundle', 'closed-metadata', 'read-open-version', 'failed-switch', 'stale-switch', 'paging-retry', 'restricted-node'],
-  author: ['bundle', 'session-envelope', 'public-display-handoff', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'confirmed-action-read-retry',
+  author: ['version-pair-hidden-restore', 'version-pair-restricted-read', 'version-pair-read-and-race', 'version-pair-decision', 'appeals-entry-and-history', 'appeals-unknown-and-confirmed-read', 'appeals-upheld-and-revoked', 'catalog-revision-return', 'catalog-search-and-paging', 'catalog-management-return', 'bundle', 'session-envelope', 'public-display-handoff', 'lost-response', 'restricted-restore', 'conflict', 'read-failure', 'confirmed-action-read-retry',
     'offline-grant-blocks-management', 'online-grant-restores-management', 'account-switch'],
   publication: ['bundle', 'session-envelope', 'directed-revision-target', 'directed-original-journal-priority', 'directed-release-return', 'incomplete-editor-handoff', 'unconfirmed-editor-revision', 'confirmed-old-editor-revision',
     'authorization-and-snapshot', 'storage-failure', 'unknown-result', 'remount-read-only',
