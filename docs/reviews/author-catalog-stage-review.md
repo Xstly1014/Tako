@@ -44,3 +44,7 @@
 ## 推送前整合检查
 
 运行源码33e595f已提交；再次fetch观察main=966ee47、peer=c04e8fe，已阅读主开发最新进度及差异，新增仅README/图片/贡献说明。普通pull合入形成b4b077c，双方成果保留，无文本冲突、无新运行或共享契约改动；整合后契约生成一致性再检通过，运行源码证据仍对应33e595f。不直接推main，不强推。随后仅补本端记录，再次fetch确认后推独立分支；远程结果仍待精确SHA。
+
+## 远程门禁收口
+
+已实际读取精确提交168235b（运行源码33e595f，合入main=966ee47形成b4b077c）的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41570503029)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41570503011)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41570503145)，三条均completed/success。Mobile的Windows与Linux静态/107模型、component-fixtures和real-api四作业逐项success，Backend race门禁success。P1远程验收项关闭，M3.1～M3.3工程阶段完成；本次补录只改本端证据文档，不生成新运行源码或宣称已进入main。P2设备体验继续待用户恢复条件，不改写为已验机。
