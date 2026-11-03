@@ -256,6 +256,8 @@ function WorkDetail({
     [pending, setPending] = useState(false);
   const mounted = useRef(true),
     lock = useRef(false);
+  const confirmedAction = useRef(false);
+  const [stateReadFailed, setStateReadFailed] = useState(false);
   const operation = useMemo(
     () => new WorkAction(id, valid, randomUUID),
     [id, valid],
@@ -266,6 +268,9 @@ function WorkDetail({
     if (current()) {
       setData(result);
       setBody(null);
+      setStateReadFailed(false);
+      if (confirmedAction.current)
+        setNotice("操作已确认，当前状态已重新读取。工作稿未修改。");
     }
   }, [api, id, current]);
   const read = useCallback(async () => {
@@ -276,7 +281,10 @@ function WorkDetail({
     try {
       await reload();
     } catch (e) {
-      if (current()) setError(e);
+      if (current()) {
+        setError(e);
+        setStateReadFailed(confirmedAction.current);
+      }
     } finally {
       lock.current = false;
       if (current()) setBusy(false);
@@ -338,11 +346,14 @@ function WorkDetail({
     setBusy(true);
     setError(undefined);
     setNotice("");
+    confirmedAction.current = false;
+    setStateReadFailed(false);
     setConfirmation(null);
     setPending(true);
     try {
       await operation.send(request, api);
       if (!current()) return;
+      confirmedAction.current = true;
       setPending(false);
       setData(null);
       setBody(null);
@@ -354,6 +365,7 @@ function WorkDetail({
       if (!current()) return;
       setPending(Boolean(operation.pending));
       setError(e);
+      setStateReadFailed(confirmedAction.current);
       if (!operation.pending) {
         setData(null);
         setBody(null);
@@ -446,7 +458,9 @@ function WorkDetail({
         ) : null}
         {error ? (
           <Text accessibilityLiveRegion="polite" style={s.error}>
-            {authorWorkMessage(error)}
+            {stateReadFailed
+              ? "操作已确认，暂时无法读取作品当前状态，请重试读取。"
+              : authorWorkMessage(error)}
           </Text>
         ) : null}
         {pending ? (

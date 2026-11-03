@@ -252,6 +252,19 @@ let stage = "bundle";
       (await page.getByText("私有版本1", { exact: false }).count()) > 0,
       true,
     );
+    stage = "confirmed-action-read-retry";
+    failRead = true;
+    await page.getByRole("button", { name: "选择 V1 恢复公开" }).click();
+    await page.getByRole("button", { name: "执行管理操作" }).click();
+    await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "检查原管理操作" }).count(), 0);
+    const confirmedAttempts = attempts.length;
+    const confirmedReceipts = receipts.size;
+    await page.getByRole("button", { name: "重新加载", exact: true }).click();
+    await page.getByText("操作已确认，当前状态已重新读取。工作稿未修改。", { exact: true }).waitFor();
+    assert.equal(attempts.length, confirmedAttempts);
+    assert.equal(receipts.size, confirmedReceipts);
+    assert.equal(await page.getByText("操作已确认，暂时无法读取作品当前状态，请重试读取。", { exact: true }).count(), 0);
     stage = "offline-grant-blocks-management";
     await page.evaluate(() => window.authorUi.session.confirmDraftAccess());
     const beforeOfflineRequests = managementRequests;
