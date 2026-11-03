@@ -39,3 +39,7 @@
 开始及中途fetch均main966ee47；本端fd3b500的M3运行尚未进入main，M4规格ec3f5b7已先推。已读主开发进度，N2未有新发布；在途工作仍未知。没有共同契约写入或文本冲突，不修改主开发progress。推送前再fetch核对本端远程及main，普通合入，只推本端codex/mobile-publication。
 
 本机M4.1～M4.3链路已实现；P1退出是本次精确提交CI全部通过，出现确定失败先修复。P2设备输入、系统返回/生命周期、长正文滚动和打开邮件应用的实际体验，待用户恢复条件按冻结源码验证，不以DOM关闭。既有共享依赖审计尾项保持原证据和责任，不自行改锁。主开发应整体整合M3与M4，不只摘页面；无新设备任务或ECS部署。
+
+## 精确提交远程收口
+
+运行源码6d463e2d83490f76f476c463f877a1c2df63300d已推codex/mobile-publication。已读取[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41574414281)四作业（Windows/Linux静态/114模型、real-api、component-fixtures）全部success，[Backend契约与MySQL/race](https://github.com/Xstly1014/Tako/actions/runs/41574414310)及[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41574414194)均completed/success。P1远程项关闭，M4.1～M4.3工程完成；补录只改本端文档，不产生新运行源码。推送前fetch/pull main966ee47无新增或冲突，未直接推main，主开发整体集成仍待其确认。P2原生体验继续待用户恢复设备测试。

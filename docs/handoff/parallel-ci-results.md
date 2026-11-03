@@ -2,7 +2,7 @@
 
 ## 最新：M4作者处置与文字复核闭环
 
-本阶段复用B3.1既有HTTP契约，完整实现App读取、固定版本核对、明确申请/原请求确认和维持/撤销结果，不扩运营后台。类型/lint、114模型、20顺序真实服务、四组件+C1组合、契约和6门禁通过；证据及首轮失败/修正见[M4复盘](../reviews/author-appeals-stage-review.md)。新增模型/服务在原已分类author-works文件，不漏分类。后端与共享契约无变更，不声称执行新迁移/恢复；真机/真实邮件未执行，USB暂停。新源码推送与精确CI待本轮核对。
+本阶段复用B3.1既有HTTP契约，完整实现App读取、固定版本核对、明确申请/原请求确认和维持/撤销结果，不扩运营后台。类型/lint、114模型、20顺序真实服务、四组件+C1组合、契约和6门禁通过；证据及首轮失败/修正见[M4复盘](../reviews/author-appeals-stage-review.md)。新增模型/服务在原已分类author-works文件，不漏分类。后端与共享契约无变更，不声称执行新迁移/恢复；真机/真实邮件未执行，USB暂停。运行源码6d463e2已推，精确SHA的[Mobile四作业](https://github.com/Xstly1014/Tako/actions/runs/41574414281)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41574414310)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41574414194)均实际读取success，M4工程收口。本次补录仅本端文档，不将证据重标到未测试运行源码；待主开发整体合入M3/M4。
 
 ## 历史：M3作者目录完整前后端链路
 
