@@ -1,5 +1,6 @@
 export const publicationTags = ['幻想', '冒险', '日常', '情感', '悬疑', '科幻'] as const
 export interface PublicationPreview {
+  review_required?: boolean
   id: string
   draft_id: string
   source_revision: number
@@ -15,8 +16,10 @@ export interface PublicationPreview {
 export interface PublicationResult {
   work_id: string
   version: number
-  published_at: string
-  review_status: 'pending'
+  published_at: string | null
+  submission_id?: string
+  submitted_at?: string
+  review_status: 'pending' | 'pre_review'
 }
 export interface PublicWork {
   comment_context?: string

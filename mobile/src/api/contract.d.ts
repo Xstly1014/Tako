@@ -4,6 +4,275 @@
  */
 
 export interface paths {
+  "/api/my/author-policy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    get: operations["getMyAccountAuthorPolicy"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/works/{id}/author-policy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    get: operations["getOperatorWorkAuthorPolicy"];
+    put?: never;
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    post: operations["changeWorkAuthorPolicy"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/works/{id}/author-policy/requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    get: operations["getWorkAuthorPolicyReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/work-submissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    get: operations["listMyWorkSubmissions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/work-submissions/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    get: operations["getMyWorkSubmission"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/work-submissions/{submission}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    post: operations["withdrawWorkSubmission"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/work-submissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    get: operations["listOperatorWorkSubmissions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/work-submissions/{submission}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    get: operations["getOperatorWorkSubmission"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/work-submissions/{submission}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    post: operations["reviewWorkSubmission"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/work-submission-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /** @description PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。 */
+    get: operations["getWorkSubmissionReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/author-policy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    get: operations["getMyAuthorPolicy"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/author-policy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    get: operations["getOperatorAuthorPolicy"];
+    put?: never;
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    post: operations["changeAuthorPolicy"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/author-policy/requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 作者账号观察期状态与操作留痕
+     * @description PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+     */
+    get: operations["getAuthorPolicyReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/work-feedback": {
     parameters: {
       query?: never;
@@ -2147,6 +2416,93 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    WorkSubmission: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      work_id: string;
+      /** Format: uuid */
+      preview_id: string;
+      candidate_version: number;
+      /** @enum {string} */
+      state: "pending" | "published" | "rejected" | "withdrawn" | "superseded";
+      title: string;
+      reason: string;
+      /** Format: date-time */
+      accepted_at: string;
+      /** Format: date-time */
+      first_waiting_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+    };
+    WorkSubmissionPage: {
+      items: components["schemas"]["WorkSubmission"][];
+      next_cursor: string;
+    };
+    WorkSubmissionDetail: {
+      submission: components["schemas"]["WorkSubmission"];
+      preview: components["schemas"]["PublicationPreview"];
+    };
+    WithdrawWorkSubmission: {
+      /** Format: uuid */
+      mutation_id: string;
+    };
+    ReviewWorkSubmission: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      decision: "approve" | "reject";
+      reason: string;
+    };
+    WorkSubmissionReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      submission_id: string;
+      /** Format: uuid */
+      work_id: string;
+      /** @enum {string} */
+      state: "published" | "rejected" | "withdrawn";
+      version: number;
+    };
+    AuthorPolicy: {
+      revision: number;
+      active: boolean;
+      /** Format: date-time */
+      observation_until: string | null;
+      reason: string;
+    };
+    AuthorPolicyAction: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      /** @enum {string} */
+      action: "start" | "extend" | "revoke";
+      reason: string;
+    };
+    AuthorPolicyEvent: {
+      /** Format: uuid */
+      context_id: string;
+      /** @enum {string} */
+      context_kind: "novel" | "work";
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      action: "start" | "extend" | "revoke";
+      revision: number;
+      reason: string;
+      /** Format: date-time */
+      previous_until: string | null;
+      /** Format: date-time */
+      observation_until: string | null;
+      /** Format: date-time */
+      created_at: string;
+    };
+    AuthorPolicyPage: {
+      policy: components["schemas"]["AuthorPolicy"];
+      items: components["schemas"]["AuthorPolicyEvent"][];
+      next: number;
+    };
     AuthorFeedbackEntry: {
       comment: components["schemas"]["Comment"];
       work_title: string;
@@ -2929,6 +3285,8 @@ export interface components {
       expected_version: number;
     };
     PublicationPreview: {
+      /** @description 当前提交需先审；提交时仍重查策略，不能以此字段绕过审核 */
+      review_required?: boolean;
       /** Format: uuid */
       id: string;
       /** Format: uuid */
@@ -2947,17 +3305,37 @@ export interface components {
       /** @description 已消费预览的原发布确认，不代表当前可见状态 */
       published?: components["schemas"]["PublicationResult"];
     };
-    PublicationResult: {
+    PublicationResult:
+      | components["schemas"]["FormalPublicationResult"]
+      | components["schemas"]["PendingPublicationResult"];
+    FormalPublicationResult: {
       /** Format: uuid */
       work_id: string;
       version: number;
       /** Format: date-time */
       published_at: string;
       /**
-       * @description 此次发布时的待后审确认，不代表当前审核状态
+       * @description 此次正式版发布时的待后审，不代表当前审核状态
        * @enum {string}
        */
       review_status: "pending";
+    };
+    PendingPublicationResult: {
+      /** Format: uuid */
+      work_id: string;
+      /**
+       * @description 尚未产生正式版本，不显示V0
+       * @enum {integer}
+       */
+      version: 0;
+      /** @enum {string|null} */
+      published_at: null;
+      /** @enum {string} */
+      review_status: "pre_review";
+      /** Format: uuid */
+      submission_id: string;
+      /** Format: date-time */
+      submitted_at: string;
     };
     PublicWork: {
       /** @description 仅用于提交时权限校验，不持久记录评论版本 */
@@ -3219,6 +3597,512 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getMyAccountAuthorPolicy: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorWorkAuthorPolicy: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeWorkAuthorPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AuthorPolicyAction"];
+      };
+    };
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyEvent"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getWorkAuthorPolicyReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyEvent"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listMyWorkSubmissions: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        work?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyWorkSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  withdrawWorkSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WithdrawWorkSubmission"];
+      };
+    };
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listOperatorWorkSubmissions: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        work?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorWorkSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  reviewWorkSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        submission: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReviewWorkSubmission"];
+      };
+    };
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getWorkSubmissionReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已提交记录或原决定结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkSubmissionReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyAuthorPolicy: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorAuthorPolicy: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeAuthorPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AuthorPolicyAction"];
+      };
+    };
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyEvent"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getAuthorPolicyReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前状态及历史或不可变原操作结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorPolicyEvent"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listAuthorWorkFeedback: {
     parameters: {
       query?: {

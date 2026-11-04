@@ -36,6 +36,7 @@ type Props = {
   onPublish: () => void;
   onFeedback: () => void;
   onModeration: () => void;
+  onSubmissions?: () => void;
 };
 function Link({
   label,
@@ -103,6 +104,9 @@ export default function AuthorCatalogView(p: Props) {
         <Link label="筛选" onPress={() => setFilters({ ...p.draftQuery })} />
       </View>
       <View style={s.shortcuts}>
+        {p.onSubmissions ? (
+          <Link label="先审记录" onPress={p.onSubmissions} />
+        ) : null}
         <Link label="读者反馈" name="读者反馈收件箱" onPress={p.onFeedback} />
         <Link
           label="处置 ›"

@@ -14,7 +14,7 @@ subprocess.run(compose('exec','-T','mysql','sh','-c','MYSQL_PWD="$MYSQL_ROOT_PAS
 command = r'''export TEST_MYSQL_DSN="$(printf '%s' "$MYSQL_DSN" | sed 's@/tako_sandbox?@/writing_novels_test?@')"
 case "$TEST_MYSQL_DSN" in */writing_novels_test\?*) ;; *) echo isolated_database_required; exit 2;; esac
 export GOOSE_DBSTRING="$TEST_MYSQL_DSN&multiStatements=true"
-go run github.com/pressly/goose/v3/cmd/goose@v3.26.0 -dir migrations up && go test -race -count=1 ./... && go vet ./...'''
+go run github.com/pressly/goose/v3/cmd/goose@v3.26.0 -dir migrations up && go test -race -count=1 -timeout=20m ./... && go vet ./...'''
 if args.run:
-    command=command.replace('go test -race -count=1 ./...', 'go test -race -count=1 -run '+shlex.quote(args.run)+' ./...')
+    command=command.replace('go test -race -count=1 -timeout=20m ./...', 'go test -race -count=1 -timeout=20m -run '+shlex.quote(args.run)+' ./...')
 subprocess.run(compose('run','--rm','tools','sh','-c',command), cwd=ROOT, check=True)

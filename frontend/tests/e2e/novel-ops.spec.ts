@@ -32,6 +32,35 @@ async function fixture(page: Page, operator = true) {
     if (p === '/api/me') return reply({ id: f.actor, nickname: '运营测试' })
     if (p === '/api/me/access') return reply({ operator: f.operator })
     if (!f.operator) return error('operator_required', 403)
+    if (p.includes('/author-policy')) {
+      if (req.method() === 'POST') {
+        const body = req.postDataJSON()
+        f.writes.push({ path: p, body })
+        f.receipt = {
+          context_id: book,
+          context_kind: 'novel',
+          mutation_id: body.mutation_id,
+          action: body.action,
+          revision: Number(body.expected_revision) + 1,
+          reason: body.reason,
+          previous_until: null,
+          observation_until: '2026-11-11T00:00:00Z',
+          created_at: now,
+        }
+        if (f.drop) {
+          f.drop = false
+          return route.abort()
+        }
+        return reply(f.receipt)
+      }
+      if (p.includes('/requests/'))
+        return f.receipt ? reply(f.receipt) : error('resource_not_found', 404)
+      return reply({
+        policy: { revision: 0, active: false, observation_until: null, reason: '' },
+        items: [],
+        next: 0,
+      })
+    }
     const formal = {
       novel_id: book,
       state_revision: 3,
@@ -280,4 +309,32 @@ test('换账号隐藏旧内容和旧待确认操作，不转交原处理', async
       `tako-novel-operations-v1:${owner}`,
     ),
   ).toBe(true)
+})
+
+test('账号观察期明确作用范围，丢响应重开只查原决定', async ({ page }) => {
+  const f = await fixture(page)
+  await selectChapter(page)
+  await page.getByText('作者账号观察期', { exact: true }).click()
+  await page.getByRole('button', { name: '读取作者观察期', exact: true }).click()
+  await expect(page.getByText('当前不在观察期', { exact: false })).toBeVisible()
+  await page.getByLabel('本次决定原因').fill('再次核对后明确决定观察')
+  await page.getByRole('button', { name: '开始7天观察期', exact: true }).click()
+  await expect(
+    page.getByText(
+      '本次作用于作者账号，影响之后的中篇与长文提交；既有待审继续人工审核，既有公开内容不自动隐藏。',
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await page.getByRole('button', { name: '确认执行', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '原处理尚未确认' })).toBeVisible()
+  expect(f.writes.length).toBe(1)
+  await page.reload()
+  await page.getByRole('button', { name: '查询原结果', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('处理已确认')
+  expect(f.writes.length).toBe(1)
+  expect(f.writes[0]!.body).toMatchObject({
+    action: 'start',
+    expected_revision: 0,
+    reason: '再次核对后明确决定观察',
+  })
 })

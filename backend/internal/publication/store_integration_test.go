@@ -35,6 +35,8 @@ func setup(t *testing.T) (Store, uuid.UUID, uuid.UUID, uuid.UUID) {
 		db.Exec("DELETE FROM work_state_mutations WHERE owner_id=?", owner[:])
 		db.Exec("DELETE e FROM work_events e JOIN works w ON w.id=e.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE q FROM publication_review_tasks q JOIN works w ON w.id=q.work_id WHERE w.owner_id=?", owner[:])
+		db.Exec("DELETE FROM work_submission_requests WHERE actor_id=?", owner[:])
+		db.Exec("DELETE FROM work_submissions WHERE owner_id=?", owner[:])
 		db.Exec("DELETE FROM publication_mutations WHERE owner_id=?", owner[:])
 		db.Exec("DELETE v FROM work_versions v JOIN works w ON w.id=v.work_id WHERE w.owner_id=?", owner[:])
 		db.Exec("DELETE FROM publication_previews WHERE owner_id=?", owner[:])
@@ -181,8 +183,13 @@ func TestPreviewExpiryCleanupAndPolicy(t *testing.T) {
 	if _, e = s.DB.Exec("INSERT INTO publication_policies (owner_id,observation_until) VALUES (?,?)", owner[:], time.Now().UTC().Add(time.Hour)); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Publish(ctx, owner, Publish{MutationID: uuid.New(), PreviewID: p.ID}); !errors.Is(e, ErrUnsupported) {
-		t.Fatal("observation bypass", e)
+	if accepted, e := s.Publish(ctx, owner, Publish{MutationID: uuid.New(), PreviewID: p.ID}); e != nil || accepted.ReviewStatus != "pre_review" || accepted.Version != 0 {
+		t.Fatal("observation failed to accept pending", e)
+	}
+	in.MutationID = uuid.New()
+	p, e = s.Prepare(ctx, owner, in)
+	if e != nil {
+		t.Fatal(e)
 	}
 	s.DB.Exec("UPDATE publication_previews SET expires_at=? WHERE id=?", time.Now().UTC().Add(-time.Second), p.ID[:])
 	if _, e = s.Publish(ctx, owner, Publish{MutationID: uuid.New(), PreviewID: p.ID}); !errors.Is(e, ErrExpired) {

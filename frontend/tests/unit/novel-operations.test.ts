@@ -110,3 +110,80 @@ describe('小说运营原处理记录', () => {
     ).toThrow()
   })
 })
+
+it('账号观察期原操作使用指定书与原mutation确认，不用当前状态代替回执', () => {
+  const p: NovelOperation = {
+    owner,
+    book,
+    target: book,
+    kind: 'policy',
+    version: 0,
+    body: {
+      mutation_id: mutation,
+      action: 'extend',
+      expected_revision: 2,
+      reason: '再次确认违规延长',
+    },
+  }
+  expect(novelOperationPaths(p)).toEqual({
+    write: `/ops/novels/${book}/author-policy`,
+    receipt: `/ops/novels/${book}/author-policy/requests/${mutation}`,
+  })
+  const result = {
+    context_id: book,
+    context_kind: 'novel',
+    mutation_id: mutation,
+    action: 'extend',
+    revision: 3,
+    reason: '再次确认违规延长',
+    created_at: '2026-11-04T00:00:00Z',
+    previous_until: '2026-11-11T00:00:00Z',
+    observation_until: '2026-11-18T00:00:00Z',
+  }
+  expect(() => confirmNovelOperation(p, result)).not.toThrow()
+  for (const v of [
+    { ...result, revision: 4 },
+    { ...result, mutation_id: target },
+    { ...result, action: 'start' },
+    { ...result, observation_until: null },
+    { ...result, context_id: owner },
+  ])
+    expect(() => confirmNovelOperation(p, v)).toThrow()
+  const { storage } = setup(),
+    journal = new NovelOperationJournal(storage, owner)
+  journal.save(p)
+  expect(journal.load()).toEqual(p)
+  expect(new NovelOperationJournal(storage, book).load()).toBeNull()
+})
+
+it('中篇先审与撤回回执不接受另一目标或虚假正式版本', () => {
+  const p: NovelOperation = {
+    owner,
+    book,
+    target,
+    kind: 'work-pre',
+    version: 2,
+    body: { mutation_id: mutation, decision: 'approve', reason: '' },
+  }
+  const result = {
+    mutation_id: mutation,
+    work_id: book,
+    submission_id: target,
+    state: 'published',
+    version: 2,
+  }
+  expect(novelOperationPaths(p).write).toBe(`/ops/work-submissions/${target}/review`)
+  expect(() => confirmNovelOperation(p, result)).not.toThrow()
+  expect(() => confirmNovelOperation(p, { ...result, version: 3 })).toThrow()
+  const withdraw: NovelOperation = {
+    ...p,
+    kind: 'work-withdraw',
+    version: 0,
+    body: { mutation_id: mutation },
+  }
+  expect(novelOperationPaths(withdraw).receipt).toBe(`/work-submission-requests/${mutation}`)
+  expect(() =>
+    confirmNovelOperation(withdraw, { ...result, state: 'withdrawn', version: 0 }),
+  ).not.toThrow()
+  expect(() => confirmNovelOperation(withdraw, result)).toThrow()
+})

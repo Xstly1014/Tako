@@ -359,6 +359,7 @@ onUnmounted(() => {
       <div class="manager-page-heading">
         <div>
           <h1>作品管理</h1>
+          <NuxtLink to="/my-submissions">中篇先审记录</NuxtLink>
           <p>查看已发布内容，管理版本和公开范围。</p>
         </div>
         <button class="secondary" :disabled="busy" @click="refresh">刷新</button>
@@ -411,6 +412,7 @@ onUnmounted(() => {
               >
             </div>
           </header>
+          <WorkSubmissionNodes :work-id="selected" :owner-id="owner" />
           <nav class="manager-tabs" aria-label="作品管理区域">
             <button :aria-pressed="section === 'content'" @click="section = 'content'">
               内容与版本</button

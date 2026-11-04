@@ -2,7 +2,11 @@ import type { components, paths } from "./contract";
 import type { Transport } from "../auth/session.ts";
 import { ApiError } from "./client.ts";
 import { UUID } from "./reader.ts";
-import { AuthorWorksApi, checkedWorkState, type WorkState } from "./author-works.ts";
+import {
+  AuthorWorksApi,
+  checkedWorkState,
+  type WorkState,
+} from "./author-works.ts";
 export type Preview = components["schemas"]["PublicationPreview"];
 export type Published = components["schemas"]["PublicationResult"];
 export type Prepare = components["schemas"]["PreparePublication"];
@@ -22,13 +26,20 @@ export function publicationInput(params: {
 }) {
   if (params.work_id !== undefined) {
     if (
-      params.draft_id !== undefined || params.source_revision !== undefined ||
-      typeof params.work_id !== "string" || !UUID.test(params.work_id) ||
+      params.draft_id !== undefined ||
+      params.source_revision !== undefined ||
+      typeof params.work_id !== "string" ||
+      !UUID.test(params.work_id) ||
       params.work_id === "00000000-0000-0000-0000-000000000000"
-    ) throw new ApiError("invalid_input");
+    )
+      throw new ApiError("invalid_input");
     return { draftId: "", revision: 0, workId: params.work_id };
   }
-  if (params.draft_id === undefined && params.source_revision === undefined && params.work_id === undefined)
+  if (
+    params.draft_id === undefined &&
+    params.source_revision === undefined &&
+    params.work_id === undefined
+  )
     return { draftId: "", revision: 0 };
   if (
     typeof params.draft_id !== "string" ||
@@ -44,6 +55,18 @@ export function publicationInput(params: {
 const date = (v: unknown) =>
   typeof v === "string" && Number.isFinite(Date.parse(v));
 export function checkedResult(v: Published) {
+  if (v?.review_status === "pre_review") {
+    if (
+      !UUID.test(v.work_id) ||
+      v.version !== 0 ||
+      v.published_at !== null ||
+      !v.submission_id ||
+      !UUID.test(v.submission_id) ||
+      !date(v.submitted_at)
+    )
+      throw new ApiError("contract");
+    return v;
+  }
   if (
     !v ||
     !UUID.test(v.work_id) ||
@@ -62,6 +85,8 @@ export function checkedPreview(
     !v ||
     !UUID.test(v.id) ||
     !UUID.test(v.draft_id) ||
+    (v.review_required !== undefined &&
+      typeof v.review_required !== "boolean") ||
     !positive(v.source_revision) ||
     !Number.isSafeInteger(v.expected_version) ||
     v.expected_version < 0 ||
@@ -86,7 +111,10 @@ export function checkedPreview(
     throw new ApiError("contract");
   if (v.published) {
     checkedResult(v.published);
-    if (v.published.version !== v.expected_version + 1)
+    if (
+      v.published.review_status !== "pre_review" &&
+      v.published.version !== v.expected_version + 1
+    )
       throw new ApiError("contract");
   }
   return v;
@@ -140,11 +168,16 @@ export class PublicationsApi {
   }
   async revisionTarget(workId: string) {
     const timeline = await new AuthorWorksApi(this.transport).timeline(workId);
-    const latest = timeline.versions.find(x => x.version === timeline.state.last_version);
+    const latest = timeline.versions.find(
+      (x) => x.version === timeline.state.last_version,
+    );
     if (!latest) throw new ApiError("contract");
     const source = await this.source(timeline.state.draft_id);
-    return { state: timeline.state, title: latest.title,
-      source: { id: source.id, revision: source.revision, title: source.title } };
+    return {
+      state: timeline.state,
+      title: latest.title,
+      source: { id: source.id, revision: source.revision, title: source.title },
+    };
   }
   async prepare(body: Prepare) {
     if (this.targetWorkId) await this.state(this.targetWorkId, body.draft_id);
@@ -156,7 +189,10 @@ export class PublicationsApi {
       body,
     );
     if (this.targetWorkId) {
-      if (preview.expected_version < 1 || (preview.published && preview.published.work_id !== this.targetWorkId))
+      if (
+        preview.expected_version < 1 ||
+        (preview.published && preview.published.work_id !== this.targetWorkId)
+      )
         throw new ApiError("contract");
       this.preparedTargets.set(preview.id, this.targetWorkId);
     }
@@ -177,14 +213,18 @@ export class PublicationsApi {
         body,
       }),
     );
-    if (result.version !== body.expected_version + 1)
+    if (
+      result.review_status !== "pre_review" &&
+      result.version !== body.expected_version + 1
+    )
       throw new ApiError("contract");
     const target = this.preparedTargets.get(body.preview_id);
     if (target && result.work_id !== target) throw new ApiError("contract");
     return result;
   }
   async state(workId: string, draftId: string) {
-    if (!UUID.test(workId) || !UUID.test(draftId)) throw new ApiError("invalid_input");
+    if (!UUID.test(workId) || !UUID.test(draftId))
+      throw new ApiError("invalid_input");
     const state = checkedWorkState(
       await this.transport<WorkState>(`/my/works/${workId}`),
       workId,
@@ -195,9 +235,12 @@ export class PublicationsApi {
 }
 export function publicationMessage(error: unknown) {
   const messages: Record<string, string> = {
-    revision_review_unavailable: "核对读取未完成，请重试读取；尚未生成预览或发布。",
-    revision_review_changed: "核对期间工作稿或作品状态已变化，请重新核对目标作品后再读取；不会自动采用新修订。",
-    revision_review_required: "请先读取并明确采用本次核对修订，再生成固定预览。",
+    revision_review_unavailable:
+      "核对读取未完成，请重试读取；尚未生成预览或发布。",
+    revision_review_changed:
+      "核对期间工作稿或作品状态已变化，请重新核对目标作品后再读取；不会自动采用新修订。",
+    revision_review_required:
+      "请先读取并明确采用本次核对修订，再生成固定预览。",
     preview_expired: "预览已过期，请重新准备；草稿和已发布版本不会被删除。",
     source_revision_unavailable:
       "无法读取这份服务器修订，请回草稿箱确认保存后重新选择。",

@@ -17,3 +17,18 @@ export function publicationJournal(accountId: string): JournalStore {
     remove: () => SecureStore.deleteItemAsync(key),
   };
 }
+
+export function workSubmissionJournal(accountId: string): JournalStore {
+  if (!UUID.test(accountId)) throw new ApiError("authentication_required");
+  const key = `tako.work-submission-withdrawal.v1.${accountId}`;
+  return {
+    get: () => SecureStore.getItemAsync(key),
+    set: (value) => {
+      if (value.length > 1024) return Promise.reject(new ApiError("storage"));
+      return SecureStore.setItemAsync(key, value, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      });
+    },
+    remove: () => SecureStore.deleteItemAsync(key),
+  };
+}

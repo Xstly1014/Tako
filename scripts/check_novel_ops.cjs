@@ -22,6 +22,7 @@ const result = spawnSync(
     "node_modules/@playwright/test/cli.js",
     "test",
     "tests/e2e/novel-ops.spec.ts",
+    "tests/e2e/work-pre-review.spec.ts",
     "--project=chromium",
     "--reporter=line",
     "--output=/materials/.runtime/novel-ops/results",
@@ -30,12 +31,13 @@ const result = spawnSync(
 );
 if (!result.error && result.status === 0)
   console.log(
-    "PASS novel operations browser fixtures (mocked API; not real-service or device evidence).",
+    "PASS novel/middle pre-review operations browser fixtures (mocked API; not real-service or device evidence).",
   );
 else {
-  const line = String(result.stdout).match(/novel-ops\.spec\.ts:(\d+)/)?.[1];
+  const location = String(result.stdout).match(/(novel-ops|work-pre-review)\.spec\.ts:(\d+)/);
+  const line=location?.[2];
   console.error(
-    "FAIL novel operations browser fixtures" +
+    "FAIL novel/middle pre-review operations browser fixtures" +
       (line ? " test_line=" + Number(line) : ""),
   );
   process.exitCode = 1;

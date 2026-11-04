@@ -182,9 +182,13 @@ func (s Store) Change(ctx context.Context, owner, id uuid.UUID, in Change) (Stat
 			return State{}, e
 		}
 		public := !current.AuthorHidden && !current.PlatformLimited && (kind == "display_changed" || kind == "restored")
-		_, e = tx.ExecContext(ctx, "INSERT INTO work_events (work_id,sequence,kind,version,public_visible,created_at) VALUES (?,?,?,?,?,?)", id[:], current.StateRevision, kind, current.DisplayVersion, public, time.Now().UTC().Truncate(time.Microsecond))
-		if e != nil {
-			return State{}, e
+		// First pending work has no formal version to attach a timeline event to.
+		// Its owner-state mutation below remains the durable audit/receipt.
+		if current.DisplayVersion > 0 {
+			_, e = tx.ExecContext(ctx, "INSERT INTO work_events (work_id,sequence,kind,version,public_visible,created_at) VALUES (?,?,?,?,?,?)", id[:], current.StateRevision, kind, current.DisplayVersion, public, time.Now().UTC().Truncate(time.Microsecond))
+			if e != nil {
+				return State{}, e
+			}
 		}
 	}
 	result, e := json.Marshal(current)

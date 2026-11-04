@@ -1,3 +1,4 @@
+import { AuthorPolicyApi, type AuthorPolicyPage } from "./author-policy-api";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -182,6 +183,7 @@ function Management({
       books: new NovelsApi(transport),
       catalog: new NovelChapterCatalogApi(transport),
       governance: new NovelGovernanceApi(transport),
+      policy: new AuthorPolicyApi(transport),
       current,
       ops: new NovelOperations(
         nativeNovelManagementJournal(session),
@@ -216,6 +218,7 @@ function Management({
     [metaLoaded, setMetaLoaded] = useState(false),
     [metaSelected, setMetaSelected] = useState<NovelMetadataSubmission>(),
     [rights, setRights] = useState(false);
+  const [authorPolicy, setAuthorPolicy] = useState<AuthorPolicyPage>();
   const [cases, setCases] = useState<NovelCase[]>([]),
     [caseBefore, setCaseBefore] = useState(0),
     [casesLoaded, setCasesLoaded] = useState(false),
@@ -478,7 +481,10 @@ function Management({
     setMetaLoaded(true);
   }
   async function loadCases(more = false) {
-    const p = await tools.governance.list(book, more ? caseBefore : 0);
+    const [p, policy] = await Promise.all([
+      tools.governance.list(book, more ? caseBefore : 0),
+      tools.policy.read(book),
+    ]);
     guard();
     setCases((old) =>
       more
@@ -487,6 +493,24 @@ function Management({
     );
     setCaseBefore(p.next);
     setCasesLoaded(true);
+    setAuthorPolicy(policy);
+  }
+  async function readPolicy(more = false) {
+    const p = await tools.policy.read(book, more ? authorPolicy?.next : 0);
+    guard();
+    setAuthorPolicy((old) =>
+      more && old
+        ? {
+            ...p,
+            items: [
+              ...old.items,
+              ...p.items.filter(
+                (e) => !old.items.some((x) => x.revision === e.revision),
+              ),
+            ],
+          }
+        : p,
+    );
   }
   function choose(next: Mode) {
     if (busy || recovery || reason.trim() || (appeal && !appeal.confirmed))
@@ -962,6 +986,59 @@ function Management({
       ) : null}
       {mode === "cases" ? (
         <View style={s.section}>
+          {authorPolicy ? (
+            <View style={s.section}>
+              <Text style={s.label}>账号观察期</Text>
+              <Text style={s.note}>
+                {authorPolicy.policy.active
+                  ? "观察中：新提交先审后发"
+                  : "读取时不在观察期"}
+              </Text>
+              {authorPolicy.policy.observation_until ? (
+                <Text style={s.meta}>
+                  结束时间：
+                  {new Date(
+                    authorPolicy.policy.observation_until,
+                  ).toLocaleString("zh-CN")}
+                </Text>
+              ) : null}
+              <Text style={s.note}>{authorPolicy.policy.reason}</Text>
+              <Text style={s.meta}>
+                适用于本账号的中篇和长文章节。到期或提前结束不自动发布已待审内容。
+              </Text>
+              {authorPolicy.items.map((e) => (
+                <View key={e.revision}>
+                  <Text style={s.note}>
+                    {e.action === "start"
+                      ? "开始观察期"
+                      : e.action === "extend"
+                        ? "延长7天"
+                        : "提前结束观察期"}{" "}
+                    · {e.reason}
+                  </Text>
+                  <Text style={s.meta}>
+                    {new Date(e.created_at).toLocaleString("zh-CN")}
+                    {e.observation_until
+                      ? " · 结束 " +
+                        new Date(e.observation_until).toLocaleString("zh-CN")
+                      : ""}
+                  </Text>
+                </View>
+              ))}
+              {authorPolicy.next ? (
+                <Action
+                  label="更早的观察期记录"
+                  disabled={busy}
+                  onPress={() => void run(() => readPolicy(true))}
+                />
+              ) : null}
+              <Action
+                label="刷新账号观察期"
+                disabled={busy}
+                onPress={() => void run(() => readPolicy())}
+              />
+            </View>
+          ) : null}
           {caseDetail ? (
             <>
               <Text style={s.title}>处置与复核</Text>

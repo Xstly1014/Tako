@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.19.0
+  version: 0.22.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,435 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/author-policy:
+    get:
+      operationId: getMyAccountAuthorPolicy
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      parameters:
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/works/{id}/author-policy:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getOperatorWorkAuthorPolicy
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      parameters:
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: changeWorkAuthorPolicy
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthorPolicyAction'}
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyEvent'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/works/{id}/author-policy/requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getWorkAuthorPolicyReceipt
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyEvent'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/work-submissions:
+    get:
+      operationId: listMyWorkSubmissions
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+        - in: query
+          name: work
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/work-submissions/{submission}:
+    parameters:
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyWorkSubmission
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionDetail'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/work-submissions/{submission}/withdraw:
+    parameters:
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: withdrawWorkSubmission
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WithdrawWorkSubmission'}
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/work-submissions:
+    get:
+      operationId: listOperatorWorkSubmissions
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+        - in: query
+          name: work
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/work-submissions/{submission}:
+    parameters:
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getOperatorWorkSubmission
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionDetail'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/work-submissions/{submission}/review:
+    parameters:
+      - in: path
+        name: submission
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: reviewWorkSubmission
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewWorkSubmission'}
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/work-submission-requests/{mutation}:
+    parameters:
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getWorkSubmissionReceipt
+      tags: [发布]
+      description: PUBLICATION_ENABLED控制；my按会话归属，ops限运营。只读取已明确提交的固定预览，不读任意私稿。先审不产生正式V；替换保留首次等待，旧审核拒绝，隐藏不撤回。到期/撤销观察期不自动放行，重复/丢响应按原mutation确认。
+      responses:
+        '200':
+          description: 已提交记录或原决定结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkSubmissionReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novels/{id}/author-policy:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyAuthorPolicy
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      parameters:
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/novels/{id}/author-policy:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getOperatorAuthorPolicy
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      parameters:
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: changeAuthorPolicy
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthorPolicyAction'}
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyEvent'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/novels/{id}/author-policy/requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getAuthorPolicyReceipt
+      tags: [长文]
+      summary: 作者账号观察期状态与操作留痕
+      description: PUBLICATION_ENABLED控制；运营从正式书定位作者，my只读本人。账号级政策影响中篇及长文后续提交，不追溯隐藏、不释放既有pending。默认7天，extend从原结束再加7天，到期后重新start；revoke仅提前结束。必须新原因、CAS及原mutation载荷幂等；只读原回执不投影现状。历史revision倒序20条，不含账号邮箱或私稿。
+      responses:
+        '200':
+          description: 当前状态及历史或不可变原操作结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorPolicyEvent'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/work-feedback:
     get:
       operationId: listAuthorWorkFeedback
@@ -3910,6 +4339,105 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    WorkSubmission:
+      type: object
+      additionalProperties: false
+      required: [id, work_id, preview_id, candidate_version, state, title, reason, accepted_at, first_waiting_at, decided_at]
+      properties:
+        id: {type: string, format: uuid}
+        work_id: {type: string, format: uuid}
+        preview_id: {type: string, format: uuid}
+        candidate_version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        state: {type: string, enum: [pending, published, rejected, withdrawn, superseded]}
+        title: {type: string, maxLength: 200}
+        reason: {type: string, maxLength: 2000}
+        accepted_at: {type: string, format: date-time}
+        first_waiting_at: {type: string, format: date-time}
+        decided_at: {type: string, format: date-time, nullable: true}
+    WorkSubmissionPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/WorkSubmission'}
+        next_cursor: {type: string, maxLength: 512}
+    WorkSubmissionDetail:
+      type: object
+      additionalProperties: false
+      required: [submission, preview]
+      properties:
+        submission: {$ref: '#/components/schemas/WorkSubmission'}
+        preview: {$ref: '#/components/schemas/PublicationPreview'}
+    WithdrawWorkSubmission:
+      type: object
+      additionalProperties: false
+      required: [mutation_id]
+      properties:
+        mutation_id: {type: string, format: uuid}
+    ReviewWorkSubmission:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, decision, reason]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        decision: {type: string, enum: [approve, reject]}
+        reason: {type: string, maxLength: 2000}
+    WorkSubmissionReceipt:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, submission_id, work_id, state, version]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        submission_id: {type: string, format: uuid}
+        work_id: {type: string, format: uuid}
+        state: {type: string, enum: [published, rejected, withdrawn]}
+        version: {type: integer, minimum: 0, maximum: 9007199254740991}
+    AuthorPolicy:
+      type: object
+      additionalProperties: false
+      required: [revision, active, observation_until, reason]
+      properties:
+        revision: {type: integer, minimum: 0, maximum: 9007199254740991}
+        active: {type: boolean}
+        observation_until: {type: string, format: date-time, nullable: true}
+        reason: {type: string, maxLength: 2000}
+    AuthorPolicyAction:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, expected_revision, action, reason]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        expected_revision: {type: integer, minimum: 0, maximum: 9007199254740990}
+        action: {type: string, enum: [start, extend, revoke]}
+        reason: {type: string, minLength: 1, maxLength: 2000}
+    AuthorPolicyEvent:
+      type: object
+      additionalProperties: false
+      required: [context_id, context_kind, mutation_id, action, revision, reason, previous_until, observation_until, created_at]
+      properties:
+        context_id: {type: string, format: uuid}
+        context_kind: {type: string, enum: [novel, work]}
+        mutation_id: {type: string, format: uuid}
+        action: {type: string, enum: [start, extend, revoke]}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        reason: {type: string, minLength: 1, maxLength: 2000}
+        previous_until: {type: string, format: date-time, nullable: true}
+        observation_until: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+    AuthorPolicyPage:
+      type: object
+      additionalProperties: false
+      required: [policy, items, next]
+      properties:
+        policy: {$ref: '#/components/schemas/AuthorPolicy'}
+        items:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/AuthorPolicyEvent'}
+        next: {type: integer, minimum: 0, maximum: 9007199254740991}
     AuthorFeedbackEntry:
       type: object
       additionalProperties: false
@@ -5092,8 +5620,8 @@ components:
       properties:
         id: {type: string, format: uuid}
         draft_id: {type: string, format: uuid}
-        last_version: {type: integer, minimum: 1, maximum: 9007199254740991}
-        display_version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        last_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+        display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
         author_hidden: {type: boolean}
         history_open: {type: boolean}
         platform_limited: {type: boolean}
@@ -5209,6 +5737,7 @@ components:
       additionalProperties: false
       required: [id, draft_id, source_revision, expected_version, title, content, introduction, tags, created_at, expires_at]
       properties:
+        review_required: {type: boolean, description: 当前提交需先审；提交时仍重查策略，不能以此字段绕过审核}
         id: {type: string, format: uuid}
         draft_id: {type: string, format: uuid}
         source_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
@@ -5221,6 +5750,10 @@ components:
         expires_at: {type: string, format: date-time}
         published: {allOf: [{$ref: '#/components/schemas/PublicationResult'}], description: 已消费预览的原发布确认，不代表当前可见状态}
     PublicationResult:
+      oneOf:
+        - $ref: '#/components/schemas/FormalPublicationResult'
+        - $ref: '#/components/schemas/PendingPublicationResult'
+    FormalPublicationResult:
       type: object
       additionalProperties: false
       required: [work_id, version, published_at, review_status]
@@ -5228,7 +5761,19 @@ components:
         work_id: {type: string, format: uuid}
         version: {type: integer, minimum: 1, maximum: 9007199254740991}
         published_at: {type: string, format: date-time}
-        review_status: {type: string, enum: [pending], description: 此次发布时的待后审确认，不代表当前审核状态}
+        review_status: {type: string, enum: [pending], description: 此次正式版发布时的待后审，不代表当前审核状态}
+    PendingPublicationResult:
+      type: object
+      additionalProperties: false
+      required: [work_id, version, published_at, review_status, submission_id, submitted_at]
+      properties:
+        work_id: {type: string, format: uuid}
+        version: {type: integer, enum: [0], description: 尚未产生正式版本，不显示V0}
+        published_at: {type: string, nullable: true, enum: [null]}
+        review_status: {type: string, enum: [pre_review]}
+        submission_id: {type: string, format: uuid}
+        submitted_at: {type: string, format: date-time}
+
     PublicWork:
       type: object
       additionalProperties: false

@@ -92,7 +92,12 @@ export function PublicationWorkspace({
       setCurrentState(null);
       setStateReadFailed(false);
     }
-    if (!flow.result || !flow.preview) return;
+    if (
+      !flow.result ||
+      !flow.preview ||
+      flow.result.review_status === "pre_review"
+    )
+      return;
     try {
       const value = await api.state(flow.result.work_id, flow.preview.draft_id);
       if (current()) setCurrentState(value);
@@ -375,6 +380,27 @@ export function PublicationWorkspace({
             }
             onRetry={() => void initialize()}
           />
+        ) : flow.result?.review_status === "pre_review" ? (
+          <>
+            <Text style={s.heading}>先审提交已受理</Text>
+            <Text style={s.note}>
+              这份回执只确认提交受理，不代表当前审核状态。请到提交记录查看结果；工作稿的后续修改不会替换固定内容。
+            </Text>
+            <Action
+              label="查看待审提交"
+              onPress={() =>
+                router.push({
+                  pathname: "/work-submissions",
+                  params: { work: flow.result!.work_id },
+                })
+              }
+            />
+            <Action
+              label="确认结果并选择其他稿件"
+              disabled={busy}
+              onPress={reset}
+            />
+          </>
         ) : flow.result ? (
           <>
             <Text style={s.heading}>已确认正式版本 V{flow.result.version}</Text>
@@ -437,8 +463,10 @@ export function PublicationWorkspace({
               固定预览 · 修订 R{flow.preview.source_revision}
             </Text>
             <Text style={s.meta}>
-              下一正式版本 V{flow.preview.expected_version + 1} ·
-              未提交预览有效至{" "}
+              {flow.preview.review_required
+                ? "审核通过后才产生正式版"
+                : "下一正式版本 V" + (flow.preview.expected_version + 1)}{" "}
+              · 未提交预览有效至{" "}
               {new Date(flow.preview.expires_at).toLocaleString()}
             </Text>
             <Text style={s.heading}>{flow.preview.title}</Text>
@@ -454,7 +482,11 @@ export function PublicationWorkspace({
             </Text>
             <Action
               label={
-                flow.pendingPublish ? "检查原发布请求" : "正式发布这份快照"
+                flow.pendingPublish
+                  ? "检查原发布请求"
+                  : flow.preview.review_required
+                    ? "提交这份快照等待审核"
+                    : "正式发布这份快照"
               }
               disabled={busy}
               onPress={publish}

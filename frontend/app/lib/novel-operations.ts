@@ -3,7 +3,8 @@ export type NovelSchema<K extends keyof components['schemas']> = components['sch
 export type NovelOperation = {
   owner: string
   book: string
-  kind: 'chapter' | 'metadata' | 'post' | 'limit' | 'case'
+  kind: 'chapter' | 'metadata' | 'post' | 'limit' | 'case' | 'policy' | 'work-pre' | 'work-withdraw'
+  policy_kind?: 'novel' | 'work'
   target: string
   version: number
   body: Record<string, unknown> & { mutation_id: string }
@@ -23,7 +24,16 @@ export function checkedNovelOperation(v: unknown, owner: string): NovelOperation
     !uuid(p.book) ||
     !p.body ||
     !uuid(p.body.mutation_id) ||
-    !['chapter', 'metadata', 'post', 'limit', 'case'].includes(p.kind) ||
+    ![
+      'chapter',
+      'metadata',
+      'post',
+      'limit',
+      'case',
+      'policy',
+      'work-pre',
+      'work-withdraw',
+    ].includes(p.kind) ||
     !Number.isSafeInteger(p.version) ||
     p.version < 0 ||
     (p.kind === 'case'
@@ -31,10 +41,10 @@ export function checkedNovelOperation(v: unknown, owner: string): NovelOperation
       : !uuid(p.target))
   )
     throw Error('invalid_operation')
-  if (['chapter', 'metadata', 'post'].includes(p.kind) && !positive(p.version))
+  if (['chapter', 'metadata', 'post', 'work-pre'].includes(p.kind) && !positive(p.version))
     throw Error('invalid_operation')
   if (
-    (p.kind === 'chapter' || p.kind === 'metadata') &&
+    (p.kind === 'chapter' || p.kind === 'metadata' || p.kind === 'work-pre') &&
     (!['approve', 'reject'].includes(String(p.body.decision)) ||
       !reason(p.body.reason) ||
       (p.body.decision === 'reject' && !p.body.reason.trim()))
@@ -63,6 +73,24 @@ export function checkedNovelOperation(v: unknown, owner: string): NovelOperation
       (p.body.scope === 'version' ? !positive(p.body.version) : p.body.version !== 0))
   )
     throw Error('invalid_operation')
+  if (
+    p.kind === 'policy' &&
+    (!['start', 'extend', 'revoke'].includes(String(p.body.action)) ||
+      !Number.isSafeInteger(p.body.expected_revision) ||
+      Number(p.body.expected_revision) < 0 ||
+      !reason(p.body.reason) ||
+      !p.body.reason.trim() ||
+      p.target !== p.book ||
+      p.version !== 0)
+  )
+    throw Error('invalid_operation')
+  if (p.kind === 'work-withdraw' && (p.version !== 0 || Object.keys(p.body).length !== 1))
+    throw Error('invalid_operation')
+  if (
+    p.policy_kind !== undefined &&
+    (p.kind !== 'policy' || !['novel', 'work'].includes(p.policy_kind))
+  )
+    throw Error('invalid_operation')
   return p
 }
 export function novelOperationPaths(p: NovelOperation) {
@@ -71,6 +99,21 @@ export function novelOperationPaths(p: NovelOperation) {
     mine = `/my/novels/${p.book}`
   const id = p.body.mutation_id
   switch (p.kind) {
+    case 'work-withdraw':
+      return {
+        write: `/my/work-submissions/${p.target}/withdraw`,
+        receipt: `/work-submission-requests/${id}`,
+      }
+    case 'work-pre':
+      return {
+        write: `/ops/work-submissions/${p.target}/review`,
+        receipt: `/work-submission-requests/${id}`,
+      }
+    case 'policy':
+      return {
+        write: `${p.policy_kind === 'work' ? `/ops/works/${p.book}` : base}/author-policy`,
+        receipt: `${p.policy_kind === 'work' ? `/ops/works/${p.book}` : base}/author-policy/requests/${id}`,
+      }
     case 'chapter':
       return {
         write: `${base}/chapter-submissions/${p.target}/review`,
@@ -97,7 +140,53 @@ export function novelOperationPaths(p: NovelOperation) {
 }
 export function confirmNovelOperation(p: NovelOperation, value: unknown) {
   const v = value as Record<string, unknown>
-  if (!v || v.novel_id !== p.book) throw Error('invalid_receipt')
+  if (
+    !v ||
+    (p.kind === 'policy'
+      ? v.context_id !== p.book || v.context_kind !== (p.policy_kind ?? 'novel')
+      : p.kind === 'work-pre' || p.kind === 'work-withdraw'
+        ? v.work_id !== p.book
+        : v.novel_id !== p.book)
+  )
+    throw Error('invalid_receipt')
+  if (p.kind === 'work-withdraw') {
+    if (
+      v.mutation_id !== p.body.mutation_id ||
+      v.submission_id !== p.target ||
+      v.work_id !== p.book ||
+      v.state !== 'withdrawn' ||
+      v.version !== 0
+    )
+      throw Error('invalid_receipt')
+    return
+  }
+  if (p.kind === 'work-pre') {
+    if (
+      v.mutation_id !== p.body.mutation_id ||
+      v.submission_id !== p.target ||
+      v.work_id !== p.book ||
+      v.state !== (p.body.decision === 'approve' ? 'published' : 'rejected') ||
+      v.version !== (p.body.decision === 'approve' ? p.version : 0)
+    )
+      throw Error('invalid_receipt')
+    return
+  }
+  if (p.kind === 'policy') {
+    if (
+      v.mutation_id !== p.body.mutation_id ||
+      v.action !== p.body.action ||
+      v.revision !== Number(p.body.expected_revision) + 1 ||
+      v.reason !== p.body.reason ||
+      typeof v.created_at !== 'string' ||
+      !Number.isFinite(Date.parse(v.created_at)) ||
+      (p.body.action === 'revoke'
+        ? v.observation_until !== null
+        : typeof v.observation_until !== 'string' ||
+          !Number.isFinite(Date.parse(v.observation_until)))
+    )
+      throw Error('invalid_receipt')
+    return
+  }
   if (p.kind === 'case' || p.kind === 'limit') {
     if (
       p.kind === 'limit'

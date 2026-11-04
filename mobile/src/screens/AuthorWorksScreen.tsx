@@ -1,3 +1,4 @@
+import { WorkSubmissionNodes } from "../publication/WorkSubmissionNodes";
 import {
   useCallback,
   useEffect,
@@ -199,6 +200,7 @@ function Workspace({
           onMore={() => void catalog.more()}
           onBack={() => router.dismissTo("/account")}
           onPublish={() => router.push("/publish")}
+          onSubmissions={() => router.push("/work-submissions")}
           onFeedback={() => router.push("/author-feedback")}
           onModeration={() => router.push("/my-moderation")}
           onSelect={(id) => {
@@ -442,6 +444,7 @@ function WorkDetail({
         />
       </View>
       <ScrollView contentContainerStyle={s.content}>
+        <WorkSubmissionNodes key={id} work={id} />
         {notice ? (
           <Text accessibilityLiveRegion="polite" style={s.note}>
             {notice}

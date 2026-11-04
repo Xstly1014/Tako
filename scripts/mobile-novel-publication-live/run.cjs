@@ -17,6 +17,7 @@ async function api(path,body,token=operatorToken){const response=await fetch('ht
       build.onResolve({filter:/\/components\/PrototypeUi$/},()=>({path:'chrome',namespace:'fixture-chrome'}));
       build.onLoad({filter:/.*/,namespace:'fixture-chrome'},()=>({contents:'export const BottomNavigation=()=>null;',loader:'js'}));
       build.onResolve({filter:/^\.\.\/native$|^\.\/native$/},args=>/ChapterPublishScreen.tsx|NovelManagementScreen.tsx/.test(args.importer)?{path:path.join(__dirname,'journal.jsx')}:undefined);
+      build.onResolve({filter:/^\.\/journal$/},args=>/WorkSubmissionsScreen.tsx/.test(args.importer)?{path:path.join(__dirname,'journal.jsx')}:undefined);
       build.onResolve({ filter: /^expo-router$/ }, () => ({ path: path.join(__dirname, 'router.jsx') }));
       build.onResolve({ filter: /^react-native-svg$/ }, () => ({ path: path.join(__dirname, '../mobile-versions-ui/svg.jsx') }));
       build.onResolve({ filter: /\/auth\/context$/ }, () => ({ path: path.join(__dirname, '../mobile-author-works-ui/context.jsx') }));
@@ -26,7 +27,7 @@ async function api(path,body,token=operatorToken){const response=await fetch('ht
   });
 
  const browser=await chromium.launch({headless:true}),page=await browser.newPage();let dropped=false,dropVisibility=true,dropMetadata=true,failManagementRefresh=false;const submissions=[],managementWrites=[],errors=[];
- let caseFixture=null,caseAppeals=[],caseWrites=0,dropAppeal=true,appealReceipt=null,realAppealDrop=true,realAppealWrites=0;page.on('pageerror',e=>errors.push(e.name));
+ let caseFixture=null,caseAppeals=[],caseWrites=0,dropAppeal=true,appealReceipt=null,realAppealDrop=true,realAppealWrites=0,middlePublishDrop=true,middlePublishWrites=0,withdrawDrop=true,withdrawWrites=0;page.on('pageerror',e=>errors.push(e.name));
  try{
   await page.route('**/__novel-publication',r=>r.fulfill({contentType:'text/html',body:'<style>*{box-sizing:border-box}html,body,#root{margin:0;height:100%;width:100%;font-family:Arial,\"Microsoft YaHei\",sans-serif}#root{display:flex;flex-direction:column}button,input,textarea{font:inherit}</style><div id="root"></div><script type="module">'+built.outputFiles[0].text.replaceAll('</script','<\\/script')+'</script>'}));
   await page.route('**/api/**',async r=>{const request=r.request(),u=new URL(request.url()),headers={...request.headers()};if(headers.cookie)throw Error('cookie_forbidden');delete headers.origin;if(caseFixture&&u.pathname.includes('/moderation')){
@@ -42,7 +43,7 @@ async function api(path,body,token=operatorToken){const response=await fetch('ht
    if(u.pathname.endsWith('/moderation'))return json({items:[caseFixture],next:0});
    return json({case:caseFixture,appeals:{items:caseAppeals,next:0}});
   }
-  if(failManagementRefresh&&u.pathname.endsWith('/publication-chapters')){failManagementRefresh=false;return r.fulfill({status:503,contentType:'application/json',headers:{'X-Tako-Environment':'test'},body:JSON.stringify({error:'service_unavailable'})})}const response=await r.fetch({url:'http://api:8080'+u.pathname+u.search,headers});if(response.headers()['x-tako-environment']!=='test')throw Error('environment');if(request.method()==='POST'&&u.pathname.endsWith('/chapter-submissions')){submissions.push(request.postDataJSON());if(response.ok()&&!dropped){dropped=true;return r.abort()}}if(!caseFixture&&request.method()==='POST'&&/\/my\/novels\/[^/]+\/moderation\/\d+$/.test(u.pathname)){realAppealWrites++;if(response.ok()&&realAppealDrop){realAppealDrop=false;return r.abort()}}if(request.method()==='POST'&&(u.pathname.endsWith('/visibility')||u.pathname.endsWith('/metadata-submissions'))){managementWrites.push({path:u.pathname,body:request.postDataJSON()});if(response.ok()&&u.pathname.endsWith('/visibility')&&dropVisibility){dropVisibility=false;return r.abort()}if(response.ok()&&u.pathname.endsWith('/metadata-submissions')&&dropMetadata){dropMetadata=false;return r.abort()}}return r.fulfill({response})});
+  if(failManagementRefresh&&u.pathname.endsWith('/publication-chapters')){failManagementRefresh=false;return r.fulfill({status:503,contentType:'application/json',headers:{'X-Tako-Environment':'test'},body:JSON.stringify({error:'service_unavailable'})})}const response=await r.fetch({url:'http://api:8080'+u.pathname+u.search,headers});if(response.headers()['x-tako-environment']!=='test')throw Error('environment');if(request.method()==='POST'&&u.pathname.endsWith('/chapter-submissions')){submissions.push(request.postDataJSON());if(response.ok()&&!dropped){dropped=true;return r.abort()}}if(!caseFixture&&request.method()==='POST'&&/\/my\/novels\/[^/]+\/moderation\/\d+$/.test(u.pathname)){realAppealWrites++;if(response.ok()&&realAppealDrop){realAppealDrop=false;return r.abort()}}if(request.method()==='POST'&&u.pathname==='/api/publications'){middlePublishWrites++;if(response.ok()&&middlePublishDrop){middlePublishDrop=false;return r.abort()}}if(request.method()==='POST'&&/\/work-submissions\/[^/]+\/withdraw$/.test(u.pathname)){withdrawWrites++;if(response.ok()&&withdrawDrop){withdrawDrop=false;return r.abort()}}if(request.method()==='POST'&&(u.pathname.endsWith('/visibility')||u.pathname.endsWith('/metadata-submissions'))){managementWrites.push({path:u.pathname,body:request.postDataJSON()});if(response.ok()&&u.pathname.endsWith('/visibility')&&dropVisibility){dropVisibility=false;return r.abort()}if(response.ok()&&u.pathname.endsWith('/metadata-submissions')&&dropMetadata){dropMetadata=false;return r.abort()}}return r.fulfill({response})});
   await page.goto('http://127.0.0.1:3300/__novel-publication');await page.evaluate(()=>window.novelLive.setup());
   stage='fixed-preview';await page.getByRole('button',{name:'生成固定预览',exact:true}).click();
   await page.getByText('本次正式中文与表情😀。',{exact:false}).waitFor();
@@ -125,6 +126,72 @@ async function api(path,body,token=operatorToken){const response=await fetch('ht
   assert.equal(await page.evaluate(async()=>{try{await window.novelLive.reader.book(window.novelLive.source.book);return false}catch(e){return e.status===404}}),true);
   await page.getByRole('button',{name:'返回处置列表',exact:true}).click();await page.getByRole('tab',{name:'章节',exact:true}).click();await page.getByRole('button',{name:'刷新章节状态',exact:true}).click();await page.getByRole('button',{name:'恢复这一章',exact:true}).click();await page.getByRole('dialog',{name:'恢复这一章？'}).getByRole('button',{name:'执行',exact:true}).click();await page.getByRole('button',{name:'确认记录并刷新',exact:true}).click();
   const restored=await page.evaluate(async()=>{const b=window.novelLive.source.book,d=await window.novelLive.reader.directory(b);return window.novelLive.reader.chapter(b,d.items[0].id)});assert.equal(restored.version,1);assert.equal(restored.content,'本次正式中文与表情😀。\n冻结正文末尾。');
+
+  stage='observation-policy-start';
+  const policyPath=`/ops/novels/${target.book}/author-policy`,policy=await api(policyPath);
+  const policyStart={mutation_id:randomUUID(),expected_revision:policy.policy.revision,action:'start',reason:'实际联调：运营确认后开始7天观察'};
+  const start=await api(policyPath,policyStart);assert.equal(Date.parse(start.observation_until)-Date.parse(start.created_at),7*86400000);
+  assert.deepEqual(await api(policyPath+'/requests/'+policyStart.mutation_id),start);
+  const extension=await api(policyPath,{mutation_id:randomUUID(),expected_revision:start.revision,action:'extend',reason:'实际联调：再次确认后延长7天'});assert.equal(Date.parse(extension.observation_until)-Date.parse(start.observation_until),7*86400000);
+  await page.evaluate(()=>window.novelLive.openManagement());await page.getByRole('tab',{name:'处置与复核',exact:true}).click();await page.getByText('观察中：新提交先审后发',{exact:true}).waitFor();await page.getByText('延长7天 · 实际联调：再次确认后延长7天',{exact:true}).waitFor();
+  stage='observed-two-chapters';
+  const observed=await page.evaluate(async()=>{
+    const session=window.novelLive.session;
+    const book=await session.authorized('/my/novels',{method:'POST',body:{mutation_id:crypto.randomUUID(),base_revision:0,title:'A提交时的资料',introduction:'同一观察期真实App链路',tags:['幻想']}});
+    const make=(title)=>session.authorized(`/my/novels/${book.id}/chapter-drafts/create`,{method:'POST',body:{mutation_id:crypto.randomUUID(),title,content:title+' 固定正文😀'}});
+    return {book:book.id,A:await make('待审A章'),B:await make('待审B章')};
+  });
+  async function submitObserved(draft){
+    await page.evaluate(({book,draft})=>{window.novelLive.source={book,draft:draft.draft_id,revision:String(draft.revision),local:crypto.randomUUID()};window.novelLive.openPublisher()},{book:observed.book,draft});
+    await page.getByRole('button',{name:'生成固定预览',exact:true}).click();await page.getByText('当前提交须先审核，通过后才能被读者阅读。',{exact:true}).waitFor();await page.getByRole('button',{name:'确认原创或已获发布授权'}).click();await page.getByRole('button',{name:'提交发布',exact:true}).click();await page.getByText('先审提交已受理',{exact:true}).waitFor();
+    const input=submissions.at(-1);const receipt=await page.evaluate(({book,mutation})=>window.novelLive.session.authorized(`/my/novels/${book}/publication-requests/${mutation}`),{book:observed.book,mutation:input.mutation_id});
+    await page.getByRole('button',{name:'完成本次处理',exact:true}).click();await page.getByRole('button',{name:'生成固定预览',exact:true}).waitFor();return receipt;
+  }
+  const A=await submitObserved(observed.A);assert.equal(A.ordinal,1);assert.equal(A.state,'pending');
+  await page.evaluate(async book=>window.novelLive.session.authorized(`/my/novels/${book}`,{method:'POST',body:{mutation_id:crypto.randomUUID(),base_revision:1,title:'B先通过时的资料',introduction:'B首个正式发布快照',tags:['幻想']}}),observed.book);
+  const B=await submitObserved(observed.B);assert.equal(B.ordinal,2);assert.equal(B.state,'pending');
+  stage='observation-revoke-retains-pending';await api(policyPath,{mutation_id:randomUUID(),expected_revision:extension.revision,action:'revoke',reason:'实际联调：提前结束，原待审继续人工处理'});
+  // Replacement after revoke still requires review; it must not exploit the normal-author path.
+  const A2=await submitObserved(observed.A);assert.equal(A2.ordinal,1);assert.equal(A2.state,'pending');assert.notEqual(A2.submission_id,A.submission_id);
+  const stillPending=await page.evaluate(async book=>{const p=await window.novelLive.session.authorized(`/my/novels/${book}/publication-chapters`);return p.items.filter(x=>x.current_submission_id).map(x=>x.last_version)},observed.book);assert.deepEqual(stillPending,[0,0]);
+  const review=receipt=>`/ops/novels/${observed.book}/chapter-submissions/${receipt.submission_id}/review`;
+  stage='observed-out-of-order-review';await api(review(B),{mutation_id:randomUUID(),decision:'approve',reason:''});
+  let directory=await page.evaluate(book=>window.novelLive.reader.directory(book),observed.book);assert.deepEqual(directory.items.map(x=>x.ordinal),[2]);
+  await api(review(A2),{mutation_id:randomUUID(),decision:'approve',reason:''});
+  directory=await page.evaluate(book=>window.novelLive.reader.directory(book),observed.book);assert.deepEqual(directory.items.map(x=>x.ordinal),[1,2]);
+  const publicResult=await page.evaluate(async ({book,ids})=>{const reader=window.novelLive.reader;return {book:await reader.book(book),bodies:await Promise.all(ids.map(id=>reader.chapter(book,id))) }},{book:observed.book,ids:directory.items.map(x=>x.id)});
+  assert.equal(publicResult.book.title,'B先通过时的资料');assert.deepEqual(publicResult.bodies.map(x=>x.content),['待审A章 固定正文😀','待审B章 固定正文😀']);
+  await page.evaluate(()=>window.novelLive.openManagement());await page.getByRole('button',{name:'管理章节 待审A章',exact:true}).waitFor();await page.getByRole('tab',{name:'处置与复核',exact:true}).click();await page.getByText('读取时不在观察期',{exact:true}).waitFor();
+
+  stage='middle-pre-review-start';
+  const currentPolicy=await api(policyPath);await api(policyPath,{mutation_id:randomUUID(),expected_revision:currentPolicy.policy.revision,action:'start',reason:'实际联调：中篇也先审后发'});
+  await page.evaluate(async()=>{const draft=await window.novelLive.session.authorized('/drafts/create',{method:'POST',body:{mutation_id:crypto.randomUUID(),title:'中篇先审真实App',content:'这份中篇固定内容R1😀，不是后续工作稿。'}});window.novelLive.middleDraft=draft.draft_id;window.novelLive.openMiddle()});
+  await page.getByRole('button',{name:'发布标签 幻想',exact:true}).click();await page.getByRole('button',{name:'确认原创或取得发布授权',exact:true}).click();await page.getByRole('button',{name:'生成固定预览',exact:true}).click();await page.getByText('这份中篇固定内容R1😀，不是后续工作稿。',{exact:true}).waitFor();await page.getByRole('button',{name:'提交这份快照等待审核',exact:true}).click();await page.getByRole('button',{name:'检查原发布请求',exact:true}).waitFor();await page.evaluate(()=>window.novelLive.openMiddle());await page.getByText('先审提交已受理',{exact:true}).waitFor();assert.equal(middlePublishWrites,1);assert.equal(await page.getByText('已确认正式版本 V0',{exact:true}).count(),0);
+  const middle=await page.evaluate(async()=>{const p=await window.novelLive.session.authorized('/my/work-submissions');return p.items.find(x=>x.title==='中篇先审真实App')});assert.equal(middle.state,'pending');await page.getByRole('button',{name:'确认结果并选择其他稿件',exact:true}).click();await page.getByText('选择服务器已保存的稿件',{exact:true}).waitFor();
+  await page.evaluate(async()=>window.novelLive.session.authorized('/drafts/save',{method:'POST',body:{mutation_id:crypto.randomUUID(),draft_id:window.novelLive.middleDraft,base_revision:1,title:'后续中篇工作稿R2',content:'R2不属于已经提交的固定内容'}}));
+  await page.evaluate(work=>{window.novelLive.source={work};window.novelLive.openSubmissions()},middle.work_id);await page.getByRole('button',{name:'查看提交 中篇先审真实App',exact:true}).click();await page.getByText('这份中篇固定内容R1😀，不是后续工作稿。',{exact:true}).waitFor();assert.equal(await page.getByText('R2不属于已经提交的固定内容',{exact:true}).count(),0);
+  const approved=await api(`/ops/work-submissions/${middle.id}/review`,{mutation_id:randomUUID(),decision:'approve',reason:''});assert.equal(approved.version,1);assert.equal(approved.state,'published');
+  const publicMiddle=await page.evaluate(async work=>{const response=await fetch('/api/works/'+work,{credentials:'omit'});return response.json()},middle.work_id);assert.equal(publicMiddle.content,'这份中篇固定内容R1😀，不是后续工作稿。');
+  await page.getByRole('button',{name:'刷新这条提交',exact:true}).click();await page.getByText('已发布 ·',{exact:false}).waitFor();
+  stage='middle-formal-pending-nodes';
+  await page.evaluate(work=>{window.novelLive.middleWork=work;window.novelLive.openMiddle()},middle.work_id);
+  await page.getByRole('button',{name:'读取本次修订与正式展示版',exact:true}).click();await page.getByRole('button',{name:'采用已核对修订 R2',exact:true}).click();
+  await page.getByRole('button',{name:'发布标签 幻想',exact:true}).click();await page.getByRole('button',{name:'确认原创或取得发布授权',exact:true}).click();await page.getByRole('button',{name:'生成固定预览',exact:true}).click();await page.getByRole('button',{name:'提交这份快照等待审核',exact:true}).click();await page.getByText('先审提交已受理',{exact:true}).waitFor();
+  const revision=await page.evaluate(async work=>(await window.novelLive.session.authorized('/my/work-submissions?work='+work)).items.find(x=>x.state==='pending'),middle.work_id);assert.ok(revision);
+  await page.getByRole('button',{name:'确认结果并选择其他稿件',exact:true}).click();
+  await page.evaluate(work=>{window.novelLive.source={work};window.novelLive.openNodes()},middle.work_id);
+  await page.getByRole('button',{name:'查看待审核提交 后续中篇工作稿R2',exact:true}).click();
+  const nodeTarget=await page.evaluate(()=>window.novelLive.target);assert.equal(nodeTarget.params.submission,revision.id);assert.equal(nodeTarget.params.work,middle.work_id);
+  await page.evaluate(params=>{window.novelLive.source=params;window.novelLive.openSubmissions()},nodeTarget.params);await page.getByText('R2不属于已经提交的固定内容',{exact:true}).waitFor();
+  await api(`/ops/work-submissions/${revision.id}/review`,{mutation_id:randomUUID(),decision:'reject',reason:'固定R2测试驳回'});
+  await page.evaluate(work=>{window.novelLive.source={work};window.novelLive.openNodes()},middle.work_id);await page.getByRole('button',{name:'查看已驳回提交 后续中篇工作稿R2',exact:true}).waitFor();
+  const stillFormal=await page.evaluate(async work=>(await fetch('/api/works/'+work,{credentials:'omit'})).json(),middle.work_id);assert.equal(stillFormal.content,publicMiddle.content);
+  await page.evaluate(()=>{window.novelLive.middleWork=undefined});
+  stage='middle-withdrawal-actual';
+  await page.evaluate(async()=>{const draft=await window.novelLive.session.authorized('/drafts/create',{method:'POST',body:{mutation_id:crypto.randomUUID(),title:'中篇待审撤回真实App',content:'待审撤回固定内容'}});window.novelLive.middleDraft=draft.draft_id;window.novelLive.openMiddle()});
+  await page.getByRole('button',{name:'发布标签 日常',exact:true}).click();await page.getByRole('button',{name:'确认原创或取得发布授权',exact:true}).click();await page.getByRole('button',{name:'生成固定预览',exact:true}).click();await page.getByRole('button',{name:'提交这份快照等待审核',exact:true}).click();await page.getByText('先审提交已受理',{exact:true}).waitFor();const withdrawTarget=await page.evaluate(async()=>{const p=await window.novelLive.session.authorized('/my/work-submissions');return p.items.find(x=>x.title==='中篇待审撤回真实App')});await page.getByRole('button',{name:'确认结果并选择其他稿件',exact:true}).click();await page.getByText('选择服务器已保存的稿件',{exact:true}).waitFor();
+  await page.evaluate(work=>{window.novelLive.source={work};window.novelLive.openSubmissions()},withdrawTarget.work_id);await page.getByRole('button',{name:'查看提交 中篇待审撤回真实App',exact:true}).click();await page.getByRole('button',{name:'撤回这次待审提交',exact:true}).click();await page.getByRole('dialog',{name:'撤回这次待审提交？'}).getByRole('button',{name:'撤回',exact:true}).click();await page.getByRole('button',{name:'查询原撤回结果',exact:true}).waitFor();await page.evaluate(()=>window.novelLive.openSubmissions());await page.getByRole('button',{name:'查询原撤回结果',exact:true}).click();await page.getByText('撤回已确认',{exact:true}).waitFor();assert.equal(withdrawWrites,1);await page.getByRole('button',{name:'确认记录并刷新',exact:true}).click();await page.getByRole('button',{name:'查看提交 中篇待审撤回真实App',exact:true}).click();await page.getByText('已撤回 ·',{exact:false}).waitFor();
+  const endPolicy=await api(policyPath);await api(policyPath,{mutation_id:randomUUID(),expected_revision:endPolicy.policy.revision,action:'revoke',reason:'实际联调结束，恢复合成作者正常提交'});
   assert.deepEqual(errors,[]);
   console.log('PASS appeal screen fixtures (mock case/appeal responses with real ownership checks): leave guard, same-account memory restoration, original confirmation and account isolation.');
   console.log('PASS novel publication actual App screen -> real HTTP/MySQL -> anonymous directory/chapter; fixed R1 preserves R2; original recovery; chapter hide/restore; fixed export; explicit metadata publish and original recovery; real version restriction, appeal, cooldown, revoke preserves author hiding, explicit restore. DOM/journal adapters, not native.');
