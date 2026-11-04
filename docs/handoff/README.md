@@ -1,5 +1,8 @@
 # Tako 开发交接入口
 
+**2026-11-04续接：** 新作者App章稿→固定预览→授权发布→未知结果持久恢复已接线，并以同一真实HTTP/MySQL数据验证公开R1/私稿R2。入口chapter-publish，采用用户确认A单页全文核对。N2仍缺正式管理/资料发布/处置复核App页；最新证据和peer e99ab22待审范围见primary-progress开头，不把后文旧“作者发布尚未接线”当最新状态。独立验收 `node scripts/check_novel_publication_live.cjs`，设备由同事负责。
+
+
 ## 当前接续点（2026-11-03）
 
 本机3300已保留数据升级0018，API0.18。N2书/章/版本最低处置与复核、正式后审、Web `/ops/novels`、公开列表/目录/正式章读取，以及App长文频道/目录/阅读已实现。**作者App固定预览/发布恢复与正式管理尚未接线，N2未整体收口**。以[主开发进度](primary-progress.md)和[N2连续复盘](../reviews/n2-publication-implementation-review.md)末段为准，下列旧检查点是历史。

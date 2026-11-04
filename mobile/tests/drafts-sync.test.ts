@@ -1292,12 +1292,14 @@ test("长文目录客户端拒绝不可读标题泄漏、错序和重复章；�
     { id: chapter, ordinal: 2, readable: false, title: null },
   ];
   let calls = 0;
-  const api = new NovelReadingApi(async <T>(path: string, options?: { token?: string }) => {
-    calls++;
-    assert.equal(path, `/novels/${book}/directory`);
-    assert.equal(options?.token, undefined);
-    return { items, next_cursor: "" } as T;
-  });
+  const api = new NovelReadingApi(
+    async <T>(path: string, options?: { token?: string }) => {
+      calls++;
+      assert.equal(path, `/novels/${book}/directory`);
+      assert.equal(options?.token, undefined);
+      return { items, next_cursor: "" } as T;
+    },
+  );
   assert.equal((await api.directory(book)).items[0].title, null);
   for (const bad of [
     [{ id: chapter, ordinal: 2, readable: false, title: "不可泄漏" }],
@@ -1323,4 +1325,364 @@ test("长文目录客户端拒绝不可读标题泄漏、错序和重复章；�
     (e) => e instanceof ApiError && e.code === "invalid_input",
   );
   assert.equal(calls, 5);
+});
+
+import {
+  ChapterPublisher,
+  type ChapterPublicationRecord,
+} from "../src/novels/chapters/publisher.ts";
+import { EncryptedChapterPublicationJournal } from "../src/novels/chapters/publication-journal.ts";
+function publisherFixture() {
+  const f = chapterPublicationFixture(),
+    receipts = new Map<string, ChapterReceipt>(),
+    writes: { path: string; body: unknown }[] = [];
+  let drop = "",
+    reject: ApiError | null = null,
+    expired = false,
+    beforeRead: (() => void) | null = null;
+  const api = new ChapterPublicationApi(
+    async <T>(path: string, options?: { method?: string; body?: unknown }) => {
+      if (options?.method === "POST") {
+        writes.push({ path, body: options.body });
+        const input = options.body as { mutation_id: string };
+        if (reject) throw reject;
+        const prepared = path.endsWith("chapter-previews");
+        const receipt: ChapterReceipt = {
+          ...f.receipt,
+          mutation_id: input.mutation_id,
+          operation: prepared ? "prepare" : "submit",
+          state: prepared ? "prepared" : "pending",
+          submission_id: prepared ? null : f.submission,
+        };
+        receipts.set(input.mutation_id, receipt);
+        if (drop === (prepared ? "prepare" : "submit")) {
+          drop = "";
+          throw new ApiError("network");
+        }
+        return receipt as T;
+      }
+      beforeRead?.();
+      if (path.includes("/publication-requests/")) {
+        const receipt = receipts.get(path.split("/").pop()!);
+        if (!receipt) throw new ApiError("resource_not_found", "", 404);
+        return receipt as T;
+      }
+      if (expired) throw new ApiError("chapter_preview_expired", "", 410);
+      return f.snapshot as T;
+    },
+  );
+  return {
+    ...f,
+    api,
+    receipts,
+    writes,
+    setDrop: (v: string) => {
+      drop = v;
+    },
+    setReject: (v: ApiError | null) => {
+      reject = v;
+    },
+    expire: () => {
+      expired = true;
+    },
+    onRead: (v: () => void) => {
+      beforeRead = v;
+    },
+  };
+}
+test("章节发布进程重开仅查原请求；预览过期也能确认已受理提交，不重复发章", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = publisherFixture(),
+    owner = randomUUID();
+  const journal = () =>
+    new EncryptedChapterPublicationJournal(
+      local.rows,
+      local.cipher,
+      owner,
+      () => true,
+    );
+  const create = () =>
+    new ChapterPublisher(f.api, journal(), () => true, randomUUID);
+  let p = create();
+  await p.load();
+  f.setDrop("prepare");
+  await assert.rejects(
+    p.begin(f.book, {
+      draft: f.snapshot.draft_id,
+      revision: 1,
+      bookRevision: 1,
+    }),
+  );
+  await assert.rejects(p.clear());
+  assert.equal(f.writes.length, 1);
+  p = create();
+  await p.load();
+  assert.equal(f.writes.length, 1);
+  await p.confirmOriginal();
+  const preview = await p.readPreview();
+  assert.equal(preview.content, f.snapshot.content);
+  f.setDrop("submit");
+  await assert.rejects(p.submit(preview, true));
+  assert.equal(f.writes.length, 2);
+  await assert.rejects(p.clear());
+  f.expire();
+  p = create();
+  await p.load();
+  const result = await p.confirmOriginal();
+  assert.equal(result?.result?.state, "pending");
+  assert.equal(f.writes.length, 2);
+  assert.ok(
+    !JSON.stringify(await journal().load()).includes(f.snapshot.content),
+  );
+  await p.clear();
+  assert.equal(await journal().load(), null);
+});
+test("章节发布原请求重试不依赖已过期正文；404和断网不能当作未发送而清除", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = publisherFixture(),
+    owner = randomUUID();
+  const journal = new EncryptedChapterPublicationJournal(
+    local.rows,
+    local.cipher,
+    owner,
+    () => true,
+  );
+  const p = new ChapterPublisher(f.api, journal, () => true, randomUUID);
+  await p.load();
+  await p.begin(f.book, {
+    draft: f.snapshot.draft_id,
+    revision: 1,
+    bookRevision: 1,
+  });
+  const preview = await p.readPreview();
+  f.setDrop("submit");
+  await assert.rejects(p.submit(preview, true));
+  const original = f.writes[1];
+  f.receipts.clear();
+  f.expire();
+  await assert.rejects(p.confirmOriginal());
+  await assert.rejects(p.clear());
+  await p.retryOriginal();
+  assert.equal(f.writes.length, 3);
+  assert.deepEqual(f.writes[2], original);
+  assert.equal(p.snapshot()?.result?.state, "pending");
+});
+test("发布安全记录写失败不POST；回执写失败重开可恢复，旧控制器CAS不覆盖新状态", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = publisherFixture(),
+    owner = randomUUID();
+  const journal = new EncryptedChapterPublicationJournal(
+    local.rows,
+    local.cipher,
+    owner,
+    () => true,
+  );
+  const p = new ChapterPublisher(f.api, journal, () => true, randomUUID);
+  await p.load();
+  local.db.failBeforeCommit = true;
+  await assert.rejects(
+    p.begin(f.book, {
+      draft: f.snapshot.draft_id,
+      revision: 1,
+      bookRevision: 1,
+    }),
+  );
+  assert.equal(f.writes.length, 0);
+  await p.begin(f.book, {
+    draft: f.snapshot.draft_id,
+    revision: 1,
+    bookRevision: 1,
+  });
+  const old = p.snapshot()!;
+  await p.readPreview();
+  await assert.rejects(
+    journal.save({ ...old, token: randomUUID() }, old.token),
+  );
+  assert.notEqual((await journal.load())?.token, old.token);
+  const second = new ChapterPublisher(f.api, journal, () => true, randomUUID);
+  await second.load();
+  const snap = await second.readPreview();
+  local.db.failAfterCommit = true;
+  await assert.rejects(second.submit(snap, true)); // Original command committed, no POST on ambiguous local commit.
+  assert.equal(f.writes.length, 1);
+  const restart = new ChapterPublisher(f.api, journal, () => true, randomUUID);
+  await restart.load();
+  await restart.retryOriginal();
+  assert.equal(f.writes.length, 2);
+  assert.equal(restart.snapshot()?.result?.state, "pending");
+});
+test("明确409/410拒绝可放弃后重新预览，权限/未知失败保持原标识", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = publisherFixture(),
+    owner = randomUUID();
+  const journal = new EncryptedChapterPublicationJournal(
+      local.rows,
+      local.cipher,
+      owner,
+      () => true,
+    ),
+    p = new ChapterPublisher(f.api, journal, () => true, randomUUID);
+  await p.load();
+  f.setReject(new ApiError("chapter_publication_conflict", "", 409));
+  await assert.rejects(
+    p.begin(f.book, {
+      draft: f.snapshot.draft_id,
+      revision: 1,
+      bookRevision: 1,
+    }),
+  );
+  assert.equal(p.snapshot()?.rejection, "chapter_publication_conflict");
+  await p.clear();
+  f.setReject(new ApiError("authentication_required", "", 401));
+  await assert.rejects(
+    p.begin(f.book, {
+      draft: f.snapshot.draft_id,
+      revision: 1,
+      bookRevision: 1,
+    }),
+  );
+  assert.equal(p.snapshot()?.rejection, null);
+  await assert.rejects(p.clear());
+});
+test("发布记录账号/AAD隔离、丢密钥不重建、切号后的迟到响应不能确认", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = publisherFixture(),
+    owner = randomUUID(),
+    other = randomUUID();
+  let current = true;
+  const journal = new EncryptedChapterPublicationJournal(
+      local.rows,
+      local.cipher,
+      owner,
+      () => current,
+    ),
+    p = new ChapterPublisher(f.api, journal, () => current, randomUUID);
+  await p.load();
+  await p.begin(f.book, {
+    draft: f.snapshot.draft_id,
+    revision: 1,
+    bookRevision: 1,
+  });
+  assert.equal(
+    await new EncryptedChapterPublicationJournal(
+      local.rows,
+      local.cipher,
+      other,
+      () => true,
+    ).load(),
+    null,
+  );
+  f.onRead(() => {
+    current = false;
+  });
+  await assert.rejects(
+    p.readPreview(),
+    (e) => e instanceof ApiError && e.code === "stale_session",
+  );
+  current = true;
+  assert.equal((await journal.load())?.target, null);
+  const before = local.db.raw
+    .prepare("SELECT ciphertext FROM private_drafts_v1 WHERE owner=?")
+    .get(owner) as { ciphertext: string };
+  local.cipher.keys.delete(owner);
+  await assert.rejects(journal.load());
+  await assert.rejects(
+    journal.save(null, (p.snapshot() as ChapterPublicationRecord).token),
+  );
+  assert.equal(local.cipher.keys.has(owner), false);
+  const after = local.db.raw
+    .prepare("SELECT ciphertext FROM private_drafts_v1 WHERE owner=?")
+    .get(owner) as { ciphertext: string };
+  assert.equal(before.ciphertext, after.ciphertext);
+});
+
+test("章节交接只领取独立票据，未同步/离线拒绝；来源修订和单次路由保持不变", async (ctx) => {
+  const f = await editorFixture(ctx);
+  await f.tools.sync(f.key);
+  const { DraftEditor } = await import("../src/drafts/workspace.ts");
+  const tools = {
+    ...f.tools,
+    channel: "chapter" as const,
+    api: {
+      read: async () => ({
+        ...f.api.drafts.values().next().value!,
+        revision: 2,
+      }),
+    } as unknown as typeof f.tools.api,
+  };
+  const editor = new DraftEditor(f.owner, f.key, tools);
+  await editor.load();
+  assert.equal(editor.canPreparePublication(), false);
+  assert.equal(editor.canPrepareChapterPublication(), true);
+  const ticket = await editor.prepareChapterPublication();
+  assert.equal(ticket.revision, 1);
+  const book = randomUUID();
+  assert.equal(
+    editor.chapterPublicationPath(book, ticket),
+    `/chapter-publish?book=${book}&draft=${ticket.draftId}&revision=1&local=${ticket.localId}`,
+  );
+  assert.throws(() => editor.chapterPublicationPath(book, ticket));
+  const changed = new DraftEditor(f.owner, f.key, tools);
+  await changed.load();
+  changed.input("新输入", "还没同步");
+  assert.equal(changed.canPrepareChapterPublication(), false);
+  await assert.rejects(changed.prepareChapterPublication());
+});
+
+test("所有实际409/410业务拒绝有明确退出；不接受附带正文的安全回执", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = publisherFixture(),
+    owner = randomUUID();
+  const journal = new EncryptedChapterPublicationJournal(
+    local.rows,
+    local.cipher,
+    owner,
+    () => true,
+  );
+  const p = new ChapterPublisher(f.api, journal, () => true, randomUUID);
+  await p.load();
+  for (const code of [
+    "novel_state_conflict",
+    "chapter_publication_conflict",
+    "novel_revision_conflict",
+    "source_revision_unavailable",
+    "novel_restricted",
+    "chapter_preview_expired",
+  ]) {
+    f.setReject(
+      new ApiError(code, "", code === "chapter_preview_expired" ? 410 : 409),
+    );
+    await assert.rejects(
+      p.begin(f.book, {
+        draft: f.snapshot.draft_id,
+        revision: 1,
+        bookRevision: 1,
+      }),
+    );
+    assert.equal(p.snapshot()?.rejection, code);
+    await p.clear();
+  }
+  f.setReject(null);
+  await p.begin(f.book, {
+    draft: f.snapshot.draft_id,
+    revision: 1,
+    bookRevision: 1,
+  });
+  const current = (await journal.load())!;
+  await assert.rejects(
+    journal.save(
+      {
+        ...current,
+        prepared: { ...current.prepared!, content: "不应进入安全记录的正文" },
+      } as ChapterPublicationRecord,
+      current.token,
+    ),
+  );
+  assert.deepEqual(await journal.load(), current);
 });

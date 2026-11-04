@@ -6,6 +6,7 @@ import { ApiError } from "../api/client";
 import type { DraftCipher, CipherRows } from "../drafts/storage";
 import { SqliteCipherRows } from "../drafts/sqlite";
 import { EncryptedBookJournal } from "./journal";
+import { EncryptedChapterPublicationJournal } from "./chapters/publication-journal";
 const pendingKeys = new Map<string, Promise<string>>();
 async function key(owner: string, allowNew: boolean) {
   const name = "tako.test.book-request-key.v1." + owner;
@@ -109,6 +110,44 @@ export function nativeBookJournal(session: Session) {
         owner,
         current,
       ).save(value, expectedId);
+    },
+  };
+}
+
+// Same mature AES/SecureStore/SQLite primitives, separate slot and AAD domain.
+export function nativeChapterPublicationJournal(session: Session) {
+  const initial = session.snapshot(),
+    owner = initial.account?.id;
+  if (initial.phase !== "ready" || !owner || initial.busy)
+    throw new ApiError("stale_session");
+  const current = () => {
+    const now = session.snapshot();
+    return (
+      now.phase === "ready" &&
+      !now.busy &&
+      now.generation === initial.generation &&
+      now.account?.id === owner
+    );
+  };
+  return {
+    async load() {
+      return new EncryptedChapterPublicationJournal(
+        await openRows(),
+        cipher,
+        owner,
+        current,
+      ).load();
+    },
+    async save(
+      value: Parameters<EncryptedChapterPublicationJournal["save"]>[0],
+      expectedToken: string | null,
+    ) {
+      return new EncryptedChapterPublicationJournal(
+        await openRows(),
+        cipher,
+        owner,
+        current,
+      ).save(value, expectedToken);
     },
   };
 }

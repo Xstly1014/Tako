@@ -209,6 +209,42 @@ export class ChapterPublicationApi {
       throw new ApiError("contract");
     return receipt;
   }
+  // Recovery must not depend on re-fetching a possibly expired preview body.
+  async retrySubmit(
+    book: string,
+    input: ChapterSubmit,
+    target: { chapter: string; ordinal: number; version: number },
+  ) {
+    const root = this.root(book);
+    if (
+      !id(input.mutation_id) ||
+      !id(input.preview_id) ||
+      input.rights_confirmed !== true ||
+      !id(target.chapter) ||
+      !integer(target.ordinal, 1) ||
+      !integer(target.version, 1)
+    )
+      throw new ApiError("invalid_input");
+    const receipt = checkedChapterReceipt(
+      await this.transport<ChapterReceipt>(root + "/chapter-submissions", {
+        method: "POST",
+        body: input,
+      }),
+      {
+        novel: book,
+        mutation: input.mutation_id,
+        operation: "submit",
+        preview: input.preview_id,
+      },
+    );
+    if (
+      receipt.chapter_id !== target.chapter ||
+      receipt.ordinal !== target.ordinal ||
+      (receipt.state === "published" && receipt.version !== target.version)
+    )
+      throw new ApiError("contract");
+    return receipt;
+  }
   async receipt(expected: ReceiptTarget) {
     const root = this.root(expected.novel);
     if (!id(expected.mutation)) throw new ApiError("invalid_input");
