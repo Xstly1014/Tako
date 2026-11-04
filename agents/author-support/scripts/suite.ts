@@ -9,6 +9,7 @@ import {runAgent,type Progress} from '../src/agent.ts';
 import {diagnose} from '../src/diagnostic.ts';
 import {contextFromInput,deliveryVersion} from '../src/delivery.ts';
 import {deliver} from '../src/recovery.ts';
+import {captureSources} from '../src/provenance.ts';
 
 async function main(){
   const args=process.argv.slice(2);
@@ -21,7 +22,8 @@ async function main(){
   const hashes=Object.fromEntries(files.map(x=>[x,createHash('sha256').update(readFileSync(new URL('../src/'+x,import.meta.url))).digest('hex')]));
   hashes['package-lock.json']=createHash('sha256').update(readFileSync(new URL('../package-lock.json',import.meta.url))).digest('hex');
   hashes['scripts/suite.ts']=createHash('sha256').update(readFileSync(import.meta.filename)).digest('hex');
-  const version={git_head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source_hashes:hashes,fixture_version:fixtureVersion,grader_version:graderVersion,delivery_version:deliveryVersion,json_mode:jsonMode};
+  const source_bundle=captureSources(root);
+  const version={git_head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source_hashes:hashes,fixture_version:fixtureVersion,grader_version:graderVersion,delivery_version:deliveryVersion,json_mode:jsonMode,source_bundle};
   const outcomes:{case_id:string;status:string;automatic_passed?:boolean;delivery_status?:string;delivery_goal_passed?:boolean}[]=[];
   const ledger=new BudgetLedger(path.resolve('.runtime/author-agent/budget.sqlite'));
   const save=(name:string,value:unknown)=>writeFileSync(path.join(root,name+'.json'),JSON.stringify(value,null,2),{mode:0o600});

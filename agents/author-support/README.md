@@ -51,3 +51,30 @@ node agents/author-support/scripts/delivery-replay.ts .runtime/author-agent/suit
 `delivery.next_step`是消费方执行的只读下一步，不是任意URL、模型新工具或自动轮询。`follow-up.ts` 的 `followUp(step, session.authorized)` 只调用已有原预览、作品状态或本人提交记录GET；提交详情经既有解码器校验后只投影状态元信息，不输出正文、标题、处置理由或候选版号。每次重新按当前会话授权，404不揭示归属，401要求重新确认身份。contact_support只返回操作提示，不发送消息。交付函数不执行下一步，当前尚未接App按钮或新HTTP路由。
 
 先审的next_step指向具体submission_id；其当前状态与原预览的历史受理回执分开。真实测试覆盖pending→withdrawn后原回执不变、其他账号拒绝。具体证据、数据来源及下一阶段见[部分事实与下一步复盘](../../docs/reviews/author-agent-recovery-review.md)。
+
+费用恢复（命令从仓库根执行，无需密钥）：
+
+```powershell
+node agents/author-support/scripts/budget.ts pending
+node agents/author-support/scripts/budget.ts inspect <charge_id>
+# 核对request_sha256、供应商response_id、token用量和原费率后，显式指定回执摘要。
+node agents/author-support/scripts/budget.ts reconcile <charge_id> <receipt_sha256> local_operator
+```
+
+每个新推理请求先持久化预留、请求摘要与费率，再调用供应商；收到的ID/模型/用量先持久化，再结算。inspect不提供请求或响应正文。reconcile只消费本地已关联的供应商usage回执，事务保留prior_state/原调用/金额和操作代号；重复执行返回原结果，不清记录，也不能用另一请求的回执抵账。actor是本机操作代号，不是认证身份。旧未完成调用若缺回执依旧阻断；余额变化、猜测零费用、改run_id或恢复旧账本均不能解锁。结算是保守usage费用估算，不是控制台账单/发票核销。
+
+真实演练会消费少量模型额度，不进默认CI：
+
+```powershell
+node --env-file=.runtime/author-agent/.env agents/author-support/scripts/provider-loss-drill.ts
+```
+
+该命令使用官方API完成一次真实响应后在传输层刻意丢弃，只留用量元信息；验证重启阻断、匹配回执恢复和一次续跑。SDK禁重试，不调用业务工具。报告及账本一致性备份仅在忽略目录accounting-runs；不要用备份倒退费用。若失败且没有可用回执，保留阻断并按供应商逐请求证据人工核查，不删库重跑。
+
+新suite从source bundle归档精确源码（包括未提交改动）、共享解码器、锁和Node版本，旧run不会凭当前代码补造原快照：
+
+```powershell
+node agents/author-support/scripts/reproduce.ts .runtime/author-agent/suites/<run_id>
+```
+
+仅用于本机生成且可信的源码包；哈希检查不是签名，不执行不明下载包。命令还原到临时目录，要求相同Node版本与锁/直接依赖版本，复用当前node_modules，移除密钥和代理凭据并禁用fetch/HTTP/socket入口，运行单测与类型检查。它不是OS沙箱、全新依赖安装或跨机复验，也不能锁定滚动模型权重。只归档白名单源文件，拒绝路径穿越/符号链接；不含.env、简历、账本或业务正文。阶段结果见[费用与复现记录](../../docs/reviews/author-agent-accounting-review.md)。
