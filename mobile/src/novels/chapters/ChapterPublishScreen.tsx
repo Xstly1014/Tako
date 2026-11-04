@@ -270,11 +270,11 @@ function Publish({ session, source }: { session: Session; source: Source }) {
         <>
           <Text style={s.title}>
             {record.result.state === "pending"
-              ? "已提交，等待审核"
+              ? "先审提交已受理"
               : "已发布正式章节"}
           </Text>
           <Text style={s.note}>
-            这是原请求的受理结果，当前可见性仍按作品最新权限判断。
+            这是原提交受理结果，不代表当前审核状态；当前可见性仍按作品最新权限判断。
           </Text>
           {record.result.state === "published" ? (
             <Action

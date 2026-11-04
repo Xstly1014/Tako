@@ -253,6 +253,7 @@ func (s Store) PrepareChapter(ctx context.Context, owner, book uuid.UUID, in Pre
 		return zero, err
 	}
 	p.ReviewRequired, err = observation(ctx, tx, owner)
+	p.ReviewRequired = p.ReviewRequired || len(c.pending) != 0
 	if err != nil {
 		return zero, err
 	}
@@ -389,6 +390,7 @@ func (s Store) SubmitChapter(ctx context.Context, owner, book uuid.UUID, in Subm
 		}
 	}
 	pending, err := observation(ctx, tx, owner)
+	pending = pending || len(c.pending) != 0
 	if err != nil {
 		return zero, err
 	}

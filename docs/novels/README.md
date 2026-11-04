@@ -1,6 +1,6 @@
 # 长文／连载小说规格入口
 
-更新：2026-11-04。N0 是业务规格基线；N1 私密开书与写章已接App和本机3300，包括加密离线续写、冲突恢复为独立新章节草稿。N2固定发布、正式管理、资料审核、处置复核与公开目录阅读已接App和本机API0.19.0；观察期运营入口与同批App整体验证仍为P1，不能整体收口。N3完结/续读、N4追更和N5讨论仍属后续阶段。工程证据见[N1-A](../reviews/private-novels-review.md)、[N1-B](../reviews/private-chapter-drafts-review.md)，原生验收待同事执行。
+更新：2026-11-04。N0 是业务规格基线；N1 私密开书与写章已接App和本机3300，包括加密离线续写、冲突恢复为独立新章节草稿。N2固定发布、正式管理、资料审核、处置复核与公开目录阅读已接App和本机API0.22.0；观察期运营入口与同批App/真实服务联调已补齐，原生证据仍交同事。N3完结/续读、N4追更和N5讨论仍属后续阶段。工程证据见[N1-A](../reviews/private-novels-review.md)、[N1-B](../reviews/private-chapter-drafts-review.md)，原生验收待同事执行。
 
 - [业务规则](longform-business-spec.md)：创作、固定目录、发布、完结、整改、书架追更、私密续读和按章讨论。
 - [交付与验收](delivery-and-acceptance.md)：纵向分期、失败场景、证据门槛及未决工程细节。

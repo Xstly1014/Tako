@@ -9,21 +9,32 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/getkin/kin-openapi/routers"
 	"github.com/gin-gonic/gin"
 	"writing.local/community/internal/contract"
 	"writing.local/community/internal/identity"
 )
 
+// The embedded contract is immutable for this test binary, just as it is for
+// a running API. Reuse its parsed routes, but validate every response with a
+// fresh request input and options; no validation results are cached.
+var responseContract struct {
+	once   sync.Once
+	router routers.Router
+	err    error
+}
+
 func validateResponse(t *testing.T, request *http.Request, response *httptest.ResponseRecorder) {
 	t.Helper()
-	router, err := contract.Router()
-	if err != nil {
-		t.Fatal(err)
+	responseContract.once.Do(func() { responseContract.router, responseContract.err = contract.Router() })
+	if responseContract.err != nil {
+		t.Fatal(responseContract.err)
 	}
-	input, err := contract.Input(router, request)
+	input, err := contract.Input(responseContract.router, request)
 	if err != nil {
 		t.Fatal(err)
 	}

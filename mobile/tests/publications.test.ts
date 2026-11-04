@@ -663,3 +663,223 @@ test("核对期间改稿、作品竞争或读取失败不给可采用结果，�
     );
   }
 });
+
+test("pre-review receipt is acceptance without a formal version and survives original recovery", async () => {
+  const { checkedResult } = await import("../src/api/publications.ts");
+  const accepted = {
+    work_id: workId,
+    version: 0 as const,
+    published_at: null,
+    review_status: "pre_review" as const,
+    submission_id: randomUUID(),
+    submitted_at: "2026-11-02T00:00:00Z",
+  };
+  assert.equal(checkedResult(accepted).version, 0);
+  checkedPreview({ ...preview(), published: accepted });
+  for (const bad of [
+    { ...accepted, version: 1 },
+    { ...accepted, published_at: "2026-11-02T00:00:00Z" },
+    { ...accepted, submission_id: undefined },
+    { ...accepted, submitted_at: undefined },
+  ])
+    assert.throws(
+      () => checkedResult(bad as any),
+      (e) => e instanceof ApiError && e.code === "contract",
+    );
+  let posts = 0;
+  const client = api(async (path, options) => {
+    if (options?.method === "POST") {
+      posts++;
+      return accepted;
+    }
+    return { ...preview(), published: accepted };
+  });
+  const body = {
+    mutation_id: randomUUID(),
+    preview_id: previewId,
+    expected_version: 0,
+  };
+  let raw: string | null = JSON.stringify({
+    v: 1,
+    account_id: account,
+    draft_id: draft,
+    source_revision: 1,
+    request: body,
+  });
+  const store: JournalStore = {
+    get: async () => raw,
+    set: async (value) => {
+      raw = value;
+    },
+    remove: async () => {
+      raw = null;
+    },
+  };
+  const flow = new PublicationFlow(
+    client,
+    store,
+    account,
+    () => true,
+    randomUUID,
+  );
+  await flow.restore();
+  assert.equal(flow.result?.review_status, "pre_review");
+  assert.equal(posts, 0);
+});
+
+test("withdrawal persists minimal account-bound request before send and restores by GET only", async () => {
+  const { WorkSubmissionsApi, WorkSubmissionWithdrawal } = await import(
+    "../src/publication/submissions.ts"
+  );
+  const sub = randomUUID(),
+    mutation = randomUUID();
+  let raw: string | null = null,
+    failSave = true,
+    current = true,
+    drop = true;
+  const writes: any[] = [];
+  let gets = 0;
+  const store: JournalStore = {
+    get: async () => raw,
+    set: async (value) => {
+      if (failSave) throw new ApiError("storage");
+      raw = value;
+    },
+    remove: async () => {
+      raw = null;
+    },
+  };
+  const transport: Transport = async <T>(
+    path: string,
+    options?: Parameters<Transport>[1],
+  ) => {
+    if (options?.method === "POST") {
+      writes.push(options.body);
+      if (drop) {
+        drop = false;
+        throw new ApiError("network");
+      }
+    } else gets++;
+    return {
+      work_id: workId,
+      submission_id: sub,
+      mutation_id: mutation,
+      state: "withdrawn",
+      version: 0,
+    } as T;
+  };
+  const client = new WorkSubmissionsApi(transport),
+    action = new WorkSubmissionWithdrawal(
+      account,
+      store,
+      client,
+      () => current,
+      () => mutation,
+    ),
+    item = { id: sub, work_id: workId } as any;
+  await assert.rejects(action.start(item));
+  assert.equal(writes.length, 0);
+  failSave = false;
+  await assert.rejects(action.start(item));
+  assert.equal(writes.length, 1);
+  assert.equal(JSON.parse(raw!).state, "unknown");
+  assert.equal(Object.keys(JSON.parse(raw!)).length, 6);
+  const restored = new WorkSubmissionWithdrawal(
+    account,
+    store,
+    client,
+    () => current,
+    randomUUID,
+  );
+  await restored.restore();
+  await restored.confirm();
+  assert.equal(gets, 1);
+  assert.equal(writes.length, 1);
+  assert.equal(restored.record?.state, "done");
+  await restored.clear();
+  assert.equal(raw, null);
+  raw = JSON.stringify({
+    v: 1,
+    owner: account,
+    submission: sub,
+    work: workId,
+    mutation,
+    state: "unknown",
+    content: "must not be persisted",
+  });
+  await assert.rejects(
+    restored.restore(),
+    (e) => e instanceof ApiError && e.code === "storage",
+  );
+  raw = JSON.stringify({
+    v: 1,
+    owner: account,
+    submission: sub,
+    work: workId,
+    mutation,
+    state: "unknown",
+  });
+  await assert.rejects(
+    new WorkSubmissionWithdrawal(
+      randomUUID(),
+      store,
+      client,
+      () => true,
+      randomUUID,
+    ).restore(),
+  );
+  current = false;
+  await assert.rejects(
+    restored.confirm(),
+    (e) => e instanceof ApiError && e.code === "stale_session",
+  );
+  assert.equal(writes.length, 1);
+});
+
+test("withdrawal conflict is explicit, unknown or wrong receipts cannot silently clear original request", async () => {
+  const { WorkSubmissionsApi, WorkSubmissionWithdrawal } = await import(
+    "../src/publication/submissions.ts"
+  );
+  let raw: string | null = null,
+    conflict = true;
+  const sub = randomUUID(),
+    mutation = randomUUID();
+  const store: JournalStore = {
+    get: async () => raw,
+    set: async (value) => {
+      raw = value;
+    },
+    remove: async () => {
+      raw = null;
+    },
+  };
+  const client = new WorkSubmissionsApi(async <T>() => {
+    if (conflict) throw new ApiError("review_conflict", "", 409);
+    return {
+      work_id: randomUUID(),
+      submission_id: sub,
+      mutation_id: mutation,
+      state: "withdrawn",
+      version: 0,
+    } as T;
+  });
+  const action = new WorkSubmissionWithdrawal(
+    account,
+    store,
+    client,
+    () => true,
+    () => mutation,
+  );
+  await assert.rejects(action.start({ id: sub, work_id: workId } as any));
+  assert.equal(action.record?.state, "rejected");
+  await action.clear();
+  assert.equal(raw, null);
+  conflict = false;
+  await assert.rejects(
+    action.start({ id: sub, work_id: workId } as any),
+    (e) => e instanceof ApiError && e.code === "contract",
+  );
+  assert.equal(action.record?.state, "unknown");
+  await assert.rejects(action.clear());
+  assert.notEqual(raw, null);
+});

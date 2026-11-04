@@ -1,12 +1,12 @@
 # Tako 开发交接入口
 
-更新：2026-11-04。当前App优先；主开发N2长文固定发布、正式管理、资料发布、处置复核与匿名目录/阅读已接真实服务。本机3300保留数据升级至API0.19.0/迁移0018。同事e99ab22反馈收件箱及紧凑作者列表已独立审查、正常合入3ea66c9，后端/模型/真实中篇链路回归通过。
+更新：2026-11-04。本机3300独立test为API0.22.0/迁移0021，保留数据升级。N2长文固定发布、正式管理/资料审核、最低治理、公开目录阅读及账号观察期入口已接App/运营；按用户新增授权同批补齐中篇先审。多章A1/B2乱序与中篇固定提交/撤回/节点/驳回保正式版已接实际HTTP/MySQL整体验证。不是原生或真实用户成效声明。
 
-先读[主开发当前进度](primary-progress.md)和[并行端进度](parallel-progress.md)，再读[N2阶段规格](../novels/n2-publication-reading-spec.md)、[连续实施复盘](../reviews/n2-publication-implementation-review.md)末段与[独立互审](../reviews/cross-review-primary-e99ab22.md)。当前布局按用户确认A；新入口 `/novel-manage`，从本人书籍进入，不能用旧APK判断已接线与否。
+先读[主开发进度](primary-progress.md)、[并行端进度](parallel-progress.md)、[本批复盘](../reviews/observation-pre-review-stage-review.md)及[中篇先审规格](../publication/pre-review-spec.md)，再读[N2规格](../novels/n2-publication-reading-spec.md)和[连续复盘](../reviews/n2-publication-implementation-review.md)。同事e99ab22已在3ea66c9合入；不改其进度或将旧APK结果套给本批。
 
-**N2尚有P1：** 运营观察期设置/提前撤销入口及观察期多章乱序通过的同批App/API/MySQL联调；在N3前关闭。后端数据库夹具不等于该业务入口已交付。**P2：** 新页原生布局/键盘/Share、安全存储与生命周期，由同事在下一正常设备批次完成，见[设备任务](device-requests.md)。本端不打包/USB/ECS/邮件。N3续读与完结整改、N4书架追更、N5按章讨论仍未实现。
+N2工程主链路原观察期缺口关闭；**P0 C1原生尾项、P2新页原生**仍由同事下一设备批次验证，见[设备任务](device-requests.md)。主开发不打包/USB/ECS/邮件。下一独立包N3私密续读与不可逆完结/指定整改一起交付；N4书架追更、N5按章讨论未实现。P1自动48h逾期监测须在团队外创作者开放前完成，不能声称已有自动SLA。
 
-独立整体验证 `node scripts/check_novel_publication_live.cjs` 需要专用3300 test环境，实际页面接真实HTTP/MySQL；DOM/导航/journal适配和补充case夹具均明确标注，不能冒充手机验收。重启用[tako-restart](../../.agents/skills/tako-restart/SKILL.md)，协作用[tako-collab](../../.agents/skills/tako-collab/SKILL.md)。历史报告中的“未接入”只表示其原SHA。
+独立真实联调 `node scripts/check_novel_publication_live.cjs` 只对专用test运行，DOM/导航/journal适配与少量case补充分支明确标注；接口唯一源、错误和迁移同源码交付。重启用[tako-restart](../../.agents/skills/tako-restart/SKILL.md)，协作用[tako-collab](../../.agents/skills/tako-collab/SKILL.md)。历史“未接入”绑定原SHA，不覆盖当前状态。
 
 ## 当前职责（用户明确）
 

@@ -93,6 +93,7 @@ func (s Store) SubmitMetadata(ctx context.Context, owner, book uuid.UUID, in Sub
 		}
 	}
 	pending, err := observation(ctx, tx, owner)
+	pending = pending || state.MetadataSubmissionID != nil
 	if err != nil {
 		return out, err
 	}

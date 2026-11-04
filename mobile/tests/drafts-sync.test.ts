@@ -1926,3 +1926,58 @@ test("逐章提交历史解码保留驳回/撤回，不下载正文且拒绝同�
     (e) => e instanceof ApiError && e.code === "contract",
   );
 });
+
+test("author observation is account-scoped, paged and rejects malformed history", async () => {
+  const { AuthorPolicyApi } = await import(
+    "../src/novels/author-policy-api.ts"
+  );
+  const book = randomUUID(),
+    historicalBook = randomUUID();
+  let payload: any = {
+    policy: {
+      revision: 1,
+      active: true,
+      observation_until: "2026-11-11T00:00:00Z",
+      reason: "已确认问题",
+    },
+    items: [
+      {
+        context_id: historicalBook,
+        context_kind: "novel",
+        mutation_id: randomUUID(),
+        action: "start",
+        revision: 1,
+        reason: "已确认问题",
+        previous_until: null,
+        observation_until: "2026-11-11T00:00:00Z",
+        created_at: "2026-11-04T00:00:00Z",
+      },
+    ],
+    next: 0,
+  };
+  const paths: string[] = [];
+  const api = new AuthorPolicyApi(async <T>(p: string) => {
+    paths.push(p);
+    return payload as T;
+  });
+  assert.equal((await api.read(book)).items[0].context_id, historicalBook);
+  assert.deepEqual(paths, [`/my/novels/${book}/author-policy`]);
+  const baseline = structuredClone(payload);
+  for (const invalid of [
+    { ...baseline, items: [{ ...baseline.items[0], observation_until: null }] },
+    { ...baseline, next: 1 },
+    { ...baseline, items: [baseline.items[0], baseline.items[0]] },
+    { ...baseline, policy: { ...baseline.policy, observation_until: null } },
+  ]) {
+    payload = invalid;
+    await assert.rejects(
+      api.read(book),
+      (e) => e instanceof ApiError && e.code === "contract",
+    );
+  }
+  payload = baseline;
+  await assert.rejects(
+    api.read(book, -1),
+    (e) => e instanceof ApiError && e.code === "invalid_input",
+  );
+});

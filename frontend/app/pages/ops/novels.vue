@@ -43,6 +43,7 @@ const modes: { value: Mode; label: string }[] = [
   { value: 'cases', label: '处置记录' },
   { value: 'appeals', label: '待复核' },
 ]
+const authorPolicy = ref<NovelSchema<'AuthorPolicyPage'> | null>(null)
 const mode = ref<Mode>('chapters'),
   rows = ref<Row[]>([]),
   next = ref(''),
@@ -92,6 +93,7 @@ function invalidate() {
   generation++
   ready.value = false
   rows.value = []
+  authorPolicy.value = null
   selected.value = null
   detail.value = null
   reason.value = ''
@@ -219,6 +221,7 @@ async function changeMode(value: Mode) {
   if (busy.value || pending.value || proposed.value) return
   if (reason.value.trim() && !window.confirm('处理原因尚未提交，确认切换？')) return
   mode.value = value
+  authorPolicy.value = null
   selected.value = null
   detail.value = null
   reason.value = ''
@@ -301,6 +304,7 @@ async function choose(row: Row) {
   if (reason.value.trim() && !window.confirm('处理原因尚未提交，确认选择另一条？')) return
   const gen = generation
   busy.value = true
+  authorPolicy.value = null
   selected.value = row
   detail.value = null
   reason.value = ''
@@ -405,6 +409,65 @@ function propose() {
   checkedNovelOperation(command, owner)
   proposed.value = { label: actionLabel(a), command }
 }
+async function readAuthorPolicy(more = false) {
+  if (!selected.value || busy.value || pending.value || proposed.value) return
+  busy.value = true
+  const gen = generation
+  try {
+    await verify()
+    const value = await request<NovelSchema<'AuthorPolicyPage'>>(
+      `/ops/novels/${selected.value.book}/author-policy${more && authorPolicy.value?.next ? `?before=${authorPolicy.value.next}` : ''}`,
+    )
+    if (gen === generation)
+      authorPolicy.value =
+        more && authorPolicy.value
+          ? {
+              ...value,
+              items: [
+                ...authorPolicy.value.items,
+                ...value.items.filter(
+                  (e) => !authorPolicy.value!.items.some((x) => x.revision === e.revision),
+                ),
+              ],
+            }
+          : value
+  } catch (e) {
+    message.value = describe(e)
+  } finally {
+    if (gen === generation) busy.value = false
+  }
+}
+function proposePolicy(action: 'start' | 'extend' | 'revoke') {
+  if (!authorPolicy.value || !selected.value || busy.value || pending.value || proposed.value)
+    return
+  if (!reason.value.trim() || Array.from(reason.value).length > 2000) {
+    message.value = '请填写本次观察期决定的原因（1～2000字）。'
+    return
+  }
+  const command: NovelOperation = {
+    owner,
+    book: selected.value.book,
+    kind: 'policy',
+    target: selected.value.book,
+    version: 0,
+    body: {
+      mutation_id: crypto.randomUUID(),
+      expected_revision: authorPolicy.value.policy.revision,
+      action,
+      reason: reason.value.trim(),
+    },
+  }
+  checkedNovelOperation(command, owner)
+  proposed.value = {
+    label:
+      action === 'start'
+        ? '开始账号观察期7天'
+        : action === 'extend'
+          ? '延长账号观察期7天'
+          : '提前结束账号观察期',
+    command,
+  }
+}
 async function finish() {
   const p = pending.value
   if (!p || !journal) return
@@ -413,6 +476,7 @@ async function finish() {
   confirmed.value = false
   canRetry.value = false
   proposed.value = null
+  authorPolicy.value = null
   selected.value = null
   detail.value = null
   reason.value = ''
@@ -464,6 +528,7 @@ async function perform(retry = false) {
       try {
         journal!.clear(pending.value.body.mutation_id)
         pending.value = null
+        authorPolicy.value = null
         selected.value = null
         detail.value = null
       } catch {
@@ -661,6 +726,70 @@ onBeforeRouteLeave(
                 {{ selected?.note }}<span v-if="detail.bookState?.author_hidden"> · 整书已隐藏</span
                 ><span v-if="detail.bookState?.platform_limited"> · 整书受限</span>
               </p>
+              <details class="case-history">
+                <summary>作者账号观察期</summary>
+                <p class="muted">
+                  影响这个作者之后的中篇和长文章节提交，不只影响本书。已待审内容仍须人工审核；已有公开内容不自动隐藏。
+                </p>
+                <button :disabled="busy || !!pending || !!proposed" @click="readAuthorPolicy()">
+                  读取作者观察期
+                </button>
+                <template v-if="authorPolicy">
+                  <p>
+                    {{ authorPolicy.policy.active ? '观察中：新提交先审后发' : '当前不在观察期'
+                    }}<span v-if="authorPolicy.policy.observation_until">
+                      · 结束时间
+                      {{ new Date(authorPolicy.policy.observation_until).toLocaleString() }}</span
+                    >
+                  </p>
+                  <p>{{ authorPolicy.policy.reason }}</p>
+                  <label
+                    >本次决定原因<textarea
+                      v-model="reason"
+                      rows="3"
+                      :disabled="busy || !!pending || !!proposed"
+                    />
+                  </label>
+                  <button
+                    v-if="!authorPolicy.policy.active"
+                    :disabled="busy || !!pending || !!proposed"
+                    @click="proposePolicy('start')"
+                  >
+                    开始7天观察期
+                  </button>
+                  <template v-else
+                    ><button
+                      :disabled="busy || !!pending || !!proposed"
+                      @click="proposePolicy('extend')"
+                    >
+                      从原结束时间延长7天</button
+                    ><button
+                      :disabled="busy || !!pending || !!proposed"
+                      @click="proposePolicy('revoke')"
+                    >
+                      提前结束观察期
+                    </button></template
+                  >
+                  <article v-for="event in authorPolicy.items" :key="event.revision">
+                    <strong>{{
+                      event.action === 'start'
+                        ? '开始观察期'
+                        : event.action === 'extend'
+                          ? '延长7天'
+                          : '提前结束'
+                    }}</strong>
+                    <p>{{ event.reason }}</p>
+                    <small>{{ new Date(event.created_at).toLocaleString() }}</small>
+                  </article>
+                  <button
+                    v-if="authorPolicy.next"
+                    :disabled="busy || !!pending || !!proposed"
+                    @click="readAuthorPolicy(true)"
+                  >
+                    更早的观察期决定
+                  </button>
+                </template>
+              </details>
               <details>
                 <summary>查看固定内容</summary>
                 <div class="fixed-text">{{ detail.body || '无简介。' }}</div>
@@ -713,7 +842,13 @@ onBeforeRouteLeave(
               </form>
               <section v-if="proposed" class="confirmation">
                 <h3>确认{{ proposed.label }}</h3>
-                <p>仅处理当前选定对象。隐藏、其他层级限制与工作稿保持独立。</p>
+                <p>
+                  {{
+                    proposed.command.kind === 'policy'
+                      ? '本次作用于作者账号，影响之后的中篇与长文提交；既有待审继续人工审核，既有公开内容不自动隐藏。'
+                      : '仅处理当前选定对象。隐藏、其他层级限制与工作稿保持独立。'
+                  }}
+                </p>
                 <p v-if="proposed.command.body.reason">原因：{{ proposed.command.body.reason }}</p>
                 <button class="primary" :disabled="busy" @click="perform()">确认执行</button
                 ><button :disabled="busy" @click="proposed = null">返回修改</button>

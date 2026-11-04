@@ -174,6 +174,11 @@ async function confirm() {
     if (generation !== epoch) return
     result.value = out
     try {
+      if (out.review_status === 'pre_review') {
+        persist()
+        checkExpiry()
+        return
+      }
       const state = await request<WorkState>(`/my/works/${out.work_id}`)
       if (generation === epoch) publishedState.value = state
     } catch {
@@ -325,7 +330,14 @@ onUnmounted(() => {
         </ol>
       </div>
       <p v-if="message" class="notice" role="status">{{ message }}</p>
-      <div v-if="result" class="publication-result">
+      <div v-if="result?.review_status === 'pre_review'" class="publication-result">
+        <h2>先审提交已受理</h2>
+        <p>这份回执只确认提交受理，不代表当前审核状态；请到提交记录查看结果，工作稿仍可继续写。</p>
+        <NuxtLink :to="{ path: '/my-submissions', query: { work: result.work_id } }"
+          >查看待审提交</NuxtLink
+        ><button class="text-button" @click="reset">读取工作稿，准备下一次修订</button>
+      </div>
+      <div v-else-if="result" class="publication-result">
         <h2>发布已确认 · V{{ result.version }}</h2>
         <p v-if="publishedState?.author_hidden" class="notice">
           新版本已发布，作品仍处于隐藏状态。
@@ -419,7 +431,9 @@ onUnmounted(() => {
                 ? '正在确认…'
                 : expired
                   ? '检查原发布请求结果'
-                  : `确认发布 R${preview.source_revision}`
+                  : preview.review_required
+                    ? `提交审核 R${preview.source_revision}`
+                    : `确认发布 R${preview.source_revision}`
             }}</button
           ><button class="text-button" :disabled="busy" @click="reset">重新读取工作稿并准备</button>
         </aside>

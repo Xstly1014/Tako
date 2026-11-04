@@ -321,6 +321,7 @@ onUnmounted(() => {
         <button class="primary" :disabled="busy" @click="execute">检查原操作结果</button>
       </section>
       <nav v-if="operator" class="mod-tabs">
+        <NuxtLink to="/ops/work-submissions">中篇先审</NuxtLink>
         <button
           :aria-pressed="queue === 'reviews'"
           :disabled="busy || !!pending"
@@ -397,6 +398,11 @@ onUnmounted(() => {
           <template v-else
             ><header>
               <h2>{{ detail.work.title }}</h2>
+              <NuxtLink
+                v-if="operator"
+                :to="{ path: '/ops/work-submissions', query: { work: detail.work.id } }"
+                >管理作者账号观察期</NuxtLink
+              >
               <p>
                 正式版本 V{{ detail.work.version
                 }}<span v-if="detail.case"> · {{ label(detail.case.state) }}</span>

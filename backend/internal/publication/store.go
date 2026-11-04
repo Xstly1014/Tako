@@ -44,6 +44,7 @@ type Prepare struct {
 	RightsConfirmed bool      `json:"rights_confirmed"`
 }
 type Preview struct {
+	ReviewRequired  bool      `json:"review_required,omitempty"`
 	ID              uuid.UUID `json:"id"`
 	DraftID         uuid.UUID `json:"draft_id"`
 	SourceRevision  uint64    `json:"source_revision"`
@@ -62,10 +63,12 @@ type Publish struct {
 	ExpectedVersion uint64    `json:"expected_version"`
 }
 type Result struct {
-	WorkID       uuid.UUID `json:"work_id"`
-	Version      uint64    `json:"version"`
-	PublishedAt  time.Time `json:"published_at"`
-	ReviewStatus string    `json:"review_status"`
+	WorkID       uuid.UUID  `json:"work_id"`
+	Version      uint64     `json:"version"`
+	PublishedAt  time.Time  `json:"published_at"`
+	ReviewStatus string     `json:"review_status"`
+	SubmissionID *uuid.UUID `json:"submission_id,omitempty"`
+	SubmittedAt  *time.Time `json:"submitted_at,omitempty"`
 }
 
 func digest(v any) ([32]byte, error) { b, e := json.Marshal(v); return sha256.Sum256(b), e }
@@ -162,9 +165,21 @@ func (s Store) ReadPreview(ctx context.Context, owner, id uuid.UUID) (Preview, e
 		if e != nil {
 			return Preview{}, e
 		}
-		out.Published = &Result{WorkID: work, Version: uint64(consumedVersion.Int64), PublishedAt: consumedAt.Time, ReviewStatus: "pending"}
+		if consumedVersion.Valid {
+			out.Published = &Result{WorkID: work, Version: uint64(consumedVersion.Int64), PublishedAt: consumedAt.Time, ReviewStatus: "pending"}
+		} else {
+			r, e := pendingPreviewResult(ctx, s.DB, owner, id, work, consumedAt.Time)
+			if e != nil {
+				return Preview{}, e
+			}
+			out.Published = &r
+		}
 	} else if !time.Now().UTC().Before(out.ExpiresAt) {
 		return Preview{}, ErrExpired
+	}
+	out.ReviewRequired, e = preReviewDraft(ctx, s.DB, owner, out.DraftID, time.Now().UTC())
+	if e != nil {
+		return Preview{}, e
 	}
 	return out, nil
 }
@@ -237,6 +252,10 @@ func (s Store) Prepare(ctx context.Context, owner uuid.UUID, in Prepare) (Previe
 		return Preview{}, e
 	}
 	out := Preview{ID: uuid.New(), DraftID: in.DraftID, SourceRevision: in.SourceRevision, ExpectedVersion: expected, Title: title, Content: content, Introduction: in.Introduction, Tags: in.Tags, CreatedAt: now, ExpiresAt: now.Add(24 * time.Hour)}
+	out.ReviewRequired, e = preReviewDraft(ctx, tx, owner, in.DraftID, now)
+	if e != nil {
+		return Preview{}, e
+	}
 	tags, _ := json.Marshal(in.Tags)
 	_, e = tx.ExecContext(ctx, "INSERT INTO publication_previews (id,owner_id,mutation_id,payload_hash,draft_id,source_revision,expected_version,title,content,introduction,tags,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", out.ID[:], owner[:], in.MutationID[:], hash[:], in.DraftID[:], in.SourceRevision, expected, title, content, in.Introduction, tags, now, out.ExpiresAt)
 	if e != nil {
@@ -259,6 +278,13 @@ func (s Store) Publish(ctx context.Context, owner uuid.UUID, in Publish) (Result
 	defer tx.Rollback()
 	if e = lockOwner(ctx, tx, owner); e != nil {
 		return Result{}, e
+	}
+	var prior Result
+	if found, e := submissionRequest(ctx, tx, owner, in.MutationID, hash, &prior); e != nil || found {
+		if e != nil {
+			return Result{}, e
+		}
+		return prior, tx.Commit()
 	}
 	result := Result{ReviewStatus: "pending"}
 	var oldHash, workID []byte
@@ -296,16 +322,25 @@ func (s Store) Publish(ctx context.Context, owner uuid.UUID, in Publish) (Result
 		if result.WorkID, e = uuid.FromBytes(consumedID); e != nil {
 			return Result{}, e
 		}
-		result.Version = uint64(consumedVersion.Int64)
-		result.PublishedAt = consumedAt.Time
+		if consumedVersion.Valid {
+			result.Version = uint64(consumedVersion.Int64)
+			result.PublishedAt = consumedAt.Time
+		} else {
+			result, e = pendingPreviewResult(ctx, tx, owner, in.PreviewID, result.WorkID, consumedAt.Time)
+			if e != nil {
+				return Result{}, e
+			}
+			if e = saveSubmissionRequest(ctx, tx, owner, in.MutationID, hash, result); e != nil {
+				return Result{}, e
+			}
+			return result, tx.Commit()
+		}
 	} else {
 		now := time.Now().UTC().Truncate(time.Microsecond)
 		if !now.Before(preview.ExpiresAt) {
 			return Result{}, ErrExpired
 		}
-		if e = policy(ctx, tx, owner, now); e != nil {
-			return Result{}, e
-		}
+
 		var workBytes []byte
 		var last uint64
 		stateRevision := uint64(1)
@@ -321,6 +356,20 @@ func (s Store) Publish(ctx context.Context, owner uuid.UUID, in Publish) (Result
 		}
 		if last != in.ExpectedVersion || last >= MaxSequence || stateRevision >= MaxSequence {
 			return Result{}, ErrConflict
+		}
+		pending, e := mustPreReview(ctx, tx, owner, result.WorkID, now)
+		if e != nil {
+			return Result{}, e
+		}
+		if pending {
+			r, e := acceptWorkSubmission(ctx, tx, owner, result.WorkID, preview, last+1, now)
+			if e != nil {
+				return Result{}, e
+			}
+			if e = saveSubmissionRequest(ctx, tx, owner, in.MutationID, hash, r); e != nil {
+				return Result{}, e
+			}
+			return r, tx.Commit()
 		}
 		result.Version = last + 1
 		result.PublishedAt = now
