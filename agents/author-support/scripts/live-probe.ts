@@ -17,6 +17,9 @@ async function main(){
   const {createAuthorTools}=await import('../src/tools.ts');
   const {grade}=await import('../src/grade.ts');
   const {BudgetLedger}=await import('../src/budget.ts');
+  const {deliver}=await import('../src/recovery.ts');
+  const {contextFromInput}=await import('../src/delivery.ts');
+  const {followUp}=await import('../src/follow-up.ts');
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
   const directory=path.resolve('.runtime/author-agent/runs',runId);mkdirSync(directory,{recursive:true});
@@ -28,6 +31,7 @@ async function main(){
   const api=new AuthorWorksApi(transport),publisher=new PublicationsApi(transport);
   const tools=createAuthorTools(transport),foreign=createAuthorTools((p,o)=>other.authorized(p,o));
   const ok=(r:Result)=>{assert.equal(r.status,'ok');if(r.status!=='ok')throw Error('expected_tool_result');return r.data};
+  const recoverNavigation=(preview:string,result:Result)=>deliver(contextFromInput('原预览ID '+preview),{publication:'unconfirmed',access:'unknown',next_action:'open_work_detail',evidence_ids:[result.evidence_id],explanation:'受控复现上一批错误的正式作品导航建议。'},[{tool:'read_publication_result',result}]);
   let report:Record<string,unknown>={run_id:runId,kind:'live_tool_probe',source:'real_local_test_http_mysql',model_called:false};
   let setupComplete=false;
   let phase='core_fixture';
@@ -40,9 +44,14 @@ async function main(){
     const draft=await author.authorized<{draft_id:string;revision:number}>('/drafts/create',{method:'POST',body:{mutation_id:randomUUID(),title:prefix+'作品',content:body1}});
     assert.equal(ok(await tools.invoke('read_draft_metadata',{draft_id:draft.draft_id})).revision,1);checks.push('server_draft_metadata');
     const p1=await publisher.prepare({mutation_id:randomUUID(),draft_id:draft.draft_id,source_revision:1,introduction:'',tags:['日常'],rights_confirmed:true});
-    assert.equal(ok(await tools.invoke('read_publication_result',{preview_id:p1.id})).published,null);checks.push('preview_not_yet_confirmed');
+    const original=await tools.invoke('read_publication_result',{preview_id:p1.id});
+    assert.equal(ok(original).published,null);checks.push('preview_not_yet_confirmed');
+    const originalDelivery=recoverNavigation(p1.id,original);
+    assert.equal(originalDelivery.status,'recovered');assert.equal(originalDelivery.next_step?.kind,'read_original_result');
+    assert.equal(ok(await followUp(originalDelivery.next_step!,transport)).published,null);checks.push('offered_original_step_reads_actual_original');
     const r1=await publisher.publish({mutation_id:randomUUID(),preview_id:p1.id,expected_version:0});works.push(r1.work_id);
     assert.equal((ok(await tools.invoke('read_publication_result',{preview_id:p1.id})).published as Record<string,unknown>).version,1);checks.push('confirmed_original_receipt');
+    assert.equal((ok(await followUp(originalDelivery.next_step!,transport)).published as Record<string,unknown>).version,1);checks.push('same_step_reads_later_original_confirmation');
     await author.authorized('/drafts/save',{method:'POST',body:{mutation_id:randomUUID(),draft_id:draft.draft_id,base_revision:1,title:prefix+'修订作品',content:body2}});
     assert.equal(ok(await tools.invoke('read_draft_metadata',{draft_id:draft.draft_id})).revision,2);
     assert.equal(ok(await tools.invoke('read_publication_result',{preview_id:p1.id})).source_revision,1);checks.push('draft_ahead_of_published_snapshot');
@@ -90,25 +99,42 @@ async function main(){
       const observed=await tools.invoke('read_publication_result',{preview_id:pending.id}),projection=ok(observed);
       assert.equal(projection.published,null);assert.equal((projection.submission as Record<string,unknown>).submission_id,accepted.submission_id);
       report.pre_review_evidence=observed;checks.push('real_pre_review_is_acceptance_not_formal_publication');
+      const recovered=recoverNavigation(pending.id,observed);
+      assert.equal(recovered.status,'recovered');assert.equal(recovered.next_step?.kind,'read_submission_record');
+      const current=ok(await followUp(recovered.next_step!,transport));assert.equal(current.state,'pending');
+      assert.equal(current.meaning,'current_submission_state_not_public_visibility');
+      assert.equal('content' in current,false);assert.equal('reason' in current,false);checks.push('offered_submission_step_reads_current_record_only');
+      const denied=await followUp(recovered.next_step!,(p,o)=>other.authorized(p,o));
+      assert.equal(denied.status,'error');if(denied.status==='error')assert.equal(denied.error,'resource_unavailable');checks.push('foreign_submission_step_denied');
+      await author.authorized('/my/work-submissions/'+accepted.submission_id+'/withdraw',{method:'POST',body:{mutation_id:randomUUID()}});
+      pendingSubmissions.splice(pendingSubmissions.indexOf(accepted.submission_id),1);
+      assert.equal(ok(await followUp(recovered.next_step!,transport)).state,'withdrawn');
+      const historical=ok(await tools.invoke('read_publication_result',{preview_id:pending.id}));
+      assert.equal(historical.published,null);assert.ok(historical.submission);checks.push('current_withdrawn_does_not_rewrite_original_acceptance');
+      report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }
     setupComplete=true;report.checks=checks;report.tool_trace=tools.trace();report.foreign_trace=foreign.trace();
     console.log(`PASS real author tool probe: ${checks.length} checks; no model score or external model call implied`);
     if(process.argv.includes('--model')){
-      const {runAgent}=await import('../src/agent.ts');
+      const {diagnose}=await import('../src/diagnostic.ts');
       const ledger=new BudgetLedger(path.resolve('.runtime/author-agent/budget.sqlite'));
       try{
         const live=createAuthorTools(transport);
         const prompt=`请确认这份原发布是否完成，并查明朋友为何打不开作品。作品ID：${r1.work_id}，原预览ID：${p2.id}。我当时没看到结果，现在不想重复发布，也不要替我修改内容。`;
-        const model=await runAgent(prompt,live,ledger,runId);
+        const outcome=await diagnose(prompt,live,ledger,runId,undefined,{jsonMode:true});
+        if(outcome.status==='incomplete'){report.delivery=outcome.delivery;throw Error(outcome.failure)}
+        const model=outcome.trial;
         const supported=grade(model.verdict,model.evidence,r1.work_id,p2.id);
         const coverage={publication_confirmed:model.verdict.publication==='confirmed',hidden_identified:model.verdict.access==='author_hidden'};
         const automaticPassed=supported.supported&&Object.values(coverage).every(Boolean);
-        report={...report,model_called:true,kind:'single_agent_development_trial',provider:model.provider,usage:model.usage,budget:ledger.summary(runId),grade:{...supported,coverage,automatic_passed:automaticPassed},agent_trace:live.trace(),explanation_sha256:createHash('sha256').update(model.verdict.explanation).digest('hex')};
+        const deliverySupported=grade(model.delivery.verdict,model.evidence,r1.work_id,p2.id);
+        const deliveryPassed=model.delivery.status!=='fallback'&&deliverySupported.supported&&model.delivery.verdict.publication==='confirmed'&&model.delivery.verdict.access==='author_hidden';
+        report={...report,model_called:true,kind:'single_agent_development_trial',provider:model.provider,usage:model.usage,budget:ledger.summary(runId),grade:{...supported,coverage,automatic_passed:automaticPassed},delivery:model.delivery,delivery_goal_passed:deliveryPassed,agent_trace:live.trace(),explanation_sha256:createHash('sha256').update(model.verdict.explanation).digest('hex')};
         // Human review artifact contains only this new synthetic user's question
         // and model explanation, never raw HTTP bodies, key, token or reasoning.
-        writeFileSync(path.join(directory,'review.json'),JSON.stringify({synthetic_only:true,prompt,verdict:model.verdict,human_review_required:true},null,2),{mode:0o600});
-        console.log(`MODEL trial: automatic_checks=${automaticPassed?'passed':'failed'} human_review=pending upper_estimate_cny=${ledger.summary(runId).upper_estimate_cny}`);
-        if(!automaticPassed)process.exitCode=1;
+        writeFileSync(path.join(directory,'review.json'),JSON.stringify({synthetic_only:true,prompt,verdict:model.verdict,delivery:model.delivery,human_review_required:true},null,2),{mode:0o600});
+        console.log(`MODEL trial: raw_checks=${automaticPassed?'passed':'failed'} delivery=${model.delivery.status} delivery_goal=${deliveryPassed} human_review=pending upper_estimate_cny=${ledger.summary(runId).upper_estimate_cny}`);
+        if(!automaticPassed||!deliveryPassed)process.exitCode=1;
       }catch(e){report={...report,model_called:true,model_status:'incomplete',budget:ledger.summary(runId)};throw e;}
       finally{ledger.close();}
     }

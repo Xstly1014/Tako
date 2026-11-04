@@ -6,6 +6,10 @@ import {cases,fixtureVersion,environment,referenceTrial} from '../src/cases.ts';
 import {evaluate,digest,graderVersion} from '../src/evaluate.ts';
 import {BudgetLedger} from '../src/budget.ts';
 import {runAgent,type Progress} from '../src/agent.ts';
+import {diagnose} from '../src/diagnostic.ts';
+import {contextFromInput,deliveryVersion} from '../src/delivery.ts';
+import {deliver} from '../src/recovery.ts';
+import {captureSources} from '../src/provenance.ts';
 
 async function main(){
   const args=process.argv.slice(2);
@@ -14,12 +18,13 @@ async function main(){
   if(!selected.length)throw Error('invalid_case');
   const paid=args.includes('--model'),jsonMode=args.includes('--json-mode'),runId=randomUUID();
   const root=path.resolve('.runtime/author-agent/suites',runId);mkdirSync(root,{recursive:true});
-  const files=['agent.ts','tools.ts','grade.ts','evaluate.ts','cases.ts','budget.ts','policy.md'];
+  const files=['agent.ts','tools.ts','grade.ts','evaluate.ts','cases.ts','budget.ts','policy.md','delivery.ts','diagnostic.ts','recovery.ts','follow-up.ts'];
   const hashes=Object.fromEntries(files.map(x=>[x,createHash('sha256').update(readFileSync(new URL('../src/'+x,import.meta.url))).digest('hex')]));
   hashes['package-lock.json']=createHash('sha256').update(readFileSync(new URL('../package-lock.json',import.meta.url))).digest('hex');
   hashes['scripts/suite.ts']=createHash('sha256').update(readFileSync(import.meta.filename)).digest('hex');
-  const version={git_head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source_hashes:hashes,fixture_version:fixtureVersion,grader_version:graderVersion,json_mode:jsonMode};
-  const outcomes:{case_id:string;status:string;automatic_passed?:boolean}[]=[];
+  const source_bundle=captureSources(root);
+  const version={git_head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source_hashes:hashes,fixture_version:fixtureVersion,grader_version:graderVersion,delivery_version:deliveryVersion,json_mode:jsonMode,source_bundle};
+  const outcomes:{case_id:string;status:string;automatic_passed?:boolean;delivery_status?:string;delivery_goal_passed?:boolean}[]=[];
   const ledger=new BudgetLedger(path.resolve('.runtime/author-agent/budget.sqlite'));
   const save=(name:string,value:unknown)=>writeFileSync(path.join(root,name+'.json'),JSON.stringify(value,null,2),{mode:0o600});
   try{
@@ -30,13 +35,21 @@ async function main(){
       save(task.id,artifact);
       try{
         const env=environment(task);
-        const trial=paid?await runAgent(task.prompt,env.tools,ledger,runId,event=>{events.push(event);save(task.id,artifact)},{jsonMode}):await referenceTrial(task);
+        let trial:Awaited<ReturnType<typeof runAgent>>|Awaited<ReturnType<typeof referenceTrial>>;
+        if(paid){
+          const outcome=await diagnose(task.prompt,env.tools,ledger,runId,event=>{events.push(event);save(task.id,artifact)},{jsonMode});
+          if(outcome.status==='incomplete'){artifact.delivery=outcome.delivery;throw Error(outcome.failure)}
+          trial=outcome.trial;
+        }else trial=await referenceTrial(task);
+        const delivery=deliver(contextFromInput(task.prompt),trial.verdict,trial.evidence);
         const result=evaluate(task,trial.verdict,trial.evidence);
+        const deliveryGrade=evaluate(task,delivery.verdict,trial.evidence);
+        artifact.delivery=delivery;artifact.delivery_grade=deliveryGrade;
         Object.assign(artifact,{status:'completed',verdict:trial.verdict,evidence:trial.evidence,grade:result,budget:ledger.summary(runId),...('provider' in trial&&'usage' in trial?{provider:trial.provider,usage:trial.usage}:{}),human_review:{status:'pending'},review_binding:digest({case:task,verdict:trial.verdict,evidence:trial.evidence,version})});
         save(task.id,artifact);
-        outcomes.push({case_id:task.id,status:'completed',automatic_passed:result.automatic_passed});
-        console.log(`${task.id}: automatic=${result.automatic_passed?'pass':'fail'} human=pending`);
-        if(!result.automatic_passed)process.exitCode=1;
+        outcomes.push({case_id:task.id,status:'completed',automatic_passed:result.automatic_passed,delivery_status:delivery.status,delivery_goal_passed:deliveryGrade.automatic_passed});
+        console.log(`${task.id}: raw=${result.automatic_passed?'pass':'fail'} delivery=${delivery.status} delivery_goal=${deliveryGrade.automatic_passed} human=pending`);
+        if(!result.automatic_passed||!deliveryGrade.automatic_passed)process.exitCode=1;
       }catch(error){
         const known=['provider_call_unconfirmed','requested_model_unavailable','missing_deepseek_key','budget_exceeded','unresolved_provider_charge','request_size_budget','agent_output_incomplete','agent_output_not_json','agent_output_schema','tool_call_budget','model_turn_budget'];
         const code=error instanceof Error&&known.includes(error.message)?error.message:'trial_infrastructure_failure';
@@ -48,7 +61,7 @@ async function main(){
       }
     }
   }finally{
-    save('summary',{run_id:runId,version,model_called:paid,selected:selected.length,completed:outcomes.filter(x=>x.status==='completed').length,automatic_passed:outcomes.filter(x=>x.automatic_passed).length,human_reviewed:0,outcomes,budget:ledger.summary(runId)});
+    save('summary',{run_id:runId,version,model_called:paid,selected:selected.length,completed:outcomes.filter(x=>x.status==='completed').length,automatic_passed:outcomes.filter(x=>x.automatic_passed).length,delivery_admitted:outcomes.filter(x=>x.delivery_status==='admitted').length,delivery_recovered:outcomes.filter(x=>x.delivery_status==='recovered').length,delivery_goal_passed:outcomes.filter(x=>x.delivery_goal_passed).length,human_reviewed:0,outcomes,budget:ledger.summary(runId)});
     console.log(`run=${runId} model=${paid} completed=${outcomes.filter(x=>x.status==='completed').length}/${selected.length} upper_estimate_cny=${ledger.summary(runId).upper_estimate_cny}`);
     ledger.close();
   }
