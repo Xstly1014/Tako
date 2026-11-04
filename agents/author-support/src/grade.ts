@@ -8,13 +8,18 @@ export function parseVerdict(text:string):Verdict{
 }
 // A narrow code grader for the first diagnostic. It does not assess prose,
 // helpfulness or empirical agent quality; those still require human review.
-export function grade(verdict:Verdict,ledger:Evidence[],workId:string,previewId:string){
-  const failures:string[]=[],cited=ledger.filter(x=>verdict.evidence_ids.includes(x.result.evidence_id));
-  if(new Set(verdict.evidence_ids).size!==verdict.evidence_ids.length||cited.length!==verdict.evidence_ids.length)failures.push('invalid_evidence_reference');
+export function workSnapshot(cited:Evidence[],workId:string){
+  const failures:string[]=[];
   const states=cited.filter(x=>x.tool==='read_work_state'&&x.result.status==='ok'&&x.result.data.work_id===workId).map(x=>(x.result as Extract<ToolResult,{status:'ok'}>).data).sort((a,b)=>Number(b.state_revision)-Number(a.state_revision)||Number(typeof b.display_limited==='boolean')-Number(typeof a.display_limited==='boolean'));
   const state=states[0];
   if(state&&states.some(x=>x.state_revision===state.state_revision&&['author_hidden','work_limited','display_version','last_version'].some(k=>x[k]!==state[k])))failures.push('inconsistent_state_evidence');
   if(state&&typeof state.display_limited==='boolean'&&states.some(x=>x.state_revision===state.state_revision&&typeof x.display_limited==='boolean'&&x.display_limited!==state.display_limited))failures.push('inconsistent_state_evidence');
+  return {state,failures};
+}
+export function grade(verdict:Verdict,ledger:Evidence[],workId:string,previewId:string){
+  const failures:string[]=[],cited=ledger.filter(x=>verdict.evidence_ids.includes(x.result.evidence_id));
+  if(new Set(verdict.evidence_ids).size!==verdict.evidence_ids.length||cited.length!==verdict.evidence_ids.length)failures.push('invalid_evidence_reference');
+  const snapshot=workSnapshot(cited,workId),state=snapshot.state;failures.push(...snapshot.failures);
   const receipts=cited.filter(x=>x.tool==='read_publication_result'&&x.result.status==='ok'&&x.result.data.preview_id===previewId).map(x=>(x.result as Extract<ToolResult,{status:'ok'}>).data);
   if(state&&ledger.some(x=>x.tool==='read_work_state'&&x.result.status==='ok'&&x.result.data.work_id===workId&&Number(x.result.data.state_revision)>Number(state.state_revision)))failures.push('stale_state_evidence');
   if(verdict.publication==='confirmed'&&!receipts.some(x=>{

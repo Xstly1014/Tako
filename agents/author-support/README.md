@@ -20,6 +20,8 @@ node --env-file=.runtime/author-agent/.env agents/author-support/scripts/suite.t
 # 可选 --case ambiguous，仅运行指定任务；不因重跑覆盖原run。
 node agents/author-support/scripts/replay.ts .runtime/author-agent/suites/<run_id>/<case_id>.json
 node agents/author-support/scripts/review.ts .runtime/author-agent/suites/<run_id> .runtime/author-agent/my-review.json
+# 零模型费用：原始模型输出经过当前交付校验，写入独立新目录。
+node agents/author-support/scripts/delivery-replay.ts .runtime/author-agent/suites/<run_id>
 ```
 
 真实探针要求已有 `127.0.0.1:3300/api` 测试服务和 MySQL，校验测试环境响应头，不自行启停服务、升级或清数据库。注册两个新合成账号，构造工作稿/预览/正式版/隐藏/跨账号场景。只有准备与清理脚本有写权限；模型只收到四个 GET 工具。退出时隐藏自己已跟踪的合成作品并撤销会话，保留草稿与审计。异常中断或清理失败须检查本次自有资源，不能清共享数据或认证计数。
@@ -37,3 +39,9 @@ node agents/author-support/scripts/review.ts .runtime/author-agent/suites/<run_i
 `replay`不调用模型，按当前评分器重算原证据，显示原评分器版本，不覆盖旧成绩。案例变化或答案/证据绑定不一致时拒绝；哈希是本地一致性检查，不是防篡改签名。`review`输入需包含run_id、reviewer和items，每项为case_id、review_binding、四个布尔criteria（factual/answers_question/advice_safe/uncertainty）及notes；不会默认判通过，不覆盖已有human-review.json。程序通过但人工不通过，仍不能算业务通过。记录复核者身份，不冒充独立双人标注。
 
 首批原始失败、改动与成本详见 [多任务复盘](../../docs/reviews/author-agent-development-suite-review.md)。当前仍有失败，测试工具与真实接口通过不代表Agent可上线。共享CI归主开发维护，本包先提供可独立执行的本机门禁。
+
+回答校验入口为 `src/diagnostic.ts` 的 `diagnose`，调用方只展示顶层 `delivery.verdict`；`trial` 是评测诊断数据，不是对用户的答复。无论正常结束或推理未完成，均有明确的 delivery。先核对原资源/状态证据和可用下一步，再用受控事实文字生成解释，**不转发模型自由解释**。格式错误、冲突证据、无目标的导航等返回 `fallback`，不自动修复或重试模型，不发起业务写入。尚未接App/HTTP产品入口，不能直接拿CLI接口宣称上线；接可切号客户端前须补输出时的会话代次复核。
+
+`suite`分别保存原模型grade、delivery和delivery_grade，不把回退计作任务成功；任一目标失败退出非0。`delivery-replay`只接收原合成开发批次，验证原案例与证据绑定，不接收无来源的聊天答案；写入 `.runtime/author-agent/delivery-runs/`，不覆盖原批次。对该目录运行原 `review`，复核的是最终交付文本；对原suite目录运行review，复核的仍是原模型输出，二者不能混称。
+
+程序检查和模板不是对所有错误的证明。当前语境解析只支持既有中文标识写法；缺少或冲突标识保守回退，不能声称支持任意自然语言实体解析。测试里的SDK client注入是可信测试代码依赖，不是模型工具参数，也没有生产CLI改供应商地址的选项。成本不明仍保持账本阻断，真实供应商对账恢复未验。结果及退出门槛见[回答校验复盘](../../docs/reviews/author-agent-delivery-review.md)。

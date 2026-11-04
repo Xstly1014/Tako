@@ -94,21 +94,25 @@ async function main(){
     setupComplete=true;report.checks=checks;report.tool_trace=tools.trace();report.foreign_trace=foreign.trace();
     console.log(`PASS real author tool probe: ${checks.length} checks; no model score or external model call implied`);
     if(process.argv.includes('--model')){
-      const {runAgent}=await import('../src/agent.ts');
+      const {diagnose}=await import('../src/diagnostic.ts');
       const ledger=new BudgetLedger(path.resolve('.runtime/author-agent/budget.sqlite'));
       try{
         const live=createAuthorTools(transport);
         const prompt=`请确认这份原发布是否完成，并查明朋友为何打不开作品。作品ID：${r1.work_id}，原预览ID：${p2.id}。我当时没看到结果，现在不想重复发布，也不要替我修改内容。`;
-        const model=await runAgent(prompt,live,ledger,runId);
+        const outcome=await diagnose(prompt,live,ledger,runId,undefined,{jsonMode:true});
+        if(outcome.status==='incomplete'){report.delivery=outcome.delivery;throw Error(outcome.failure)}
+        const model=outcome.trial;
         const supported=grade(model.verdict,model.evidence,r1.work_id,p2.id);
         const coverage={publication_confirmed:model.verdict.publication==='confirmed',hidden_identified:model.verdict.access==='author_hidden'};
         const automaticPassed=supported.supported&&Object.values(coverage).every(Boolean);
-        report={...report,model_called:true,kind:'single_agent_development_trial',provider:model.provider,usage:model.usage,budget:ledger.summary(runId),grade:{...supported,coverage,automatic_passed:automaticPassed},agent_trace:live.trace(),explanation_sha256:createHash('sha256').update(model.verdict.explanation).digest('hex')};
+        const deliverySupported=grade(model.delivery.verdict,model.evidence,r1.work_id,p2.id);
+        const deliveryPassed=model.delivery.status==='admitted'&&deliverySupported.supported&&model.delivery.verdict.publication==='confirmed'&&model.delivery.verdict.access==='author_hidden';
+        report={...report,model_called:true,kind:'single_agent_development_trial',provider:model.provider,usage:model.usage,budget:ledger.summary(runId),grade:{...supported,coverage,automatic_passed:automaticPassed},delivery:model.delivery,delivery_goal_passed:deliveryPassed,agent_trace:live.trace(),explanation_sha256:createHash('sha256').update(model.verdict.explanation).digest('hex')};
         // Human review artifact contains only this new synthetic user's question
         // and model explanation, never raw HTTP bodies, key, token or reasoning.
-        writeFileSync(path.join(directory,'review.json'),JSON.stringify({synthetic_only:true,prompt,verdict:model.verdict,human_review_required:true},null,2),{mode:0o600});
-        console.log(`MODEL trial: automatic_checks=${automaticPassed?'passed':'failed'} human_review=pending upper_estimate_cny=${ledger.summary(runId).upper_estimate_cny}`);
-        if(!automaticPassed)process.exitCode=1;
+        writeFileSync(path.join(directory,'review.json'),JSON.stringify({synthetic_only:true,prompt,verdict:model.verdict,delivery:model.delivery,human_review_required:true},null,2),{mode:0o600});
+        console.log(`MODEL trial: raw_checks=${automaticPassed?'passed':'failed'} delivery=${model.delivery.status} delivery_goal=${deliveryPassed} human_review=pending upper_estimate_cny=${ledger.summary(runId).upper_estimate_cny}`);
+        if(!automaticPassed||!deliveryPassed)process.exitCode=1;
       }catch(e){report={...report,model_called:true,model_status:'incomplete',budget:ledger.summary(runId)};throw e;}
       finally{ledger.close();}
     }
