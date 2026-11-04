@@ -63,10 +63,11 @@ const commentColumns = `c.id,c.work_id,c.author_id,a.nickname,c.root_id,c.reply_
 const commentJoins = ` FROM work_comments c JOIN accounts a ON a.id=c.author_id
  LEFT JOIN work_comments target ON target.id=c.reply_to LEFT JOIN accounts ta ON ta.id=target.author_id `
 
-func scanComment(row interface{ Scan(...any) error }) (Comment, error) {
+func scanComment(row interface{ Scan(...any) error }, extra ...any) (Comment, error) {
 	var c Comment
 	var id, work, author, root, reply []byte
-	e := row.Scan(&id, &work, &author, &c.Nickname, &root, &reply, &c.ReplyName, &c.Content, &c.Sequence, &c.Revision, &c.CreatedAt, &c.Deleted, &c.Blocked, &c.Replies, &c.Reason)
+	fields := []any{&id, &work, &author, &c.Nickname, &root, &reply, &c.ReplyName, &c.Content, &c.Sequence, &c.Revision, &c.CreatedAt, &c.Deleted, &c.Blocked, &c.Replies, &c.Reason}
+	e := row.Scan(append(fields, extra...)...)
 	if errors.Is(e, sql.ErrNoRows) {
 		return c, ErrNotFound
 	}

@@ -114,6 +114,22 @@ func TestCommentHTTPContextContractAndRoles(t *testing.T) {
 	}
 	var out publication.CommentResult
 	json.Unmarshal(result.Body.Bytes(), &out)
+	feedbackPath := "/api/my/work-feedback"
+	call("GET", feedbackPath, nil, "", 401)
+	inbox := call("GET", feedbackPath+"?status=awaiting_author&cursor=0", nil, tokens[owner], 200)
+	var feedback publication.AuthorFeedbackPage
+	if e = json.Unmarshal(inbox.Body.Bytes(), &feedback); e != nil || len(feedback.Items) != 1 || feedback.Items[0].Comment.ID != out.ID || !feedback.Items[0].AwaitingAuthor {
+		t.Fatal("author inbox contract", e)
+	}
+	call("GET", feedbackPath+"/"+out.ID.String(), nil, tokens[owner], 200)
+	call("GET", feedbackPath+"/"+out.ID.String(), nil, tokens[reader], 404)
+	call("GET", feedbackPath+"/invalid", nil, tokens[owner], 404)
+	call("GET", feedbackPath+"?status=unread", nil, tokens[owner], 400)
+	call("GET", feedbackPath+"?cursor=-1", nil, tokens[owner], 400)
+	call("GET", feedbackPath+"?cursor=9007199254740992", nil, tokens[owner], 400)
+	if other := call("GET", feedbackPath, nil, tokens[reader], 200); strings.Contains(other.Body.String(), "不保存版本") {
+		t.Fatal("cross-owner feedback leaked")
+	}
 	// Actual password service issues this native session; no browser Origin or
 	// Cookie is injected. This verifies transport/ownership, not a phone login UI.
 	if e = api.Identity.SetupPassword(ctx, reader, "native-comment-test-password", "native-comment-test"); e != nil {
@@ -128,6 +144,18 @@ func TestCommentHTTPContextContractAndRoles(t *testing.T) {
 		t.Fatal("native retry changed original receipt")
 	}
 	nativeList := call("GET", path+"/comments", nil, nativeToken, 200)
+	call("GET", feedbackPath, nil, nativeToken, 200)
+	for _, route := range []string{feedbackPath, feedbackPath + "/" + out.ID.String()} {
+		req := httptest.NewRequest("GET", route, nil)
+		req.Header.Set("Authorization", "Bearer "+nativeToken)
+		req.Header.Set("Origin", api.Origin)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		validateResponse(t, req, res)
+		if res.Code != 403 {
+			t.Fatal("native feedback accepted browser Origin")
+		}
+	}
 	if !strings.Contains(nativeList.Body.String(), `"can_delete":true`) {
 		t.Fatal("native author lost delete permission")
 	}
@@ -151,6 +179,7 @@ func TestCommentHTTPContextContractAndRoles(t *testing.T) {
 	call("GET", "/api/ops/comments", nil, tokens[owner], 200)
 	action := publication.CommentAction{MutationID: uuid.New(), ExpectedAccountID: owner, ExpectedRevision: 1, Action: "block", Reason: "测试风险原因"}
 	call("POST", "/api/ops/comments/"+out.ID.String()+"/actions", action, tokens[owner], 200)
+	call("GET", feedbackPath+"/"+out.ID.String(), nil, tokens[owner], 404)
 	own := call("GET", "/api/my/comments", nil, tokens[reader], 200)
 	if !strings.Contains(own.Body.String(), "测试风险原因") {
 		t.Fatal("own reason missing")

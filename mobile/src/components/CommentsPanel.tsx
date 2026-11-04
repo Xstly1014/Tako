@@ -351,12 +351,14 @@ export function CommentsPanel({
   visible,
   onClose,
   onDirtyChange,
+  loadThread,
 }: {
   workId: string;
   context: string;
   visible: boolean;
   onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  loadThread?: (signal?: AbortSignal) => Promise<CommentPage>;
 }) {
   const { session, account, phase, generation } = useSession();
   const api = useCommentsApi();
@@ -428,8 +430,10 @@ export function CommentsPanel({
     viewer = account?.id ?? "guest";
   const load = useCallback(
     (cursor: number, signal?: AbortSignal) =>
-      api.list(workId, cursor, undefined, signal),
-    [api, workId],
+      loadThread
+        ? loadThread(signal)
+        : api.list(workId, cursor, undefined, signal),
+    [api, workId, loadThread],
   );
   const publish = async () => {
     setNotice("");

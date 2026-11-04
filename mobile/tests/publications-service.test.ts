@@ -10,6 +10,8 @@ import { community, work } from "../src/api/reader.ts";
 import { readVersion } from "../src/api/versions.ts";
 import { readRevisionReview } from "../src/publication/revision-review.ts";
 import { readAuthorFeedback } from "../src/author-works/feedback.ts";
+import { AuthorFeedbackApi } from "../src/api/author-feedback.ts";
+import { CommentsApi } from "../src/api/comments.ts";
 import type { components } from "../src/api/contract";
 const session = () => {
   let token: string | null = null;
@@ -156,6 +158,15 @@ test("真实API修订发行闭环：同作品追加、丢响应恢复、竞争�
     assert.equal(feedback.id, workId);
     assert.ok(feedback.context);
     assert.equal("content" in feedback, false);
+    const discussion = await a.authorized<components["schemas"]["PublicWork"]>("/works/" + workId);
+    const root = await new CommentsApi((p,o) => b.authorized(p,o)).create(workId, {mutation_id:randomUUID(),expected_account_id:b.snapshot().account!.id,content:"跨作品收件箱服务验证",context:discussion.comment_context!});
+    const inbox = new AuthorFeedbackApi((p,o) => a.authorized(p,o));
+    assert.equal((await inbox.page("awaiting_author")).items[0].comment.id,root.id);
+    assert.equal((await inbox.threadPage(root.id,workId)).items.length,1);
+    await new CommentsApi((p,o) => a.authorized(p,o)).create(workId,{mutation_id:randomUUID(),expected_account_id:a.snapshot().account!.id,content:"作者服务验证回应",context:discussion.comment_context!,reply_to:root.id});
+    assert.equal((await inbox.page("awaiting_author")).items.length,0);
+    assert.equal((await inbox.page("all")).items[0].awaiting_author,false);
+    await assert.rejects(new AuthorFeedbackApi((p,o)=>b.authorized(p,o)).thread(root.id,workId));
     await assert.rejects(readAuthorFeedback(new AuthorWorksApi((p, o) => b.authorized(p, o)), (p, o) => b.authorized(p, o), workId, new AbortController().signal));
     const reviewed = await readRevisionReview(directed, author, target.state, 2);
     assert.equal(reviewed.source.content, (await api.source(draft.draft_id)).content);

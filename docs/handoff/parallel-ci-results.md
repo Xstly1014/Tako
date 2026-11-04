@@ -1,5 +1,23 @@
 # 移动端 CI 与独立环境复现 · 2026-11-02
 
+## 最新检查点：已确认的作者列表 UI 重做
+
+2026-11-04用户选择A、列表不显示版本/管理入详情，并确认评论收藏真实统计、点赞不显示。完整实现/失败/工程和设备证据见 [页面复盘](../reviews/mobile-ui-rework-stage-review.md)。限定本人目录查询/两属性契约及完整生成声明、独立视图和本端测试，不改C1/小说/锁/原生配置。完整Go race/vet/真实MySQL/契约、136模型、类型/lint/生成契约、四组件+C1、20顺序服务、原整条真实作者业务均通过。新独立三档布局脚本本机使用真实API快照通过，未冒充已接入CI。
+
+29e9ecb完整Android列表链路通过；e72f148最终标签包构建/验签/保留数据覆盖安装与安装后哈希校验、最终界面复验通过。最终APK指纹与截图位置见复盘。用户视觉评审待，不称全App重做完成；本次精确CI待最终推送查询。
+
+## 最新检查点：整合与本机 Android 验收（2026-11-04）
+
+普通合入 main `ca91ffe` 为冻结 `0ab7b50`，API0.18/0018 与反馈增量完整保留，声明从契约生成。135模型、20顺序真实服务、类型/lint/生成契约、四组件及小说阅读组件通过；本机新建APK/验签/保留数据安装/安装后哈希一致，vivo Android14实测账号收藏/冷启动/受控断网退出与切号、收件箱回复删除重算、目录翻页/长文/后台/隐藏重入、修订发行丢响应重开只读恢复通过。细项、失败工具纠正、源码与包SHA及剩余C1设备队列见[整合真机复盘](../reviews/android-integrated-device-review.md)。首次原生发布操作内有同标识POST传输重试，后端仅一版；重开POST增量0，不掩盖该差异。
+
+前一 `dfe0ff6` 精确 [Mobile](https://github.com/Xstly1014/Tako/actions/runs/41656705940)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41656705974)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41656705857) 全部 success，真实整条步骤亦成功；不能当成本次尚未推送提交的CI。主开发已合入8d79e56，收件箱dfe0ff6仍待其下一窗口审查。不改其primary-progress、不直接推main、不改共享锁文件。
+
+## 当前：跨作品反馈收件箱全链路
+
+[完整复盘](../reviews/author-feedback-inbox-stage-review.md)。新增两个只读API/错误语义/限定OpenAPI及生成类型，App服务端分页、待回应筛选、具体线程定位和原回复/删除闭环。完整Go race/vet/真实MySQL/契约/路由覆盖通过，补403后聚焦HTTP回归通过；132模型、20顺序服务、四组件+C1、类型/lint/生成契约、7门禁及实际整条HTTP/MySQL页面通过。运行API已沿原卷/凭据保留身份及计数更新至当前代码/迁移17，非Web/ECS/原生升级。精确CI待推送核验，不套用旧SHA。
+
+前包8d79e56的[Mobile](https://github.com/Xstly1014/Tako/actions/runs/41606590438)、[Backend](https://github.com/Xstly1014/Tako/actions/runs/41606590631)、[Frontend](https://github.com/Xstly1014/Tako/actions/runs/41606590423)全部success，实际整条步骤成功；其P1关闭。main d913b30已独立审查整合427eff8，8d79e56及新收件箱待主开发下一窗口。USB暂停；安全预检诊断建议已落实，不把新增诊断当偶发失败根因已修复。
+
 ## 当前：作者反馈工作台
 
 完整[复盘](../reviews/author-feedback-stage-review.md)。实际新屏/路由+原评论组件+真实HTTP/MySQL贯通归属、线程、回复/删除丢响应重查、返回、内存输入恢复/资格GET重试及切号隔离；原整链路保持。原20顺序服务、四组件+C1通过；普通合入main01bfd70为07b1b62后127模型、类型/lint/完整契约及7门禁、整条再次通过。精确CI待本包推送核对，不引用旧SHA作为本包通过。N2内核是同事成果，未在本机升级3300或独立执行其Go/迁移；USB仍暂停。

@@ -17,11 +17,19 @@ async function main() {
   const { catalogFixture } = await import(
     "../mobile/tests/helpers/catalog-fixture.ts"
   );
-  const response = await fetch("http://127.0.0.1:3300/api/community", {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok || response.headers.get("X-Tako-Environment") !== "test")
+  let response;
+  try {
+    response = await fetch("http://127.0.0.1:3300/api/community", {
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    console.error("DIAG author-workflow-preflight network=unavailable");
     throw Error("local_test_environment_required");
+  }
+  if (!response.ok || response.headers.get("X-Tako-Environment") !== "test") {
+    console.error(`DIAG author-workflow-preflight http_status=${response.status} environment=${response.headers.get("X-Tako-Environment") === "test" ? "test" : "not_test"}`);
+    throw Error("local_test_environment_required");
+  }
   const createSession = () => {
     let token = null;
     return new Session(

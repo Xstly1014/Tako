@@ -25,6 +25,8 @@ type AuthorCatalogItem struct {
 	AuthorWorkSummary
 	LatestTitle    string `json:"latest_title"`
 	DisplayLimited bool   `json:"display_limited"`
+	CommentCount   uint64 `json:"comment_count"`
+	FavoriteCount  uint64 `json:"favorite_count"`
 }
 
 type AuthorCatalogPage struct {
@@ -89,7 +91,14 @@ func (s Store) AuthorCatalog(ctx context.Context, owner uuid.UUID, in AuthorCata
 		return out, err
 	}
 	defer tx.Rollback()
-	statement := `SELECT w.id,v.title,w.source_draft_id,w.author_hidden,w.platform_limited,w.display_version,w.last_version,latest.title,v.platform_limited
+	// Count only this page's owner-scoped works. Replies under an invisible root
+	// are not readable and must not inflate the comment total. Hiding a work does
+	// not erase its existing engagement; favorites count active relationships only.
+	statement := `SELECT w.id,v.title,w.source_draft_id,w.author_hidden,w.platform_limited,w.display_version,w.last_version,latest.title,v.platform_limited,
+	 (SELECT COUNT(*) FROM work_comments c LEFT JOIN work_comments root ON root.id=c.root_id AND root.work_id=c.work_id
+	  WHERE c.work_id=w.id AND c.deleted=FALSE AND c.blocked=FALSE AND
+	  (c.root_id IS NULL OR (root.deleted=FALSE AND root.blocked=FALSE))),
+	 (SELECT COUNT(*) FROM work_favorites f WHERE f.work_id=w.id AND f.active=TRUE)
 	 FROM works w JOIN work_versions v ON v.work_id=w.id AND v.version=w.display_version
 	 JOIN work_versions latest ON latest.work_id=w.id AND latest.version=w.last_version WHERE w.owner_id=?`
 	args := []any{owner[:]}
@@ -128,7 +137,7 @@ func (s Store) AuthorCatalog(ctx context.Context, owner uuid.UUID, in AuthorCata
 	for rows.Next() {
 		var item AuthorCatalogItem
 		var id, draft []byte
-		if err = rows.Scan(&id, &item.Title, &draft, &item.AuthorHidden, &item.PlatformLimited, &item.DisplayVersion, &item.LastVersion, &item.LatestTitle, &item.DisplayLimited); err != nil {
+		if err = rows.Scan(&id, &item.Title, &draft, &item.AuthorHidden, &item.PlatformLimited, &item.DisplayVersion, &item.LastVersion, &item.LatestTitle, &item.DisplayLimited, &item.CommentCount, &item.FavoriteCount); err != nil {
 			rows.Close()
 			return out, err
 		}

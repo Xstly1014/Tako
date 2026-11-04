@@ -75,6 +75,7 @@ let stage = "bundle";
     managementRequests = 0;
   let catalogMode = false, catalogFail = false, pairFail = false, pairStateChange = false;
   const catalogRequests = [];
+  let inboxPagingFail = true;
   const caseTime = '2026-10-01T00:00:00Z';
   let caseState = { id: 50, work_id: id, version: 1, scope: 'version', reason: '固定版本处置原因', state: 'active', revision: 1, created_at: caseTime, next_appeal_at: null };
   let appealDrop = true, appealReadFail = false, appealConflict = false;
@@ -113,6 +114,13 @@ let stage = "bundle";
       const viewer = req.headers().authorization?.endsWith("b".repeat(64))
         ? b
         : a;
+      if(p === '/api/my/work-feedback') {
+        if(viewer!==a)return json(route,{items:[],next:0});
+        const status=url.searchParams.get('status'), cursor=Number(url.searchParams.get('cursor')||0);
+        if(cursor && inboxPagingFail){inboxPagingFail=false;return json(route,{error:'service_unavailable'},503);}
+        const all=Array.from({length:25},(_,index)=>({work_title:index%2?'作品乙':'作品甲',awaiting_author:index%2===0,comment:{id:'99999999-0000-4000-8000-'+String(index+1).padStart(12,'0'),work_id:index%2?'44444444-4444-4444-8444-444444444444':id,author_id:b,nickname:'读者',root_id:null,reply_to:null,reply_name:'',content:'收件箱根 '+index,sequence:100-index,revision:1,replies:0,can_delete:true,created_at:caseTime,deleted:false,blocked:false,reason:''}})).filter(x=>(status==='all'||x.awaiting_author)&&(!cursor||x.comment.sequence<cursor));
+        return json(route,{items:all.slice(0,20),next:all.length>20?all[19].comment.sequence:0});
+      }
       if (p.startsWith('/api/my/moderation')) {
         if (viewer !== a) return p === '/api/my/moderation' ? json(route, { items: [], next: 0 }) : json(route, { error: 'resource_not_found' }, 404);
         if (p === '/api/my/moderation') return json(route, { items: [caseState], next: 0 });
@@ -155,14 +163,14 @@ let stage = "bundle";
         const cursor = url.searchParams.get('cursor') ?? '';
         catalogRequests.push({ q, visibility, restriction, cursor });
         if (cursor && catalogFail) { catalogFail = false; return json(route, { error: 'internal_error' }, 500); }
-        let items = Array.from({ length: 45 }, (_, n) => ({ ...state, id: n === 44 ? id : 'aaaaaaaa-aaaa-4aaa-8aaa-' + String(n).padStart(12, '0'), title: n === 44 ? '甲的正式作品' : '目录 ' + n, latest_title: n === 44 ? '甲的最新正式标题' : '目录 ' + n, display_limited: false, author_hidden: n === 44 ? state.author_hidden : false }));
+        let items = Array.from({ length: 45 }, (_, n) => ({ ...state, id: n === 44 ? id : 'aaaaaaaa-aaaa-4aaa-8aaa-' + String(n).padStart(12, '0'), title: n === 44 ? '甲的正式作品' : '目录 ' + n, latest_title: n === 44 ? '甲的最新正式标题' : '目录 ' + n, display_limited: false, comment_count: 0, favorite_count: 0, author_hidden: n === 44 ? state.author_hidden : false }));
         items = items.filter(x => (!q || (x.title + x.latest_title).toLowerCase().includes(q)) && (visibility === 'all' || x.author_hidden === (visibility === 'hidden')) && (restriction === 'all' || (x.platform_limited || x.display_limited) === (restriction === 'restricted')));
         const offset = cursor ? Number(cursor.slice(4)) : 0;
         return json(route, { items: items.slice(offset, offset + 20), next_cursor: offset + 20 < items.length ? 'page' + (offset + 20) : '' });
       }
       if (p === "/api/my/works")
         return json(route, {
-          items: viewer === a ? [{ ...state, title: "甲的正式作品", latest_title: "甲的正式作品", display_limited: false }] : [],
+          items: viewer === a ? [{ ...state, title: "甲的正式作品", latest_title: "甲的正式作品", display_limited: false, comment_count: 0, favorite_count: 0 }] : [],
           next_cursor: "",
         });
       if (/\/my\/works\/[^/]+\/versions\/[12]$/.test(p)) {
@@ -476,7 +484,9 @@ let stage = "bundle";
     assert.equal(catalogRequests.length, beforeEditing);
     assert.equal(await page.getByRole('button', { name: '加载更多作品', exact: true }).isDisabled(), true);
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
-    await page.getByText('最新正式标题：甲的最新正式标题', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).waitFor();
+    assert.equal(await page.getByText(/最新正式标题：|展示 V/).count(), 0);
+    await page.getByText('评论 0 · 收藏 0', { exact: true }).waitFor();
     assert.equal(catalogRequests.at(-1).q, '甲的最新');
     await page.getByRole('button', { name: '清空条件', exact: true }).click();
     await page.getByText(/已读取 20 件/).waitFor();
@@ -487,7 +497,9 @@ let stage = "bundle";
     await page.getByRole('button', { name: '加载更多作品', exact: true }).click();
     await page.getByText(/已读取 45 件/).waitFor();
     stage = "catalog-management-return";
+    await page.getByRole('button', { name: '筛选', exact: true }).click();
     await page.getByRole('button', { name: '作者未隐藏', exact: true }).click();
+    await page.getByRole('button', { name: '应用筛选', exact: true }).click();
     await page.getByRole('textbox', { name: '作品标题关键词' }).fill('甲的最新');
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
     await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).click();
@@ -500,7 +512,9 @@ let stage = "bundle";
     assert.equal(catalogRequests.at(-1).visibility, 'shown');
     assert.equal(catalogRequests.at(-1).q, '甲的最新');
     assert.equal(attempts.length, afterHideAttempts);
+    await page.getByRole('button', { name: '筛选', exact: true }).click();
     await page.getByRole('button', { name: '作者已隐藏', exact: true }).click();
+    await page.getByRole('button', { name: '应用筛选', exact: true }).click();
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
     await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).click();
     await page.getByText('私有版本1', { exact: false }).first().waitFor();
@@ -569,6 +583,25 @@ let stage = "bundle";
       await page.getByText("私有版本1", { exact: false }).count(),
       0,
     );
+    stage='feedback-inbox-paging';
+    await page.evaluate(async()=>{await window.authorUi.session.logout();await window.authorUi.session.signIn('login','a@example.test','fixture-password');window.authorUi.navigate('/author-feedback');});
+    await page.getByText(/已读取 13 条反馈/).waitFor();
+    await page.getByRole('button',{name:'全部讨论',exact:true}).click();
+    await page.getByText(/已读取 20 条反馈/).waitFor();
+    await page.getByRole('button',{name:'加载更多反馈',exact:true}).click();
+    await page.getByText('反馈读取失败',{exact:true}).waitFor();
+    assert.equal(await page.getByText(/^收件箱根 /).count(),20);
+    await page.getByRole('button',{name:'重新加载',exact:true}).click();
+    await page.getByText(/已读取 25 条反馈/).waitFor();
+    assert.equal(await page.getByText(/^收件箱根 /).count(),25);
+    await page.getByRole('button',{name:'待回应讨论',exact:true}).click();
+    await page.getByText(/已读取 13 条反馈/).waitFor();
+    await page.evaluate(()=>{window.authorUi.holdNavigation=true;});
+    await page.getByRole('button',{name:'打开反馈讨论 100',exact:true}).click();
+    assert.deepEqual(await page.evaluate(()=>window.authorUi.lastPush),{pathname:'/my-work-feedback/[id]',params:{id,thread_id:'99999999-0000-4000-8000-000000000001'}});
+    await page.evaluate(async()=>{await window.authorUi.session.logout();await window.authorUi.session.signIn('login','b@example.test','fixture-password');});
+    await page.getByText('暂无待回应讨论',{exact:true}).waitFor();
+    assert.equal(await page.getByText(/^收件箱根 /).count(),0);
     assert.deepEqual(errors, []);
     console.log(
       "PASS author component fixtures: session envelope and pending draft confirmation preserve server management, offline draft grant hides management without requests, online read-only restoration, real entry, confirmation, uncertain retry, fresh state, restricted restore, cancellation, conflict, read failure and account isolation.",

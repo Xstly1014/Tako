@@ -19,6 +19,52 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/work-feedback:
+    get:
+      operationId: listAuthorWorkFeedback
+      tags: [评论]
+      summary: 本人公开作品的跨作品可见主评论收件箱
+      description: 按会话账号验证归属及当前作品/展示版/评论可见性；不含私稿和历史正文。主评论sequence倒序，每页20条。待回应仅表示线程下没有当前可见作者回复，不是未读或已处理状态；删除或屏蔽作者回复会重新满足条件。各页重新判断可见性，不保证跨请求冻结快照。PUBLICATION_ENABLED控制。
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string, enum: [all, awaiting_author], default: all}
+        - in: query
+          name: cursor
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991, default: 0}
+      responses:
+        '200':
+          description: 本人反馈页；next为0表示没有下一页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorFeedbackPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/work-feedback/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getAuthorWorkFeedback
+      tags: [评论]
+      summary: 重新验证本人反馈主评论，定位线程
+      description: 仅本人当前可公开作品的可见主评论。不存在、他人作品、回复ID、隐藏或受限统一404；不能用列表旧快照越过现状验证。PUBLICATION_ENABLED控制。
+      responses:
+        '200':
+          description: 当前可见主评论，不代表新的发表或删除权限
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorFeedbackEntry'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/novels:
     get:
       operationId: listPublicNovels
@@ -3804,6 +3850,24 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    AuthorFeedbackEntry:
+      type: object
+      additionalProperties: false
+      required: [comment, work_title, awaiting_author]
+      properties:
+        comment: {$ref: '#/components/schemas/Comment'}
+        work_title: {type: string, minLength: 1, maxLength: 200}
+        awaiting_author: {type: boolean}
+    AuthorFeedbackPage:
+      type: object
+      additionalProperties: false
+      required: [items, next]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/AuthorFeedbackEntry'}
+        next: {type: integer, minimum: 0, maximum: 9007199254740991}
     PublicNovel:
       type: object
       additionalProperties: false
@@ -5008,6 +5072,8 @@ components:
         title: {type: string, minLength: 1, maxLength: 200}
         latest_title: {type: string, minLength: 1, maxLength: 200, description: M3模式必返，最新正式版本标题，不是工作稿标题}
         display_limited: {type: boolean, description: M3模式必返，当前展示版本的平台限制；platform_limited仍只代表作品级限制}
+        comment_count: {type: integer, minimum: 0, maximum: 9007199254740991, description: M3模式必返；未删除或屏蔽的主评论及回复数，主评论不可见时其回复不计入；隐藏或限制作品不清空历史计数，不返回评论内容或读者身份}
+        favorite_count: {type: integer, minimum: 0, maximum: 9007199254740991, description: M3模式必返；当前有效收藏关系数，取消收藏不计入；隐藏或限制作品不清空历史计数，不返回收藏账号身份}
         draft_id: {type: string, format: uuid}
         author_hidden: {type: boolean}
         platform_limited: {type: boolean}

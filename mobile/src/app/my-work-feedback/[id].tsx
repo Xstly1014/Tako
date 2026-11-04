@@ -5,11 +5,18 @@ import { UUID } from "../../api/reader";
 import { Status } from "../../components/Ui";
 
 export default function AuthorFeedbackRoute() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, thread_id } = useLocalSearchParams<{
+    id?: string;
+    thread_id?: string;
+  }>();
   if (
     typeof id !== "string" ||
     !UUID.test(id) ||
-    id === "00000000-0000-0000-0000-000000000000"
+    id === "00000000-0000-0000-0000-000000000000" ||
+    (thread_id !== undefined &&
+      (typeof thread_id !== "string" ||
+        !UUID.test(thread_id) ||
+        thread_id === "00000000-0000-0000-0000-000000000000"))
   )
     return (
       <SafeAreaView>
@@ -20,5 +27,5 @@ export default function AuthorFeedbackRoute() {
         />
       </SafeAreaView>
     );
-  return <AuthorFeedbackScreen id={id} />;
+  return <AuthorFeedbackScreen id={id} threadId={thread_id} />;
 }

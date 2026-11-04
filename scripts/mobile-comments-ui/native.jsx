@@ -101,3 +101,5 @@ export const Alert = {
     );
   },
 };
+
+export const RefreshControl = () => null; // DOM adapter: pull gestures need native verification.
