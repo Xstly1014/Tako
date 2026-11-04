@@ -44,6 +44,7 @@ function classify(e:unknown):ErrorKind {
   if(e.code==="invalid_input"||e.code==="invalid_catalog_query")return "invalid_arguments";
   return "integration_error";
 }
+export function safeToolError(error:unknown){const kind=classify(error);return {error:kind,guidance:messages[kind]};}
 
 // The caller supplies the existing session.authorized transport. Identity is not
 // an LLM argument. Backend authorization remains authoritative on every read.

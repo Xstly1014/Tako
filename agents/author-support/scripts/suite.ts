@@ -7,7 +7,8 @@ import {evaluate,digest,graderVersion} from '../src/evaluate.ts';
 import {BudgetLedger} from '../src/budget.ts';
 import {runAgent,type Progress} from '../src/agent.ts';
 import {diagnose} from '../src/diagnostic.ts';
-import {admit,contextFromInput,deliveryVersion} from '../src/delivery.ts';
+import {contextFromInput,deliveryVersion} from '../src/delivery.ts';
+import {deliver} from '../src/recovery.ts';
 
 async function main(){
   const args=process.argv.slice(2);
@@ -16,7 +17,7 @@ async function main(){
   if(!selected.length)throw Error('invalid_case');
   const paid=args.includes('--model'),jsonMode=args.includes('--json-mode'),runId=randomUUID();
   const root=path.resolve('.runtime/author-agent/suites',runId);mkdirSync(root,{recursive:true});
-  const files=['agent.ts','tools.ts','grade.ts','evaluate.ts','cases.ts','budget.ts','policy.md','delivery.ts','diagnostic.ts'];
+  const files=['agent.ts','tools.ts','grade.ts','evaluate.ts','cases.ts','budget.ts','policy.md','delivery.ts','diagnostic.ts','recovery.ts','follow-up.ts'];
   const hashes=Object.fromEntries(files.map(x=>[x,createHash('sha256').update(readFileSync(new URL('../src/'+x,import.meta.url))).digest('hex')]));
   hashes['package-lock.json']=createHash('sha256').update(readFileSync(new URL('../package-lock.json',import.meta.url))).digest('hex');
   hashes['scripts/suite.ts']=createHash('sha256').update(readFileSync(import.meta.filename)).digest('hex');
@@ -38,7 +39,7 @@ async function main(){
           if(outcome.status==='incomplete'){artifact.delivery=outcome.delivery;throw Error(outcome.failure)}
           trial=outcome.trial;
         }else trial=await referenceTrial(task);
-        const delivery=admit(contextFromInput(task.prompt),trial.verdict,trial.evidence);
+        const delivery=deliver(contextFromInput(task.prompt),trial.verdict,trial.evidence);
         const result=evaluate(task,trial.verdict,trial.evidence);
         const deliveryGrade=evaluate(task,delivery.verdict,trial.evidence);
         artifact.delivery=delivery;artifact.delivery_grade=deliveryGrade;
@@ -58,7 +59,7 @@ async function main(){
       }
     }
   }finally{
-    save('summary',{run_id:runId,version,model_called:paid,selected:selected.length,completed:outcomes.filter(x=>x.status==='completed').length,automatic_passed:outcomes.filter(x=>x.automatic_passed).length,delivery_admitted:outcomes.filter(x=>x.delivery_status==='admitted').length,delivery_goal_passed:outcomes.filter(x=>x.delivery_goal_passed).length,human_reviewed:0,outcomes,budget:ledger.summary(runId)});
+    save('summary',{run_id:runId,version,model_called:paid,selected:selected.length,completed:outcomes.filter(x=>x.status==='completed').length,automatic_passed:outcomes.filter(x=>x.automatic_passed).length,delivery_admitted:outcomes.filter(x=>x.delivery_status==='admitted').length,delivery_recovered:outcomes.filter(x=>x.delivery_status==='recovered').length,delivery_goal_passed:outcomes.filter(x=>x.delivery_goal_passed).length,human_reviewed:0,outcomes,budget:ledger.summary(runId)});
     console.log(`run=${runId} model=${paid} completed=${outcomes.filter(x=>x.status==='completed').length}/${selected.length} upper_estimate_cny=${ledger.summary(runId).upper_estimate_cny}`);
     ledger.close();
   }

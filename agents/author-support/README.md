@@ -45,3 +45,9 @@ node agents/author-support/scripts/delivery-replay.ts .runtime/author-agent/suit
 `suite`分别保存原模型grade、delivery和delivery_grade，不把回退计作任务成功；任一目标失败退出非0。`delivery-replay`只接收原合成开发批次，验证原案例与证据绑定，不接收无来源的聊天答案；写入 `.runtime/author-agent/delivery-runs/`，不覆盖原批次。对该目录运行原 `review`，复核的是最终交付文本；对原suite目录运行review，复核的仍是原模型输出，二者不能混称。
 
 程序检查和模板不是对所有错误的证明。当前语境解析只支持既有中文标识写法；缺少或冲突标识保守回退，不能声称支持任意自然语言实体解析。测试里的SDK client注入是可信测试代码依赖，不是模型工具参数，也没有生产CLI改供应商地址的选项。成本不明仍保持账本阻断，真实供应商对账恢复未验。结果及退出门槛见[回答校验复盘](../../docs/reviews/author-agent-delivery-review.md)。
+
+当前v2交付增加 `recovered`：只允许对已引用、无矛盾且资源匹配的证据修正结论/下一步，记录原拒绝原因与corrected_fields，再经原事实校验；不修改raw_verdict或模型成绩。伪造引用、跨资源、矛盾快照及401/403不会拼接补救。`verification`分别为facts_checked、needs_clarification、unable_to_check；应答目标通过不代表读者问题都已解决。
+
+`delivery.next_step`是消费方执行的只读下一步，不是任意URL、模型新工具或自动轮询。`follow-up.ts` 的 `followUp(step, session.authorized)` 只调用已有原预览、作品状态或本人提交记录GET；提交详情经既有解码器校验后只投影状态元信息，不输出正文、标题、处置理由或候选版号。每次重新按当前会话授权，404不揭示归属，401要求重新确认身份。contact_support只返回操作提示，不发送消息。交付函数不执行下一步，当前尚未接App按钮或新HTTP路由。
+
+先审的next_step指向具体submission_id；其当前状态与原预览的历史受理回执分开。真实测试覆盖pending→withdrawn后原回执不变、其他账号拒绝。具体证据、数据来源及下一阶段见[部分事实与下一步复盘](../../docs/reviews/author-agent-recovery-review.md)。

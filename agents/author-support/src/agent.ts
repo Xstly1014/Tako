@@ -5,7 +5,8 @@ import {Buffer} from "node:buffer";
 import {BudgetLedger,limits,pricing} from "./budget.ts";
 import {toolDefinitions,type createAuthorTools} from "./tools.ts";
 import {parseVerdict,type Evidence} from "./grade.ts";
-import {admit,contextFromInput} from './delivery.ts';
+import {contextFromInput} from './delivery.ts';
+import {deliver} from './recovery.ts';
 
 export type Progress={kind:'model';usage:Record<string,unknown>}|{kind:'tool';evidence:Evidence}|{kind:'answer';text:string};
 export async function runAgent(input:string,tools:ReturnType<typeof createAuthorTools>,budget:BudgetLedger,runId:string,onProgress?:(event:Progress)=>void,options:{jsonMode?:boolean;client?:OpenAI}={}){
@@ -47,7 +48,7 @@ export async function runAgent(input:string,tools:ReturnType<typeof createAuthor
     }else{
       onProgress?.({kind:'answer',text:message.content??''});
       const verdict=parseVerdict(message.content??'');
-      return {verdict,evidence,delivery:admit(contextFromInput(input),verdict,evidence),usage,provider:{requested_model:'deepseek-flash',requested_release:'DeepSeek-V4.1-Flash-1017',advertised_name:(advertised as unknown as {name?:string}).name??null,version_is_rolling_alias:true},pricing};
+      return {verdict,evidence,delivery:deliver(contextFromInput(input),verdict,evidence),usage,provider:{requested_model:'deepseek-flash',requested_release:'DeepSeek-V4.1-Flash-1017',advertised_name:(advertised as unknown as {name?:string}).name??null,version_is_rolling_alias:true},pricing};
     }
   }
   throw Error('model_turn_budget');

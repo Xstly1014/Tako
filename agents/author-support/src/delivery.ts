@@ -1,9 +1,10 @@
 import {UUID} from '../../../mobile/src/api/reader.ts';
 import {grade,parseVerdict,workSnapshot,type Evidence,type Verdict} from './grade.ts';
 
-export const deliveryVersion='evidence-delivery-v1';
+export const deliveryVersion='evidence-delivery-v2';
 export type Context={work_id?:string;preview_id?:string;draft_id?:string;original_result_only:boolean;ambiguous_identifiers:boolean};
-export type Delivery={version:string;status:'admitted'|'fallback';verdict:Verdict;reasons:string[];free_text_used:false};
+export type NextStep={kind:'read_original_result';preview_id:string}|{kind:'read_submission_record';submission_id:string}|{kind:'read_work_state';work_id:string}|{kind:'provide_identifiers'|'contact_support'|'reauthenticate'};
+export type Delivery={version:string;status:'admitted'|'recovered'|'fallback';verdict:Verdict;reasons:string[];free_text_used:false;next_step?:NextStep;verification?:'facts_checked'|'needs_clarification'|'unable_to_check';corrected_fields?:string[]};
 export function contextFromInput(input:string):Context{
   let ambiguous=false;
   const one=(label:string)=>{
@@ -15,8 +16,8 @@ export function contextFromInput(input:string):Context{
   return {work_id,preview_id,draft_id,ambiguous_identifiers:ambiguous,original_result_only:/只(?:查|查询|核对)原(?:发布)?结果/.test(input)};
 }
 export function fallback(context:Context,reasons:string[]):Delivery{
-  const next=context.preview_id?'check_original_result':'provide_identifiers';
-  return {version:deliveryVersion,status:'fallback',free_text_used:false,reasons:[...new Set(reasons)],verdict:{publication:'unknown',access:'unknown',next_action:next,evidence_ids:[],explanation:context.preview_id?'本次诊断未取得可交付的核对结果，暂不能确认原发布或访问状态。请保留原预览标识，稍后只核对原结果；不要据此重复提交。':'本次无法可靠确定诊断对象或结果。请核对作品或原预览标识后重新查询；不会替你修改或发布。'}};
+  const original=context.preview_id&&!context.ambiguous_identifiers,next=original?'check_original_result':'provide_identifiers';
+  return {version:deliveryVersion,status:'fallback',free_text_used:false,reasons:[...new Set(reasons)],verdict:{publication:'unknown',access:'unknown',next_action:next,evidence_ids:[],explanation:original?'本次诊断未取得可交付的核对结果，暂不能确认原发布或访问状态。请保留原预览标识，稍后只核对原结果；不要据此重复提交。':'本次无法可靠确定诊断对象或结果。请核对作品或原预览标识后重新查询；不会替你修改或发布。'}};
 }
 
 // No Case/expected/reference imports: admission consumes request context and
