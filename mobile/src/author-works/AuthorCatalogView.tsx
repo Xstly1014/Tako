@@ -176,7 +176,7 @@ export default function AuthorCatalogView(p: Props) {
                     : "公开中"}
               </Text>
               <Text style={s.metrics}>
-                评论 {item.comment_count}　收藏 {item.favorite_count}
+                {`评论 ${item.comment_count} · 收藏 ${item.favorite_count}`}
               </Text>
             </Pressable>
           );
@@ -275,7 +275,7 @@ export default function AuthorCatalogView(p: Props) {
                       filters?.visibility === value && s.selected,
                     ]}
                   >
-                    <Text style={s.optionText}>{label}</Text>
+                    <Text style={s.optionText}>{value === "all" ? "全部" : label.replace("作者", "")}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -303,7 +303,7 @@ export default function AuthorCatalogView(p: Props) {
                       filters?.restriction === value && s.selected,
                     ]}
                   >
-                    <Text style={s.optionText}>{label}</Text>
+                    <Text style={s.optionText}>{value === "all" ? "全部" : label.replace("作者", "")}</Text>
                   </Pressable>
                 ))}
               </View>

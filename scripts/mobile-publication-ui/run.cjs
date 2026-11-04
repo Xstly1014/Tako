@@ -515,7 +515,7 @@ let stage = "bundle";
     assert.equal(publishes, 1);
     stage = "management-return-target";
     await page.getByRole("button", { name: "进入作品管理" }).click();
-    await page.getByText("作品管理", { exact: true }).waitFor();
+    await page.getByText("中篇作品", { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account", "/my-works"]);
     stage = "management-account-stack";
     // An existing duplicate must not determine the explicit account destination.
@@ -527,7 +527,7 @@ let stage = "bundle";
     // Direct-entry management has no account route: dismissTo must replace it.
     stage = "management-direct-entry";
     await page.evaluate(() => window.publishUi.navigate("/my-works", "replace"));
-    await page.getByText("作品管理", { exact: true }).waitFor();
+    await page.getByText("中篇作品", { exact: true }).waitFor();
     await page.getByRole("button", { name: "返回我的", exact: true }).click();
     await page.getByText("草稿箱", { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account"]);
@@ -609,13 +609,13 @@ let stage = "bundle";
     assert.equal(await page.evaluate(() => window.publishUi.params.id), work);
     assert.equal(publishes, 2);
     await page.getByRole("button", { name: "返回作品列表" }).click();
-    await page.getByText("作品管理", { exact: true }).waitFor();
+    await page.getByText("中篇作品", { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.publishUi.history), ["/account", "/my-works"]);
     await page.evaluate(() => { window.publishUi.params = { id: ["bad"] }; window.publishUi.navigate("/my-works/[id]", "push"); });
     await page.getByText("作品入口无效", { exact: true }).waitFor();
     assert.equal(publishes, 2);
     await page.getByRole("button", { name: "返回作品列表" }).click();
-    await page.getByText("作品管理", { exact: true }).waitFor();
+    await page.getByText("中篇作品", { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     console.log(
       "PASS publication fixtures: session envelope, strict handoff, explicit rights, durable unknown result, offline grant isolation, read-only recovery, failed replacement read hides old success and cannot acknowledge the new journal, explicit retry and account isolation. Not native-storage evidence.",

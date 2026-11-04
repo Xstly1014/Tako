@@ -486,7 +486,7 @@ let stage = "bundle";
     await page.getByRole('button', { name: '查找作品', exact: true }).click();
     await page.getByRole('button', { name: '管理作品 甲的正式作品', exact: true }).waitFor();
     assert.equal(await page.getByText(/最新正式标题：|展示 V/).count(), 0);
-    await page.getByText('评论 0　收藏 0', { exact: true }).waitFor();
+    await page.getByText('评论 0 · 收藏 0', { exact: true }).waitFor();
     assert.equal(catalogRequests.at(-1).q, '甲的最新');
     await page.getByRole('button', { name: '清空条件', exact: true }).click();
     await page.getByText(/已读取 20 件/).waitFor();
