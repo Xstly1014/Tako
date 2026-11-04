@@ -1,0 +1,20 @@
+{
+  "name": "tako-author-support-evals",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.19.0 <25"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "probe:live": "node scripts/live-probe.ts"
+  },
+  "dependencies": {
+    "openai": "7.50.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3"
+  }
+}
