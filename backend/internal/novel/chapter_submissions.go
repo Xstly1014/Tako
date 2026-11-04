@@ -35,6 +35,7 @@ type ChapterSubmissionPage struct {
 }
 type submissionCursor struct {
 	Owner, Book, ID uuid.UUID
+	Chapter         uuid.UUID
 	PendingOnly     bool
 	Time            time.Time
 }
@@ -108,15 +109,15 @@ func (s Store) ChapterSubmissions(ctx context.Context, owner, book uuid.UUID, to
 	if _, err := s.Read(ctx, owner, book); err != nil {
 		return ChapterSubmissionPage{}, err
 	}
-	return s.listChapterSubmissions(ctx, owner, book, token, false)
+	return s.listChapterSubmissions(ctx, owner, book, token, false, uuid.Nil)
 }
 
 // Only called behind the operator HTTP boundary. No private working draft is
 // read: the queue contains the exact accepted snapshots awaiting a decision.
 func (s Store) ChapterReviewQueue(ctx context.Context, token string) (ChapterSubmissionPage, error) {
-	return s.listChapterSubmissions(ctx, uuid.Nil, uuid.Nil, token, true)
+	return s.listChapterSubmissions(ctx, uuid.Nil, uuid.Nil, token, true, uuid.Nil)
 }
-func (s Store) listChapterSubmissions(ctx context.Context, owner, book uuid.UUID, token string, pending bool) (ChapterSubmissionPage, error) {
+func (s Store) listChapterSubmissions(ctx context.Context, owner, book uuid.UUID, token string, pending bool, chapter uuid.UUID) (ChapterSubmissionPage, error) {
 	out := ChapterSubmissionPage{Items: []ChapterSubmissionSummary{}}
 	if len(token) > 512 {
 		return out, ErrInvalid
@@ -129,10 +130,14 @@ func (s Store) listChapterSubmissions(ctx context.Context, owner, book uuid.UUID
 		q += " AND s.owner_id=? AND s.novel_id=?"
 		args = append(args, owner[:], book[:])
 	}
+	if chapter != uuid.Nil {
+		q += " AND s.chapter_id=?"
+		args = append(args, chapter[:])
+	}
 	if token != "" {
 		var c submissionCursor
 		raw, e := base64.RawURLEncoding.DecodeString(token)
-		if e != nil || json.Unmarshal(raw, &c) != nil || c.Owner != owner || c.Book != book || c.PendingOnly != pending || c.ID == uuid.Nil || c.Time.IsZero() {
+		if e != nil || json.Unmarshal(raw, &c) != nil || c.Owner != owner || c.Book != book || c.PendingOnly != pending || c.Chapter != chapter || c.ID == uuid.Nil || c.Time.IsZero() {
 			return out, ErrInvalid
 		}
 		q += " AND (s.created_at<? OR (s.created_at=? AND s.id<?))"
@@ -156,8 +161,18 @@ func (s Store) listChapterSubmissions(ctx context.Context, owner, book uuid.UUID
 	if len(out.Items) > 20 {
 		out.Items = out.Items[:20]
 		last := out.Items[19]
-		raw, _ := json.Marshal(submissionCursor{owner, book, last.ID, pending, last.SubmittedAt})
+		raw, _ := json.Marshal(submissionCursor{Owner: owner, Book: book, ID: last.ID, Chapter: chapter, PendingOnly: pending, Time: last.SubmittedAt})
 		out.NextCursor = base64.RawURLEncoding.EncodeToString(raw)
 	}
 	return out, nil
+}
+
+func (s Store) ChapterSubmissionsFor(ctx context.Context, owner, book, chapter uuid.UUID, token string) (ChapterSubmissionPage, error) {
+	if chapter == uuid.Nil {
+		return ChapterSubmissionPage{}, ErrNotFound
+	}
+	if _, e := s.ChapterState(ctx, owner, book, chapter); e != nil {
+		return ChapterSubmissionPage{}, e
+	}
+	return s.listChapterSubmissions(ctx, owner, book, token, false, chapter)
 }

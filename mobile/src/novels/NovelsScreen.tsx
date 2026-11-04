@@ -362,6 +362,15 @@ export function BooksWorkspace({
           <>
             {target ? (
               <Button
+                label="管理正式内容"
+                disabled={blocked}
+                onPress={() =>
+                  askLeave(() => router.push(`/novel-manage?book=${target}`))
+                }
+              />
+            ) : null}
+            {target ? (
+              <Button
                 label="打开章节草稿"
                 disabled={blocked}
                 onPress={() =>
@@ -373,7 +382,7 @@ export function BooksWorkspace({
               {target ? "编辑书籍资料" : "建立私密书籍"}
             </Text>
             <Text style={s.meta}>
-              只有你能看到。章节可私密写作，公开发布尚未开放。
+              此处保存创作资料；章节需在固定预览页明确发布，正式书籍资料单独管理。
             </Text>
             <Text style={s.label}>书名</Text>
             <TextInput
@@ -479,7 +488,7 @@ export function BooksWorkspace({
         ) : (
           <>
             <View style={s.toolbar}>
-              <Text style={s.meta}>私密书籍 · 尚未发布</Text>
+              <Text style={s.meta}>本人创作书籍</Text>
               <Button
                 label="刷新列表"
                 disabled={loading || blocked}

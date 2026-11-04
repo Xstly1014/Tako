@@ -452,4 +452,134 @@ func TestNovelManagementMetadataAndVisibility(t *testing.T) {
 	if len(allCases.Items) != 3 {
 		t.Fatal("missing author history")
 	}
+	// Summary is one private projection: formal titles do not follow private edits.
+	catalogBook, e := s.Write(ctx, owner, uuid.Nil, novel.Write{MutationID: uuid.New(), Title: "管理摘要测试", Tags: []string{"幻想"}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	catalogRoot := "/api/my/novels/" + catalogBook.ID.String() + "/publication-chapters"
+	call("GET", catalogRoot, nil, other, 404)
+	call("GET", catalogRoot, nil, uuid.Nil, 401)
+	call("GET", catalogRoot+"?cursor=bad", nil, owner, 400)
+	empty := novelResult[novel.ManagedChapterPage](t, call("GET", catalogRoot, nil, owner, 200))
+	if len(empty.Items) != 0 || empty.NextCursor != "" {
+		t.Fatal("empty catalog")
+	}
+	var draftIDs []uuid.UUID
+	for i := 0; i < 23; i++ {
+		draftStore := draft.Store{DB: db, Chapter: &draft.ChapterScope{NovelID: catalogBook.ID, ChapterID: uuid.New()}}
+		made, e := draftStore.Write(ctx, owner, "create", draft.Write{MutationID: uuid.New(), Title: "私稿标题", Content: "不应出现在摘要中的正文"})
+		if e != nil {
+			t.Fatal(e)
+		}
+		draftIDs = append(draftIDs, made.DraftID)
+	}
+	prepareCatalog := func(index int) novel.ChapterReceipt {
+		p, e := s.PrepareChapter(ctx, owner, catalogBook.ID, novel.PrepareChapter{MutationID: uuid.New(), DraftID: draftIDs[index], SourceRevision: 1, BookRevision: 1})
+		if e != nil {
+			t.Fatal(e)
+		}
+		r, e := s.SubmitChapter(ctx, owner, catalogBook.ID, novel.SubmitChapter{MutationID: uuid.New(), PreviewID: p.PreviewID, RightsConfirmed: true})
+		if e != nil {
+			t.Fatal(e)
+		}
+		return r
+	}
+	if _, e = db.Exec("UPDATE publication_policies SET observation_until=NULL WHERE owner_id=?", owner[:]); e != nil {
+		t.Fatal(e)
+	}
+	published := prepareCatalog(5)
+	var primary []byte
+	if e = db.QueryRow("SELECT chapter_id FROM chapter_drafts WHERE id=?", draftIDs[5][:]).Scan(&primary); e != nil {
+		t.Fatal(e)
+	}
+	primaryID, e := uuid.FromBytes(primary)
+	if e != nil {
+		t.Fatal(e)
+	}
+	editStore := draft.Store{DB: db, Chapter: &draft.ChapterScope{NovelID: catalogBook.ID, ChapterID: primaryID}}
+	if _, e = editStore.Write(ctx, owner, "save", draft.Write{MutationID: uuid.New(), DraftID: draftIDs[5], BaseRevision: 1, Title: "后续私稿不得冒充正式标题", Content: "新正文"}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec("UPDATE publication_policies SET observation_until=DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 1 DAY) WHERE owner_id=?", owner[:]); e != nil {
+		t.Fatal(e)
+	}
+	pendingCatalog := prepareCatalog(8)
+	// Revisions pending on an existing formal chapter must keep the public title primary.
+	p, e := s.PrepareChapter(ctx, owner, catalogBook.ID, novel.PrepareChapter{MutationID: uuid.New(), DraftID: draftIDs[5], SourceRevision: 2, BookRevision: 1})
+	if e != nil {
+		t.Fatal(e)
+	}
+	revision, e := s.SubmitChapter(ctx, owner, catalogBook.ID, novel.SubmitChapter{MutationID: uuid.New(), PreviewID: p.PreviewID, RightsConfirmed: true})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec("UPDATE chapter_versions SET platform_limited=TRUE WHERE chapter_id=? AND version=1", published.ChapterID[:]); e != nil {
+		t.Fatal(e)
+	}
+	rawCatalog := call("GET", catalogRoot, nil, owner, 200)
+	if strings.Contains(string(rawCatalog), "不应出现在摘要中的正文") || strings.Contains(string(rawCatalog), "\"content\"") {
+		t.Fatal("management summary downloaded content")
+	}
+	managed := novelResult[novel.ManagedChapterPage](t, rawCatalog)
+	if len(managed.Items) != 20 || managed.NextCursor == "" {
+		t.Fatal("catalog first page")
+	}
+	firstManaged := managed.Items[0]
+	if firstManaged.ChapterID != published.ChapterID || firstManaged.Title != "私稿标题" || firstManaged.TitleSource != "formal" || !firstManaged.VersionLimited || firstManaged.CurrentSubmissionID == nil || revision.SubmissionID == nil || *firstManaged.CurrentSubmissionID != *revision.SubmissionID {
+		t.Fatal("formal management source/status")
+	}
+	if firstManaged.PendingTitle == nil || *firstManaged.PendingTitle != "后续私稿不得冒充正式标题" {
+		t.Fatal("pending title separate")
+	}
+	if managed.Items[1].ChapterID != pendingCatalog.ChapterID || managed.Items[1].TitleSource != "pending" || managed.Items[1].DisplayVersion != 0 {
+		t.Fatal("first pending summary")
+	}
+	rest := novelResult[novel.ManagedChapterPage](t, call("GET", catalogRoot+"?cursor="+managed.NextCursor, nil, owner, 200))
+	if len(rest.Items) != 3 || rest.NextCursor != "" {
+		t.Fatal("catalog last page")
+	}
+	seen := map[uuid.UUID]bool{}
+	for _, item := range append(managed.Items, rest.Items...) {
+		if seen[item.ChapterID] {
+			t.Fatal("duplicate chapter")
+		}
+		seen[item.ChapterID] = true
+	}
+	call("GET", root+"/publication-chapters?cursor="+managed.NextCursor, nil, owner, 400)
+	call("GET", catalogRoot+"?cursor="+managed.NextCursor, nil, other, 400)
+
+	scopedRoot := "/api/my/novels/" + catalogBook.ID.String() + "/chapters/" + published.ChapterID.String() + "/submissions"
+	scoped := novelResult[novel.ChapterSubmissionPage](t, call("GET", scopedRoot, nil, owner, 200))
+	if len(scoped.Items) != 2 {
+		t.Fatal("scoped submissions lost original record")
+	}
+	for _, item := range scoped.Items {
+		if item.ChapterID != published.ChapterID {
+			t.Fatal("another chapter in scoped history")
+		}
+	}
+	call("GET", scopedRoot, nil, other, 404)
+	call("GET", root+"/chapters/"+published.ChapterID.String()+"/submissions", nil, owner, 404)
+	// Twenty-two immutable submissions prove the cursor cannot be reused for another chapter/book queue.
+	for i := 0; i < 21; i++ {
+		p, e := s.PrepareChapter(ctx, owner, catalogBook.ID, novel.PrepareChapter{MutationID: uuid.New(), DraftID: draftIDs[5], SourceRevision: 2, BookRevision: 1})
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = s.SubmitChapter(ctx, owner, catalogBook.ID, novel.SubmitChapter{MutationID: uuid.New(), PreviewID: p.PreviewID, RightsConfirmed: true}); e != nil {
+			t.Fatal(e)
+		}
+	}
+	historyPage := novelResult[novel.ChapterSubmissionPage](t, call("GET", scopedRoot, nil, owner, 200))
+	if len(historyPage.Items) != 20 || historyPage.NextCursor == "" {
+		t.Fatal("scoped history first page")
+	}
+	historyLast := novelResult[novel.ChapterSubmissionPage](t, call("GET", scopedRoot+"?cursor="+historyPage.NextCursor, nil, owner, 200))
+	if len(historyLast.Items) != 3 || historyLast.NextCursor != "" {
+		t.Fatal("scoped history last page")
+	}
+	call("GET", "/api/my/novels/"+catalogBook.ID.String()+"/chapters/"+pendingCatalog.ChapterID.String()+"/submissions?cursor="+historyPage.NextCursor, nil, owner, 400)
+	call("GET", "/api/my/novels/"+catalogBook.ID.String()+"/chapter-submissions?cursor="+historyPage.NextCursor, nil, owner, 400)
+
 }

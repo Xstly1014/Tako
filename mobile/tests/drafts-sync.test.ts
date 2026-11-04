@@ -1686,3 +1686,243 @@ test("所有实际409/410业务拒绝有明确退出；不接受附带正文的�
   );
   assert.deepEqual(await journal.load(), current);
 });
+
+import {
+  NovelOperations,
+  type NovelCommand,
+} from "../src/novels/management-requests.ts";
+import { EncryptedNovelManagementJournal } from "../src/novels/management-journal.ts";
+import { NovelChapterCatalogApi } from "../src/novels/management-catalog.ts";
+function managementFixture() {
+  const book = randomUUID(),
+    receipts = new Map<string, unknown>(),
+    calls: { path: string; method?: string; body?: unknown }[] = [];
+  let drop = false;
+  const transport = async <T>(
+    path: string,
+    options?: { method?: string; body?: unknown },
+  ) => {
+    calls.push({ path, method: options?.method, body: options?.body });
+    if (options?.method === "POST") {
+      const input = options.body as {
+        mutation_id: string;
+        expected_revision: number;
+        action: "hide" | "restore";
+      };
+      const receipt = {
+        mutation_id: input.mutation_id,
+        novel_id: book,
+        chapter_id: null,
+        action: input.action,
+        state_revision: input.expected_revision + 1,
+        author_hidden: input.action === "hide",
+        platform_limited: false,
+        display_version: 0,
+      };
+      receipts.set(input.mutation_id, receipt);
+      if (drop) {
+        drop = false;
+        throw new ApiError("network");
+      }
+      return receipt as T;
+    }
+    const receipt = receipts.get(path.split("/").pop()!);
+    if (!receipt) throw new ApiError("resource_not_found", "", 404);
+    return receipt as T;
+  };
+  return {
+    book,
+    calls,
+    receipts,
+    management: new NovelManagementApi(transport),
+    publication: new ChapterPublicationApi(transport),
+    setDrop: () => {
+      drop = true;
+    },
+  };
+}
+test("正式管理丢响应重开只GET原操作，确认后清除；旧CAS/存储失败/换号不能改写", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = managementFixture(),
+    owner = randomUUID();
+  let current = true;
+  const journal = new EncryptedNovelManagementJournal(
+      local.rows,
+      local.cipher,
+      owner,
+      () => current,
+    ),
+    make = () =>
+      new NovelOperations(
+        journal,
+        f.management,
+        f.publication,
+        () => current,
+        randomUUID,
+      );
+  let ops = make();
+  await ops.load();
+  local.db.failBeforeCommit = true;
+  const command: NovelCommand = {
+    kind: "visibility",
+    book: f.book,
+    chapter: null,
+    input: { mutation_id: randomUUID(), expected_revision: 1, action: "hide" },
+  };
+  await assert.rejects(ops.start(command));
+  assert.equal(f.calls.length, 0);
+  f.setDrop();
+  await assert.rejects(ops.start(command));
+  const original = (await journal.load())!;
+  assert.equal(f.calls.length, 1);
+  await assert.rejects(ops.clear());
+  ops = make();
+  await ops.load();
+  assert.equal(f.calls.length, 1);
+  await ops.confirm();
+  assert.equal(ops.snapshot()?.outcome, "hidden");
+  assert.equal(f.calls[1].method, undefined);
+  await assert.rejects(journal.save(original, original.token));
+  current = false;
+  await assert.rejects(
+    ops.clear(),
+    (e) => e instanceof ApiError && e.code === "stale_session",
+  );
+  current = true;
+  await ops.clear();
+  assert.equal(await journal.load(), null);
+  const another = new EncryptedNovelManagementJournal(
+    local.rows,
+    local.cipher,
+    randomUUID(),
+    () => true,
+  );
+  assert.equal(await another.load(), null);
+});
+test("管理原命令只含目标和修订，不能混入正文；404不允许忘记未知操作", async (ctx) => {
+  const local = await fixture();
+  ctx.after(local.close);
+  const f = managementFixture(),
+    owner = randomUUID();
+  const journal = new EncryptedNovelManagementJournal(
+      local.rows,
+      local.cipher,
+      owner,
+      () => true,
+    ),
+    ops = new NovelOperations(
+      journal,
+      f.management,
+      f.publication,
+      () => true,
+      randomUUID,
+    );
+  await ops.load();
+  f.setDrop();
+  await assert.rejects(
+    ops.start({
+      kind: "visibility",
+      book: f.book,
+      chapter: null,
+      input: {
+        mutation_id: randomUUID(),
+        expected_revision: 2,
+        action: "restore",
+      },
+    }),
+  );
+  const record = (await journal.load())!;
+  f.receipts.clear();
+  await assert.rejects(ops.confirm());
+  await assert.rejects(ops.clear());
+  const polluted = {
+    ...record,
+    command: { ...record.command, content: "不应持久化的正文" },
+  };
+  await assert.rejects(journal.save(polluted, record.token));
+  assert.deepEqual(await journal.load(), record);
+  await ops.retry();
+  assert.deepEqual(f.calls[0].body, f.calls[2].body);
+  assert.equal(ops.snapshot()?.outcome, "restored");
+});
+test("管理摘要拒绝正式标题来源伪装、正文或状态矛盾；不通过额外正文请求显示列表", async () => {
+  const book = randomUUID(),
+    chapter = randomUUID();
+  let item = {
+    novel_id: book,
+    chapter_id: chapter,
+    ordinal: 1,
+    state_revision: 2,
+    last_version: 1,
+    display_version: 1,
+    author_hidden: false,
+    platform_limited: false,
+    parent_hidden: false,
+    parent_limited: false,
+    completed: false,
+    current_submission_id: null,
+    title: "正式标题",
+    title_source: "formal",
+    pending_title: null,
+    draft_id: randomUUID(),
+    version_limited: false,
+    created_at: new Date().toISOString(),
+  };
+  const paths: string[] = [];
+  const api = new NovelChapterCatalogApi(async <T>(p: string) => {
+    paths.push(p);
+    return { items: [item], next_cursor: "" } as T;
+  });
+  assert.equal((await api.list(book)).items[0].title, "正式标题");
+  assert.deepEqual(paths, [`/my/novels/${book}/publication-chapters`]);
+  const original = item;
+  for (const changed of [
+    { ...original, title_source: "private" },
+    { ...original, pending_title: "并无待审" },
+    { ...original, novel_id: randomUUID() },
+    { ...original, display_version: 2 },
+  ]) {
+    item = changed as typeof item;
+    await assert.rejects(
+      api.list(book),
+      (e) => e instanceof ApiError && e.code === "contract",
+    );
+  }
+});
+
+test("逐章提交历史解码保留驳回/撤回，不下载正文且拒绝同书另一章", async () => {
+  const f = chapterPublicationFixture();
+  let chapter = f.chapter;
+  const item = {
+    id: f.submission,
+    novel_id: f.book,
+    chapter_id: chapter,
+    preview_id: f.preview,
+    title: "被驳回的提交",
+    ordinal: 1,
+    candidate_version: 1,
+    state: "rejected",
+    current: false,
+    reason: "明确的驳回原因",
+    submitted_at: new Date().toISOString(),
+    decided_at: new Date().toISOString(),
+  };
+  const paths: string[] = [];
+  const api = new ChapterPublicationApi(async <T>(path: string) => {
+    paths.push(path);
+    return { items: [{ ...item, chapter_id: chapter }], next_cursor: "" } as T;
+  });
+  assert.equal(
+    (await api.chapterHistory(f.book, f.chapter)).items[0].reason,
+    "明确的驳回原因",
+  );
+  assert.deepEqual(paths, [
+    `/my/novels/${f.book}/chapters/${f.chapter}/submissions`,
+  ]);
+  chapter = randomUUID();
+  await assert.rejects(
+    api.chapterHistory(f.book, f.chapter),
+    (e) => e instanceof ApiError && e.code === "contract",
+  );
+});

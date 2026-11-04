@@ -5,6 +5,7 @@ import type { Session } from "../auth/session";
 import { ApiError } from "../api/client";
 import type { DraftCipher, CipherRows } from "../drafts/storage";
 import { SqliteCipherRows } from "../drafts/sqlite";
+import { EncryptedNovelManagementJournal } from "./management-journal";
 import { EncryptedBookJournal } from "./journal";
 import { EncryptedChapterPublicationJournal } from "./chapters/publication-journal";
 const pendingKeys = new Map<string, Promise<string>>();
@@ -143,6 +144,43 @@ export function nativeChapterPublicationJournal(session: Session) {
       expectedToken: string | null,
     ) {
       return new EncryptedChapterPublicationJournal(
+        await openRows(),
+        cipher,
+        owner,
+        current,
+      ).save(value, expectedToken);
+    },
+  };
+}
+
+export function nativeNovelManagementJournal(session: Session) {
+  const initial = session.snapshot(),
+    owner = initial.account?.id;
+  if (initial.phase !== "ready" || !owner || initial.busy)
+    throw new ApiError("stale_session");
+  const current = () => {
+    const now = session.snapshot();
+    return (
+      now.phase === "ready" &&
+      !now.busy &&
+      now.generation === initial.generation &&
+      now.account?.id === owner
+    );
+  };
+  return {
+    async load() {
+      return new EncryptedNovelManagementJournal(
+        await openRows(),
+        cipher,
+        owner,
+        current,
+      ).load();
+    },
+    async save(
+      value: Parameters<EncryptedNovelManagementJournal["save"]>[0],
+      expectedToken: string | null,
+    ) {
+      return new EncryptedNovelManagementJournal(
         await openRows(),
         cipher,
         owner,

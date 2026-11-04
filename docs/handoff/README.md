@@ -1,16 +1,12 @@
 # Tako 开发交接入口
 
-**2026-11-04续接：** 新作者App章稿→固定预览→授权发布→未知结果持久恢复已接线，并以同一真实HTTP/MySQL数据验证公开R1/私稿R2。入口chapter-publish，采用用户确认A单页全文核对。N2仍缺正式管理/资料发布/处置复核App页；最新证据和peer e99ab22待审范围见primary-progress开头，不把后文旧“作者发布尚未接线”当最新状态。独立验收 `node scripts/check_novel_publication_live.cjs`，设备由同事负责。
+更新：2026-11-04。当前App优先；主开发N2长文固定发布、正式管理、资料发布、处置复核与匿名目录/阅读已接真实服务。本机3300保留数据升级至API0.19.0/迁移0018。同事e99ab22反馈收件箱及紧凑作者列表已独立审查、正常合入3ea66c9，后端/模型/真实中篇链路回归通过。
 
+先读[主开发当前进度](primary-progress.md)和[并行端进度](parallel-progress.md)，再读[N2阶段规格](../novels/n2-publication-reading-spec.md)、[连续实施复盘](../reviews/n2-publication-implementation-review.md)末段与[独立互审](../reviews/cross-review-primary-e99ab22.md)。当前布局按用户确认A；新入口 `/novel-manage`，从本人书籍进入，不能用旧APK判断已接线与否。
 
-## 当前接续点（2026-11-03）
+**N2尚有P1：** 运营观察期设置/提前撤销入口及观察期多章乱序通过的同批App/API/MySQL联调；在N3前关闭。后端数据库夹具不等于该业务入口已交付。**P2：** 新页原生布局/键盘/Share、安全存储与生命周期，由同事在下一正常设备批次完成，见[设备任务](device-requests.md)。本端不打包/USB/ECS/邮件。N3续读与完结整改、N4书架追更、N5按章讨论仍未实现。
 
-本机3300已保留数据升级0018，API0.18。N2书/章/版本最低处置与复核、正式后审、Web `/ops/novels`、公开列表/目录/正式章读取，以及App长文频道/目录/阅读已实现。**作者App固定预览/发布恢复与正式管理尚未接线，N2未整体收口**。以[主开发进度](primary-progress.md)和[N2连续复盘](../reviews/n2-publication-implementation-review.md)末段为准，下列旧检查点是历史。
-
-peer8d79作者反馈已普通合入e8c96cd，契约未退回；本窗口后来观察到dfe0ff6跨作品反馈收件箱，含共享API/CommentsPanel变更，留下一独立审查窗口，不称已合入或验证。主开发继续N2，不重复开发同事反馈收件箱。新独立组件门禁见 `scripts/check_novel_reading_components.cjs`，运营浏览器夹具见 `scripts/check_novel_ops.cjs`。本端不构建APK或操作设备/ECS。
-
-
-更新于 2026-11-03。当前优先独立 Android App；先读本页与双方进度，再读相关规格。历史阶段记录保留在 docs/reviews，旧包、旧测试数量与旧“未接入”措辞不覆盖下面的当前状态。
+独立整体验证 `node scripts/check_novel_publication_live.cjs` 需要专用3300 test环境，实际页面接真实HTTP/MySQL；DOM/导航/journal适配和补充case夹具均明确标注，不能冒充手机验收。重启用[tako-restart](../../.agents/skills/tako-restart/SKILL.md)，协作用[tako-collab](../../.agents/skills/tako-collab/SKILL.md)。历史报告中的“未接入”只表示其原SHA。
 
 ## 当前职责（用户明确）
 
@@ -18,22 +14,9 @@ peer8d79作者反馈已普通合入e8c96cd，契约未退回；本窗口后来�
 
 主开发只负责业务、规格、实现、自动化和集成，**不负责APK构建/安装/USB/ADB或真机测试**。每次推送在[设备任务队列](device-requests.md)交接给同事，待其确认/报告。完整规则见[主开发手册](05-development-playbook.md)，旧阶段分工不覆盖本条。
 
-## 本轮业务规划
+## 历史证据索引
 
-2026-11-03最新整合：M3目录、M4复核、M5版本决策已普通合入并通过本端工程/真实服务回归，[独立复核](../reviews/cross-review-primary-240ae2e.md)。长文N2[阶段规格](../novels/n2-publication-reading-spec.md)及ADR003已更新：用户确认多章独立排队、按提交预约固定号、驳回/撤回保留号。N2运行接口尚未实现，下一步N2-A；不要沿旧“审批通过时才分配序号”假设开发。设备及同事新整条页面/HTTP验收继续独立。
-
-长文[N1私密创作](../novels/README.md)已接App和本机3300：开书→章稿→加密离线续写→同步→冲突另存独立新章节。[N1-B证据](../reviews/private-chapter-drafts-review.md)。OpenAPI0.14.0、迁移0015独立章稿表；旧中篇表及密文格式保留。M2定向修订发行与M3～M5已整合，设备另待。下一业务按N2阶段规格实施预约/预览/审核内核，再公共阅读与最低纠错、千章目录；不提前开放完结或追更。
-
-## 当前已做到哪里
-
-**继续实施：** N2正式书章管理、资料审核（普通作者生效后审／观察期先审）和独立App客户端已经实现并验证，资料与隐藏恢复均不改私稿或新章事件；App页面与公开长文仍未接线，见连续N2实施记录及最新primary-progress。peer427eff8已合入并独立验，peer8d79e56是下一窗口待审包。本机最新自动化为128模型、完整后端真实MySQL/契约、16/17迁移演练及实际中篇修订链路；旧数量保留为历史证据。
-
-**最新检查点（2026-11-03）：** 主开发N2章节发布内核a16560a、同事作者异常恢复d1a47c3已普通整合为5a131f1。完整后端真实MySQL/契约/race/vet、迁移回退重升、123模型/类型/lint/7门禁、作者组件和真实作者故障链路通过。N2尚缺正式管理、最低治理、公开目录阅读及App接线，见[连续实施记录](../reviews/n2-publication-implementation-review.md)，不要把旧原型或旧包当N2可用。peer427eff8是下一集成窗口待审包。
-
-新增00016不会由API二进制自行迁移；本机升级沿[tako-restart](../../.agents/skills/tako-restart/SKILL.md)的迁移后启动流程，保留账号、凭据和卷。当前主开发3300仍是上一运行版本，N2验证在独立测试库完成，不声称3300已提供新接口。以下是之前交付的历史证据索引，最新数量/分工以本段和双方progress为准。
-
-S2搜索已接入App源码（ce1670a），18读者/服务组、86模型、五套页面及独立真实HTTP初验通过；本机3300已升级到搜索API，用户确认同事在其独立电脑验收。按用户新分工，本端不再承担打包/设备任务；每次推送交接见 [设备任务队列](device-requests.md)，当前搜索设备结果待同事记录。不要用旧1793f7f包验新搜索。详见 [App搜索复盘](../reviews/mobile-search-app-review.md)。
-
+下列记录保留原阶段事实，不覆盖以上当前状态。
 
 此前新增 [S1搜索API](../reviews/public-search-api-review.md)，用户确认标题/笔名/简介；服务端/契约/失败验证已实现，1b89018三条远程CI已通过，此为S1历史阶段；S2现已接入源码，本机3300已升级，同事独立环境由其协调升级。业务盘点见 [中篇闭环后的下一步](../reviews/business-inventory-after-c1.md)。
 

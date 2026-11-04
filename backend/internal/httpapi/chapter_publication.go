@@ -34,6 +34,22 @@ func (a API) registerChapterPublication(protected *gin.RouterGroup) {
 		}
 		return id, true
 	}
+	protected.GET("/my/novels/:id/chapters/:chapter/submissions", func(c *gin.Context) {
+		owner, book, ok := scope(c, false)
+		if !ok {
+			return
+		}
+		chapter, ok := target(c, "chapter")
+		if !ok {
+			return
+		}
+		out, e := s.ChapterSubmissionsFor(c.Request.Context(), owner, book, chapter, c.Query("cursor"))
+		if e != nil {
+			novelError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	protected.GET("/my/novels/:id/chapter-submissions", func(c *gin.Context) {
 		owner, book, ok := scope(c, false)
 		if !ok {

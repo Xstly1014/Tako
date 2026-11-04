@@ -429,6 +429,51 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/my/novels/{id}/chapters/{chapter}/submissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人指定章节提交记录
+     * @description 仅本人，分页读取指定章节的待审、正式受理、驳回、撤回和已替换记录。提交记录不占用额外正式版本号，只有明确打开详情时读取固定正文。游标绑定账号、书籍、章节与用途；原整书列表和运营待审游标继续兼容。
+     */
+    get: operations["getChapterSubmissionHistory"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/publication-chapters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人正式管理章节摘要
+     * @description 一次返回章号、正式或待审标题来源、待审标识及书/章/当前版本的独立限制；不下载正文。已预约章号升序，未预约私稿随后按创建时间及ID排序，每页20条。实时状态变化导致跨页位置变化时需刷新，不重编号。仅本人会话，游标绑定账号/书籍/用途；不改变公共目录与原私稿接口。
+     */
+    get: operations["getManagedNovelChapters"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novels/{id}/formal-state": {
     parameters: {
       query?: never;
@@ -2288,6 +2333,36 @@ export interface components {
       /** Format: uuid */
       metadata_submission_id: string | null;
     };
+    ManagedChapter: {
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      ordinal: number | null;
+      state_revision: number;
+      last_version: number;
+      display_version: number;
+      author_hidden: boolean;
+      platform_limited: boolean;
+      parent_hidden: boolean;
+      parent_limited: boolean;
+      completed: boolean;
+      /** Format: uuid */
+      current_submission_id: string | null;
+      title: string;
+      /** @enum {string} */
+      title_source: "private" | "pending" | "formal";
+      pending_title: string | null;
+      /** Format: uuid */
+      draft_id: string | null;
+      version_limited: boolean;
+      /** Format: date-time */
+      created_at: string;
+    };
+    ManagedChapterPage: {
+      items: components["schemas"]["ManagedChapter"][];
+      next_cursor: string;
+    };
     NovelChapterState: {
       /** Format: uuid */
       novel_id: string;
@@ -3823,6 +3898,69 @@ export interface operations {
       413: components["responses"]["TooLarge"];
       415: components["responses"]["NotJSON"];
       429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getChapterSubmissionHistory: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+        chapter: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人章节管理分页 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSubmissionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getManagedNovelChapters: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人章节管理分页 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedChapterPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
       500: components["responses"]["InternalError"];
       503: components["responses"]["Unavailable"];
     };

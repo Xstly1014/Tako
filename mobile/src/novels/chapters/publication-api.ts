@@ -276,6 +276,35 @@ export class ChapterPublicationApi {
     page.items.forEach((item) => checkedSubmission(item, book));
     return page;
   }
+  async chapterHistory(
+    book: string,
+    chapter: string,
+    token = "",
+    signal?: AbortSignal,
+  ) {
+    const root = this.root(book);
+    if (!id(chapter) || !cursor(token)) throw new ApiError("invalid_input");
+    const page = await this.transport<SubmissionPage>(
+      root +
+        `/chapters/${chapter}/submissions` +
+        (token ? "?cursor=" + encodeURIComponent(token) : ""),
+      { signal },
+    );
+    if (
+      !page ||
+      !Array.isArray(page.items) ||
+      page.items.length > 20 ||
+      !cursor(page.next_cursor) ||
+      (token && token === page.next_cursor) ||
+      new Set(page.items.map((x) => x?.id)).size !== page.items.length
+    )
+      throw new ApiError("contract");
+    for (const item of page.items) {
+      checkedSubmission(item, book);
+      if (item.chapter_id !== chapter) throw new ApiError("contract");
+    }
+    return page;
+  }
   async detail(book: string, submission: string, signal?: AbortSignal) {
     const root = this.root(book);
     if (!id(submission)) throw new ApiError("invalid_input");

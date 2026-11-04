@@ -44,6 +44,14 @@ func (a API) registerNovelManagement(protected *gin.RouterGroup) {
 		c.JSON(200, out)
 	}
 	root := "/my/novels/:id"
+	protected.GET(root+"/publication-chapters", func(c *gin.Context) {
+		owner, book, ok := scope(c, false)
+		if !ok {
+			return
+		}
+		out, e := s.ManagedChapters(c.Request.Context(), owner, book, c.Query("cursor"))
+		send(c, out, e)
+	})
 	protected.GET(root+"/formal-state", func(c *gin.Context) {
 		owner, book, ok := scope(c, false)
 		if !ok {
