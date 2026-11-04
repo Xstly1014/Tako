@@ -24,7 +24,7 @@ try{
     const human=Object.values(item.criteria).every(x=>x===true);
     rows.push({case_id:task.id,review_binding:binding,automatic,human_passed:human,passed:automatic.automatic_passed&&human,criteria:item.criteria,notes:item.notes});
   }
-  const result={run_id:manifest.run_id,reviewer:review.reviewer,reviewed_at:new Date().toISOString(),selected:manifest.selected.length,reviewed:rows.length,passed:rows.filter(x=>x.passed).length,unreviewed:manifest.selected.length-rows.length,rows};
+  const result={run_id:manifest.run_id,run_kind:manifest.kind,environment:'controlled_transport_no_database',reviewer:review.reviewer,reviewed_at:new Date().toISOString(),selected:manifest.selected.length,reviewed:rows.length,passed:rows.filter(x=>x.passed).length,unreviewed:manifest.selected.length-rows.length,rows};
   writeFileSync(path.join(directory,'human-review.json'),JSON.stringify(result,null,2),{flag:'wx',mode:0o600});
   console.log(JSON.stringify({reviewed:result.reviewed,passed:result.passed,unreviewed:result.unreviewed}));
   if(result.rows.some(x=>!x.passed))process.exitCode=1;
