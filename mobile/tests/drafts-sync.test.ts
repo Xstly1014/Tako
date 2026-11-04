@@ -2146,3 +2146,205 @@ test("N3 logout/401 lock metadata identity, while legacy draft grants retain the
  removeFailure=false;network=true;deny=true;await failedRemoval.restore();assert.equal(failedRemoval.snapshot().phase,'guest');assert.equal(failedRemoval.snapshot().localOwner,null);
  raw=JSON.stringify({format:1,token,grant:{owner,confirmed:false},local_owner:randomUUID()});network=false;const corrupt=new ReadingTestSession(vault,transport);await corrupt.restore();assert.equal(corrupt.snapshot().localOwner,null);assert.equal(corrupt.snapshot().drafts.phase,'locked');
 });
+
+import {
+  NovelLifecycleApi,
+  checkedLifecycleReceipt,
+  checkedCompletionCheck,
+  checkedRectification,
+  checkedRectificationPreview,
+  type LifecycleReceipt,
+  type CompletionCheck,
+  type Rectification,
+  type RectificationPreview,
+} from "../src/novels/lifecycle-api.ts";
+
+test("completion decode binds book/check and rejects contradictory irreversible eligibility", () => {
+  const book = randomUUID(),
+    check = randomUUID(),
+    chapter = randomUUID();
+  const value: CompletionCheck = {
+    id: check,
+    novel_id: book,
+    state_revision: 1,
+    formal_chapters: 1,
+    last_formal_chapter: chapter,
+    last_formal_ordinal: 2,
+    last_reserved_ordinal: 3,
+    hidden_chapters: 0,
+    restricted_chapters: 1,
+    pending_chapters: 0,
+    unpublished_drafts: 2,
+    author_hidden: true,
+    platform_limited: true,
+    completed: false,
+    eligible: true,
+    expires_at: new Date().toISOString(),
+  };
+  assert.equal(checkedCompletionCheck(value, book, check), value);
+  for (const bad of [
+    { ...value, novel_id: randomUUID() },
+    { ...value, id: randomUUID() },
+    { ...value, pending_chapters: 1 },
+    { ...value, completed: true },
+    { ...value, formal_chapters: 0 },
+    { ...value, hidden_chapters: 2 },
+    { ...value, last_reserved_ordinal: 1 },
+    { ...value, state_revision: 0 },
+  ])
+    assert.throws(() => checkedCompletionCheck(bad, book, check), ApiError);
+});
+test("lifecycle original receipts bind operation, mutation, target and result version", () => {
+  const book = randomUUID(),
+    mutation = randomUUID(),
+    target = randomUUID();
+  const receipt: LifecycleReceipt = {
+    mutation_id: mutation,
+    operation: "rectification_approve",
+    novel_id: book,
+    target_id: target,
+    state: "approved",
+    revision: 3,
+    version: 2,
+    accepted_at: new Date().toISOString(),
+  };
+  assert.equal(
+    checkedLifecycleReceipt(
+      receipt,
+      book,
+      mutation,
+      "rectification_approve",
+      target,
+    ),
+    receipt,
+  );
+  for (const bad of [
+    { ...receipt, mutation_id: randomUUID() },
+    { ...receipt, novel_id: randomUUID() },
+    { ...receipt, target_id: randomUUID() },
+    { ...receipt, state: "submitted" },
+    { ...receipt, version: 0 },
+    { ...receipt, operation: "complete" },
+  ])
+    assert.throws(
+      () =>
+        checkedLifecycleReceipt(
+          bad as LifecycleReceipt,
+          book,
+          mutation,
+          "rectification_approve",
+          target,
+        ),
+      ApiError,
+    );
+});
+test("rectification fixed evidence binds grant/chapter/base and keeps cancelled unsubmitted history valid", () => {
+  const book = randomUUID(),
+    grantId = randomUUID(),
+    chapter = randomUUID(),
+    preview = randomUUID();
+  const now = new Date().toISOString();
+  const grant: Rectification = {
+    id: grantId,
+    novel_id: book,
+    chapter_id: chapter,
+    case_id: 1,
+    case_revision: 1,
+    base_version: 2,
+    revision: 2,
+    state: "submitted",
+    reason: "指定整改",
+    decision_reason: "",
+    preview_id: preview,
+    created_at: now,
+    submitted_at: now,
+    decided_at: null,
+    published_version: 0,
+    revoked_case: false,
+    target_current: true,
+  };
+  const fixed: RectificationPreview = {
+    id: preview,
+    grant_id: grantId,
+    novel_id: book,
+    chapter_id: chapter,
+    base_version: 2,
+    grant_revision: 1,
+    draft_id: randomUUID(),
+    source_revision: 4,
+    title: "指定章",
+    content: "固定正文",
+    expires_at: now,
+  };
+  assert.equal(checkedRectification(grant, book, grantId), grant);
+  assert.equal(checkedRectificationPreview(fixed, book, preview, grant), fixed);
+  for (const bad of [
+    { ...fixed, grant_id: randomUUID() },
+    { ...fixed, chapter_id: randomUUID() },
+    { ...fixed, base_version: 3 },
+    { ...fixed, grant_revision: 2 },
+  ])
+    assert.throws(
+      () => checkedRectificationPreview(bad, book, preview, grant),
+      ApiError,
+    );
+  for (const bad of [
+    { ...grant, preview_id: null },
+    { ...grant, revoked_case: true },
+    { ...grant, published_version: 1 },
+    { ...grant, decided_at: now },
+  ])
+    assert.throws(() => checkedRectification(bad, book, grantId), ApiError);
+  checkedRectification(
+    {
+      ...grant,
+      state: "cancelled",
+      revision: 2,
+      submitted_at: null,
+      preview_id: null,
+      decided_at: now,
+      decision_reason: "取消未提交授权",
+    },
+    book,
+    grantId,
+  );
+});
+test("lifecycle client refuses unsafe confirmation before transport, validates original GETs without POST", async () => {
+  const book = randomUUID(),
+    mutation = randomUUID(),
+    target = randomUUID();
+  let calls = 0;
+  const api = new NovelLifecycleApi(
+    async <T>(path: string, options?: { method?: string }) => {
+      calls++;
+      assert.equal(options?.method, undefined);
+      assert.equal(path, `/my/novels/${book}/lifecycle-requests/${mutation}`);
+      return {
+        mutation_id: mutation,
+        operation: "completion_check",
+        novel_id: book,
+        target_id: target,
+        state: "prepared",
+        revision: 1,
+        version: 0,
+        accepted_at: new Date().toISOString(),
+      } as T;
+    },
+  );
+  assert.throws(
+    () =>
+      api.complete(book, {
+        mutation_id: mutation,
+        check_id: target,
+        irreversible_confirmed: false as true,
+      }),
+    ApiError,
+  );
+  assert.equal(calls, 0);
+  await api.receipt(book, mutation, "completion_check");
+  assert.equal(calls, 1);
+  await assert.rejects(
+    () => api.receipt(book, mutation, "complete", target),
+    ApiError,
+  );
+});

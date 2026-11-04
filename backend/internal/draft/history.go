@@ -117,6 +117,9 @@ func (s Store) RunMaintenance(ctx context.Context, logger *slog.Logger) {
 				_, err = (novel.Store{DB: s.DB}).PruneChapterPreviews(runCtx)
 			}
 			if err == nil {
+				_, err = (novel.Store{DB: s.DB}).PruneRectificationPreviews(runCtx)
+			}
+			if err == nil {
 				var receipts int64
 				receipts, err = (novel.Store{DB: s.DB}).CleanupReadingReceipts(runCtx, time.Now().UTC())
 				if err == nil && receipts > 0 {

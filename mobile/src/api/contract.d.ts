@@ -2461,6 +2461,329 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/my/novels/{id}/completion-checks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["prepareNovelCompletion"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/completion-checks/{check}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        check: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["getNovelCompletionCheck"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["confirmNovelCompletion"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/rectification-previews/{preview}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        preview: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["getMyRectificationPreview"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/rectifications/{grant}/previews": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["prepareMyRectification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/rectifications/{grant}/submission": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["submitMyRectification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/rectifications/{grant}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["withdrawMyRectification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/lifecycle-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["getMyNovelLifecycleReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/rectifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["listMyNovelRectifications"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/rectifications/{grant}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["getMyNovelRectification"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/lifecycle-requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["getOperatorNovelLifecycleReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/rectifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["listOperatorNovelRectifications"];
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["grantNovelRectification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/rectifications/{grant}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    get: operations["getOperatorNovelRectification"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/novels/{id}/rectifications/{grant}/actions/{action}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+        action: "approve" | "reject" | "cancel";
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 完结核对与指定章整改
+     * @description PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+     */
+    post: operations["resolveNovelRectification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3440,6 +3763,7 @@ export interface components {
       /** @enum {string} */
       error:
         | "reading_position_conflict"
+        | "completion_check_expired"
         | "novel_state_conflict"
         | "novel_restricted"
         | "chapter_preview_expired"
@@ -3566,6 +3890,168 @@ export interface components {
        * @description 幂等重放返回原确认时间，不能据此覆盖更高修订。旧数据迁移使用保存请求原记录时间。
        */
       saved_at: string;
+    };
+    NovelLifecycleReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      operation:
+        | "completion_check"
+        | "complete"
+        | "rectification_grant"
+        | "rectification_prepare"
+        | "rectification_submit"
+        | "rectification_cancel"
+        | "rectification_withdraw"
+        | "rectification_approve"
+        | "rectification_reject";
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      target_id: string;
+      /** @enum {string} */
+      state:
+        | "prepared"
+        | "completed"
+        | "available"
+        | "submitted"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+        | "withdrawn";
+      revision: number;
+      version: number;
+      /** Format: date-time */
+      accepted_at: string;
+    };
+    NovelCompletionCheck: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      novel_id: string;
+      state_revision: number;
+      formal_chapters: number;
+      /** Format: uuid */
+      last_formal_chapter: string | null;
+      last_formal_ordinal: number;
+      last_reserved_ordinal: number;
+      hidden_chapters: number;
+      restricted_chapters: number;
+      pending_chapters: number;
+      unpublished_drafts: number;
+      author_hidden: boolean;
+      platform_limited: boolean;
+      completed: boolean;
+      eligible: boolean;
+      /** Format: date-time */
+      expires_at: string;
+    };
+    PrepareNovelCompletion: {
+      /** Format: uuid */
+      mutation_id: string;
+    };
+    ConfirmNovelCompletion: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      check_id: string;
+      /** @enum {boolean} */
+      irreversible_confirmed: true;
+    };
+    GrantNovelRectification: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      base_version: number;
+      case_id: number;
+      case_revision: number;
+      reason: string;
+    };
+    PrepareNovelRectification: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      /** Format: uuid */
+      draft_id: string;
+      source_revision: number;
+    };
+    SubmitNovelRectification: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      /** Format: uuid */
+      preview_id: string;
+      /** @enum {boolean} */
+      rights_confirmed: true;
+    };
+    NovelRectificationAction: {
+      /** Format: uuid */
+      mutation_id: string;
+      expected_revision: number;
+      reason: string;
+      /** @default false */
+      revoke_case: boolean;
+    };
+    NovelRectification: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      case_id: number;
+      case_revision: number;
+      base_version: number;
+      revision: number;
+      /** @enum {string} */
+      state:
+        | "available"
+        | "submitted"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+        | "withdrawn";
+      reason: string;
+      decision_reason: string;
+      /** Format: uuid */
+      preview_id: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      submitted_at: string | null;
+      /** Format: date-time */
+      decided_at: string | null;
+      published_version: number;
+      revoked_case: boolean;
+      target_current: boolean;
+    };
+    NovelRectificationPreview: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      grant_id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      base_version: number;
+      grant_revision: number;
+      /** Format: uuid */
+      draft_id: string;
+      source_revision: number;
+      title: string;
+      content: string;
+      /** Format: date-time */
+      expires_at: string;
+    };
+    NovelRectificationDetail: {
+      grant: components["schemas"]["NovelRectification"];
+      submitted: components["schemas"]["NovelRectificationPreview"] | null;
+    };
+    NovelRectificationPage: {
+      items: components["schemas"]["NovelRectification"][];
+      next: number;
     };
   };
   responses: {
@@ -8061,6 +8547,544 @@ export interface operations {
       409: components["responses"]["Conflict"];
       413: components["responses"]["TooLarge"];
       415: components["responses"]["NotJSON"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  prepareNovelCompletion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PrepareNovelCompletion"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getNovelCompletionCheck: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        check: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelCompletionCheck"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  confirmNovelCompletion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ConfirmNovelCompletion"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyRectificationPreview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        preview: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelRectificationPreview"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  prepareMyRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PrepareNovelRectification"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  submitMyRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubmitNovelRectification"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  withdrawMyRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelRectificationAction"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelLifecycleReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listMyNovelRectifications: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelRectificationPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelRectificationDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelLifecycleReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listOperatorNovelRectifications: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelRectificationPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  grantNovelRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GrantNovelRectification"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getOperatorNovelRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelRectificationDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  resolveNovelRectification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        grant: string;
+        action: "approve" | "reject" | "cancel";
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelRectificationAction"];
+      };
+    };
+    responses: {
+      /** @description 固定核对、明确候选或原操作回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelLifecycleReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
       500: components["responses"]["InternalError"];
       503: components["responses"]["Unavailable"];
     };
