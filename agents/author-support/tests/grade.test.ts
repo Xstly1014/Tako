@@ -34,3 +34,11 @@ test('accepted version zero never confirms a formal publication',()=>{
   const accepted:Evidence={tool:'read_publication_result',result:result('receipt',{preview_id:'p',published:{work_id:'w',version:0,published_at:null}})};
   assert.ok(grade(verdict,[state,accepted],'w','p').failures.includes('unsupported_publication_claim'));
 });
+test('same revision pagination can refine unknown display metadata without mixing snapshots',()=>{
+  const first:Evidence={tool:'read_work_state',result:result('page1',{work_id:'w',state_revision:5,author_hidden:false,work_limited:false,display_version:1,last_version:25,display_limited:null})};
+  const second:Evidence={tool:'read_work_state',result:result('page2',{work_id:'w',state_revision:5,author_hidden:false,work_limited:false,display_version:1,last_version:25,display_limited:true})};
+  const answer:Verdict={...verdict,publication:'unknown',access:'display_limited',evidence_ids:['page1','page2']};
+  assert.equal(grade(answer,[first,second],'w','p').supported,true);
+  const conflict=structuredClone(second);if(conflict.result.status==='ok')conflict.result.data.author_hidden=true;
+  assert.ok(grade(answer,[first,conflict],'w','p').failures.includes('inconsistent_state_evidence'));
+});
