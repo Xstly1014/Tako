@@ -1,11 +1,13 @@
 import { ApiError } from "../api/client.ts";
 import { UUID } from "../api/reader.ts";
 import type { components } from "../api/contract";
-import { lockedDraftAccess, type DraftAccess, type DraftGrantVault } from "../drafts/access.ts";
+import { lockedDraftAccess, type DraftAccess, type DraftGrantVault, type LocalIdentityVault } from "../drafts/access.ts";
 export type Account = components["schemas"]["Account"];
 export type Snapshot = {
   phase: "loading" | "guest" | "ready" | "offline";
   account: Account | null;
+  /** Token-bound cached identity for encrypted reading metadata, never draft authorization. */
+  localOwner?: string | null;
   busy: boolean;
   error: unknown;
   generation: number;
@@ -22,6 +24,7 @@ export type Transport = <T>(
 ) => Promise<T>;
 export type Vault = {
   drafts?: DraftGrantVault;
+  localIdentity?: LocalIdentityVault;
   get: () => Promise<string | null>;
   set: (token: string) => Promise<void>;
   remove: () => Promise<void>;
@@ -47,6 +50,7 @@ export class Session {
   private state: Snapshot = {
     phase: "loading",
     account: null,
+    localOwner: null,
     busy: false,
     error: null,
     generation: 0,
@@ -74,12 +78,14 @@ export class Session {
     this.update({
       phase: "loading",
       account: null,
+      localOwner: null,
       busy: true,
       error: null,
       generation: epoch,
       drafts: lockedDraftAccess(),
     });
     let localGrant: Awaited<ReturnType<DraftGrantVault["read"]>> = null;
+    let localOwner: string | null = null;
     try {
       const token = await this.vault.get();
       if (epoch !== this.epoch) return;
@@ -95,15 +101,19 @@ export class Session {
         return;
       }
       this.token = token;
-      if (!this.unsafeStorage) localGrant = await this.vault.drafts?.read(token) ?? null;
+      if (!this.unsafeStorage) {
+        localGrant = await this.vault.drafts?.read(token) ?? null;
+        localOwner = await this.vault.localIdentity?.read(token) ?? null;
+      }
       if (epoch !== this.epoch) return;
       const account = await this.transport<Account>("/me", { token });
       if (epoch !== this.epoch) return;
       if (!validAccount(account)) throw new ApiError("contract");
       const grant = await this.vault.drafts?.bind(token, account.id);
+      await this.vault.localIdentity?.bind(token, account.id);
       if (epoch !== this.epoch) return;
       this.unsafeStorage = false;
-      this.update({ phase: "ready", account, drafts: grant ? { owner: account.id, phase: grant.confirmed ? "online" : "confirmation" } : lockedDraftAccess() });
+      this.update({ phase: "ready", account, localOwner: account.id, drafts: grant ? { owner: account.id, phase: grant.confirmed ? "online" : "confirmation" } : lockedDraftAccess() });
     } catch (e) {
       if (epoch !== this.epoch) return;
       if (e instanceof ApiError && e.status === 401) {
@@ -112,7 +122,7 @@ export class Session {
         await this.forget().catch(() => undefined);
       } else {
         const network = e instanceof ApiError && (e.code === "network" || e.status >= 500);
-        this.update({ phase: "offline", error: e, drafts:
+        this.update({ phase: "offline", error: e, localOwner: network && !this.unsafeStorage ? localOwner : null, drafts:
           network && localGrant?.confirmed && !this.unsafeStorage
             ? { owner: localGrant.owner, phase: "offline" } : lockedDraftAccess() });
       }
@@ -145,6 +155,7 @@ export class Session {
       try {
         await this.vault.set(result.access_token);
         await this.vault.drafts?.bind(result.access_token, result.account.id);
+        await this.vault.localIdentity?.bind(result.access_token, result.account.id);
       } catch {
         await this.transport("/app/auth/logout", {
           method: "POST",
@@ -162,6 +173,7 @@ export class Session {
       this.update({
         phase: "ready",
         account: result.account,
+        localOwner: result.account.id,
         generation: epoch,
         drafts: this.vault.drafts ? { owner: result.account.id, phase: "confirmation" } : lockedDraftAccess(),
       });
@@ -199,6 +211,7 @@ export class Session {
       if (epoch !== this.epoch) throw new ApiError("stale_session");
       if (!validAccount(account) || account.id !== owner) throw new ApiError("contract");
       await this.vault.drafts.confirm(token, owner);
+      await this.vault.localIdentity?.bind(token, owner);
       if (epoch !== this.epoch) throw new ApiError("stale_session");
       this.update({ drafts: { phase: "online", owner }, error: null });
     } catch (error) {
@@ -236,7 +249,9 @@ export class Session {
       const grant = await this.vault.drafts?.bind(token, owner);
       if (!current()) return false;
       if (!grant?.confirmed) return false;
-      this.update({ phase: "ready", account, error: null, drafts: { phase: "online", owner } });
+      await this.vault.localIdentity?.bind(token, owner);
+      if (!current()) return false;
+      this.update({ phase: "ready", account, localOwner: owner, error: null, drafts: { phase: "online", owner } });
       return true;
     } catch (error) {
       if (!current()) return false;
@@ -262,6 +277,7 @@ export class Session {
       token = this.token;
     this.update({ busy: true, error: null, drafts: lockedDraftAccess() });
     try {
+      await this.vault.localIdentity?.lock(token);
       await this.vault.drafts?.lock(token);
       if (epoch !== this.epoch) return;
       await this.transport("/app/auth/logout", {
@@ -295,6 +311,7 @@ export class Session {
     this.update({
       phase: "guest",
       account: null,
+      localOwner: null,
       generation: this.epoch,
       busy: true,
       drafts: lockedDraftAccess(),
@@ -302,6 +319,7 @@ export class Session {
     try {
       // Best-effort lock plus credential deletion: either persisted outcome
       // prevents offline access. Neither failure is reported as safe logout.
+      if (this.vault.localIdentity && token) await this.vault.localIdentity.lock(token).catch(() => undefined);
       if (this.vault.drafts && token) {
         await this.vault.drafts.lock(token).catch(() => undefined);
       }

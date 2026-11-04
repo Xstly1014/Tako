@@ -2028,3 +2028,121 @@ test("N3 position client rejects mismatched receipts and unsafe availability, do
   value = { ...p, revision: 4 }; await assert.rejects(api.save(book, input), e => e instanceof ApiError && e.code === "contract");
   const before = calls.length; await assert.rejects(api.receipt(book, chapter, input)); assert.equal(calls.length, before);
 });
+
+
+import { ReadingSynchronizer, type ReadingCandidate } from "../src/novels/reading-sync.ts";
+import { EncryptedReadingJournal } from "../src/novels/reading-journal.ts";
+async function readingFixture() {
+  const f=await fixture(), owner=randomUUID(),book=randomUUID(),chapter=randomUUID();let current=true,online=true;
+  let cloud:import("../src/novels/reading-position-api.ts").ReadingPosition|null=null;
+  const receipts=new Map<string,import("../src/novels/reading-position-api.ts").ReadingPosition>(),posts:import("../src/novels/reading-position-api.ts").ReadingWrite[]=[],gets:string[]=[];
+  let drop=false,block=false,afterPost:(()=>Promise<void>)|null=null;
+  const api=new ReadingPositionApi((async(path:string,options?:{method?:string;body?:unknown})=>{
+    if(!current)throw new ApiError("authentication_required","",401);
+    if(!online)throw new ApiError("network");
+    if(options?.method==="POST"){
+      const input=options.body as import("../src/novels/reading-position-api.ts").ReadingWrite;posts.push(structuredClone(input));
+      if(block)throw new ApiError("resource_not_found","",404);
+      let p=receipts.get(input.mutation_id);
+      if(!p){if((cloud?.revision??0)!==input.base_revision)throw new ApiError("reading_position_conflict","",409);
+        p={novel_id:book,chapter_id:input.chapter_id,version:input.version,locator:input.locator,revision:input.base_revision+1,saved_at:"2026-11-04T00:00:00Z"};cloud=p;receipts.set(input.mutation_id,p)}
+      if(afterPost)await afterPost();
+      if(drop){drop=false;throw new ApiError("network")};return p;
+    }
+    gets.push(path);
+    if(path.includes('/requests/')){const p=receipts.get(path.split('/').pop()!);if(!p)throw new ApiError("resource_not_found","",404);return p}
+    return {position:cloud,readable:!!cloud,current_version:cloud?.version??null};
+  }) as import("../src/auth/session.ts").Transport);
+  const journal=()=>new EncryptedReadingJournal(f.rows,f.cipher,owner,()=>current,book);
+  const model=()=>new ReadingSynchronizer(owner,book,journal(),api,()=>current,()=>current&&online,randomUUID);
+  const candidate=(offset:number):ReadingCandidate=>({chapter_id:chapter,version:1,locator:{algorithm:1,paragraph:0,offset}});
+  return {...f,owner,book,chapter,posts,gets,receipts,journal,model,candidate,setOnline:(v:boolean)=>{online=v},setCurrent:(v:boolean)=>{current=v},setDrop:()=>{drop=true},setBlocked:(v:boolean)=>{block=v},setCloud:(v:typeof cloud)=>{cloud=v},setAfterPost:(fn:(()=>Promise<void>)|null)=>{afterPost=fn}};
+}
+test("N3 encrypted offline positions survive restart and cannot cross owner/book or replace lost keys",async()=>{
+ const f=await readingFixture();try{
+  f.setOnline(false);const m=f.model();await m.restore();await m.capture(f.candidate(9));
+  const raw=await f.rows.read(f.owner,f.book);assert.ok(raw&&!raw.ciphertext.includes('paragraph'));
+  const next=f.model();await next.restore();assert.equal(next.snapshot().record?.candidate?.locator.offset,9);assert.equal(f.posts.length,0);
+  const other=new EncryptedReadingJournal(f.rows,f.cipher,randomUUID(),()=>true,f.book);assert.equal(await other.load(),null);
+  const copy=randomUUID();await f.rows.update(f.owner,copy,async()=>raw!);
+  const wrongBook=new EncryptedReadingJournal(f.rows,f.cipher,f.owner,()=>true,copy);await assert.rejects(wrongBook.load());
+  f.cipher.keys.delete(f.owner);await assert.rejects(f.model().restore());assert.ok(await f.rows.read(f.owner,f.book));
+ }finally{f.close()}
+});
+test("N3 lost response recovery only queries, preserves newer local position, then explicitly syncs it",async()=>{
+ const f=await readingFixture();try{
+  const m=f.model();await m.restore();await m.capture(f.candidate(1));f.setDrop();await m.sync();assert.ok(m.snapshot().record?.pending);
+  await m.capture(f.candidate(6));const next=f.model();await next.restore();assert.equal(f.posts.length,1);assert.equal(next.snapshot().record?.pending,null);assert.equal(next.snapshot().record?.candidate?.locator.offset,6);
+  assert.ok(f.gets.some(x=>x.includes('/requests/')));await next.sync();assert.equal(f.posts.length,2);assert.equal(next.snapshot().record?.candidate,null);assert.equal(next.snapshot().record?.base,2);
+ }finally{f.close()}
+});
+test("N3 CAS conflicts and expired receipts retain local position until an explicit local/cloud choice",async()=>{
+ const f=await readingFixture();try{
+  const m=f.model();await m.restore();await m.capture(f.candidate(3));f.setDrop();await m.sync();f.receipts.clear();
+  const next=f.model();await next.restore();assert.ok(next.snapshot().record?.pending);assert.equal(f.posts.length,1);
+  await next.sync(true);assert.equal(next.snapshot().record?.conflict,true);assert.equal(next.snapshot().record?.candidate?.locator.offset,3);
+  await next.chooseLocal();assert.equal(next.snapshot().record?.candidate,null);assert.equal(next.snapshot().record?.base,2);
+  await next.capture(f.candidate(1));f.setCloud({...next.snapshot().record!.cloud!,revision:3,locator:{algorithm:1,paragraph:0,offset:8}});await next.refresh();assert.equal(next.snapshot().record?.conflict,true);
+  const count=f.posts.length;await next.sync();assert.equal(f.posts.length,count);const cloud=await next.chooseCloud();assert.equal(cloud?.position?.locator.offset,8);assert.equal(next.snapshot().record?.candidate,null);
+ }finally{f.close()}
+});
+test("N3 transaction and key failures cannot send, unknown late responses stay bound to the old account",async()=>{
+ const f=await readingFixture();try{
+  const m=f.model();await m.restore();f.db.failBeforeCommit=true;await assert.rejects(m.capture(f.candidate(4)));assert.equal(f.posts.length,0);assert.equal(m.snapshot().record?.candidate,null);
+  f.db.failAfterCommit=true;await assert.rejects(m.capture(f.candidate(4)));const next=f.model();await next.restore();assert.equal(next.snapshot().record?.candidate?.locator.offset,4);
+  f.setAfterPost(async()=>{f.setCurrent(false)});await next.sync();assert.equal(f.posts.length,1);assert.ok((await f.rows.read(f.owner,f.book))?.ciphertext);
+  await assert.rejects(next.capture(f.candidate(7)));f.setCurrent(true);f.setAfterPost(null);const restored=f.model();await restored.restore();assert.equal(restored.snapshot().record?.candidate,null);assert.equal(f.posts.length,1);
+ }finally{f.close()}
+});
+test("N3 scrolling during an in-flight save retains the new candidate; unreadable save never drops it",async()=>{
+ const f=await readingFixture();try{
+  const m=f.model();await m.restore();await m.capture(f.candidate(1));let release!:()=>void;const wait=new Promise<void>(r=>{release=r});let entered!:()=>void;const hit=new Promise<void>(r=>{entered=r});
+  f.setAfterPost(async()=>{entered();await wait});const saving=m.sync();await hit;await m.capture(f.candidate(7));release();await saving;
+  assert.equal(m.snapshot().record?.candidate?.locator.offset,7);assert.equal(f.posts[0].locator.offset,1);
+  f.setAfterPost(null);f.setBlocked(true);await m.sync();assert.equal(m.snapshot().record?.blocked,true);assert.equal(m.snapshot().record?.candidate?.locator.offset,7);assert.equal(m.snapshot().record?.pending,null);
+ }finally{f.close()}
+});
+
+
+test("N3 a lost acknowledgement after SQLite commit can reload locally without a second HTTP write",async()=>{
+ const f=await readingFixture();try{
+  const m=f.model();await m.restore();await m.capture(f.candidate(2));
+  f.setAfterPost(async()=>{f.db.failAfterCommit=true});await m.sync();assert.ok(m.snapshot().record?.pending);assert.equal(f.posts.length,1);
+  f.setAfterPost(null);await m.restore(true);assert.equal(m.snapshot().record?.pending,null);assert.equal(m.snapshot().record?.candidate,null);assert.equal(m.snapshot().record?.base,1);assert.equal(f.posts.length,1);
+ }finally{f.close()}
+});
+
+
+test("N3 automatic CAS rejection refreshes conflict facts instead of displaying an obsolete cloud location",async()=>{
+ const f=await readingFixture();try{
+  const m=f.model();await m.restore();await m.capture(f.candidate(2));
+  f.setCloud({novel_id:f.book,chapter_id:f.chapter,version:1,locator:{algorithm:1,paragraph:0,offset:8},revision:1,saved_at:"2026-11-05T00:00:00Z"});
+  await m.sync();assert.equal(m.snapshot().record?.conflict,true);assert.equal(m.snapshot().record?.candidate?.locator.offset,2);assert.equal(m.snapshot().cloud?.position?.locator.offset,8);assert.equal(m.snapshot().record?.pending,null);
+ }finally{f.close()}
+});
+
+
+import { Session as ReadingTestSession } from "../src/auth/session.ts";
+import { createDraftSessionVault as readingTestVault } from "../src/drafts/access.ts";
+test("N3 read-only cached identity permits own offline metadata without granting private draft access",async()=>{
+ let raw:string|null=null,network=true,which=0;
+ const accounts=[{id:randomUUID(),nickname:"reader A"},{id:randomUUID(),nickname:"reader B"}],tokens=['tako_app_'+"a".repeat(64),'tako_app_'+"b".repeat(64)];
+ const vault=readingTestVault({get:async()=>raw,set:async v=>{raw=v},remove:async()=>{raw=null}});
+ const transport=(async(path:string)=>{if(!network)throw new ApiError("network");if(path==='/me')return accounts[which];if(path==='/app/auth/logout')return;return {account:accounts[which],access_token:tokens[which],token_type:'Bearer',expires_in:604800}}) as import("../src/auth/session.ts").Transport;
+ const login=new ReadingTestSession(vault,transport);await login.signIn('login','reader@example.test','not-a-real-password');assert.equal(login.snapshot().drafts.phase,'confirmation');
+ network=false;const restored=new ReadingTestSession(vault,transport);await restored.restore();assert.equal(restored.snapshot().localOwner,accounts[0].id);assert.equal(restored.snapshot().drafts.phase,'locked');assert.equal(restored.snapshot().account,null);
+ await vault.set(tokens[1]);const mismatched=new ReadingTestSession(vault,transport);await mismatched.restore();assert.equal(mismatched.snapshot().localOwner,null);
+ network=true;which=1;const b=new ReadingTestSession(vault,transport);await b.signIn('login','other@example.test','not-a-real-password');network=false;const offlineB=new ReadingTestSession(vault,transport);await offlineB.restore();assert.equal(offlineB.snapshot().localOwner,accounts[1].id);assert.equal(offlineB.snapshot().drafts.owner,null);
+});
+test("N3 logout/401 lock metadata identity, while legacy draft grants retain their separate compatibility",async()=>{
+ let raw:string|null=null,network=true,deny=false,removeFailure=false;
+ const owner=randomUUID(),token='tako_app_'+"c".repeat(64),account={id:owner,nickname:'reader'};
+ const vault=readingTestVault({get:async()=>raw,set:async v=>{raw=v},remove:async()=>{if(removeFailure)throw Error('synthetic storage');raw=null}});
+ const transport=(async(path:string)=>{if(!network)throw new ApiError('network');if(deny)throw new ApiError('authentication_required','',401);if(path==='/me')return account;if(path==='/app/auth/logout')return;return {account,access_token:token,token_type:'Bearer',expires_in:604800}}) as import("../src/auth/session.ts").Transport;
+ const a=new ReadingTestSession(vault,transport);await a.signIn('login','reader@example.test','not-a-real-password');network=false;await assert.rejects(a.logout());const locked=new ReadingTestSession(vault,transport);await locked.restore();assert.equal(locked.snapshot().localOwner,null);
+ // Old envelope has no new identity field. Its confirmed draft authorization is preserved, not reused for reading.
+ raw=JSON.stringify({format:1,token,grant:{owner,confirmed:true}});const legacy=new ReadingTestSession(vault,transport);await legacy.restore();assert.equal(legacy.snapshot().drafts.phase,'offline');assert.equal(legacy.snapshot().localOwner,null);
+ network=true;await legacy.restore();assert.equal(legacy.snapshot().localOwner,owner);removeFailure=true;await assert.rejects(legacy.logout());network=false;const failedRemoval=new ReadingTestSession(vault,transport);await failedRemoval.restore();assert.equal(failedRemoval.snapshot().localOwner,null);
+ removeFailure=false;network=true;deny=true;await failedRemoval.restore();assert.equal(failedRemoval.snapshot().phase,'guest');assert.equal(failedRemoval.snapshot().localOwner,null);
+ raw=JSON.stringify({format:1,token,grant:{owner,confirmed:false},local_owner:randomUUID()});network=false;const corrupt=new ReadingTestSession(vault,transport);await corrupt.restore();assert.equal(corrupt.snapshot().localOwner,null);assert.equal(corrupt.snapshot().drafts.phase,'locked');
+});

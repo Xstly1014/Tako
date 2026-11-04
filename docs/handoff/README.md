@@ -1,5 +1,9 @@
 # Tako 开发交接入口
 
+## 2026-11-05 · 当前启动基线
+
+当前源码与本机3300为API0.24.0、迁移23。`python scripts/local_restart.py start`保卷启动API/Web/网关和maintenance，`check`同时验证维护进程最近成功心跳。新增30天续读回执维护，不清当前位置或未同步本机记录；不要为重启删除卷/密钥或回退有业务数据的迁移。App续读已接线，完结/指定整改未开放；后文旧版本为历史记录，当前证据见N3复盘和primary-progress。
+
 更新：2026-11-04。本机3300独立test为API0.22.0/迁移0021，保留数据升级。N2长文固定发布、正式管理/资料审核、最低治理、公开目录阅读及账号观察期入口已接App/运营；按用户新增授权同批补齐中篇先审。多章A1/B2乱序与中篇固定提交/撤回/节点/驳回保正式版已接实际HTTP/MySQL整体验证。不是原生或真实用户成效声明。
 
 先读[主开发进度](primary-progress.md)、[并行端进度](parallel-progress.md)、[本批复盘](../reviews/observation-pre-review-stage-review.md)及[中篇先审规格](../publication/pre-review-spec.md)，再读[N2规格](../novels/n2-publication-reading-spec.md)和[连续复盘](../reviews/n2-publication-implementation-review.md)。同事e99ab22已在3ea66c9合入；不改其进度或将旧APK结果套给本批。

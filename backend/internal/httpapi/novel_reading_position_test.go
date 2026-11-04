@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 	"writing.local/community/internal/draft"
 	"writing.local/community/internal/identity"
 	"writing.local/community/internal/novel"
@@ -175,6 +176,9 @@ func TestNovelReadingPositionHTTPPrivacyAndRecovery(t *testing.T) {
 	if success != 1 || conflicts != 1 {
 		t.Fatal("reading CAS failed")
 	}
+	stale := input
+	stale.MutationID = uuid.New()
+	call("POST", root, stale, other, 409)
 	// A deliberate backward reading choice is valid, not max(chapter,offset).
 	backward := input
 	backward.MutationID = uuid.New()
@@ -195,4 +199,49 @@ func TestNovelReadingPositionHTTPPrivacyAndRecovery(t *testing.T) {
 	hidden.BaseRevision = 3
 	call("POST", root, hidden, other, 404)
 	call("GET", root+"/requests/"+uuid.NewString(), nil, other, 404)
+	// Retention cannot erase current progress, and a missing old receipt never bypasses CAS.
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if _, e = db.Exec("UPDATE novel_reading_requests SET created_at=? WHERE account_id=?", now, other[:]); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec("UPDATE novel_reading_requests SET created_at=? WHERE account_id=? AND mutation_id=?", now.Add(-31*24*time.Hour), other[:], input.MutationID[:]); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec("UPDATE novel_reading_requests SET created_at=? WHERE account_id=? AND mutation_id=?", now.Add(-30*24*time.Hour), other[:], backward.MutationID[:]); e != nil {
+		t.Fatal(e)
+	}
+	removed, e := s.CleanupReadingReceipts(ctx, now)
+	if e != nil || removed != 1 {
+		t.Fatal("retention boundary failed")
+	}
+	call("GET", receipt, nil, other, 404)
+	call("GET", root+"/requests/"+backward.MutationID.String(), nil, other, 200)
+	if _, e = db.Exec("UPDATE novels SET author_hidden=FALSE WHERE id=?", book.ID[:]); e != nil {
+		t.Fatal(e)
+	}
+	call("POST", root, input, other, 409)
+	retained := novelResult[novel.ReadingState](t, call("GET", root, nil, other, 200))
+	if retained.Position == nil || retained.Position.Revision != 3 {
+		t.Fatal("retention lost position")
+	}
+	// Synthetic stale receipts exercise the per-tick bound; they are never business responses.
+	values := make([]string, 501)
+	args := make([]any, 0, 501*4)
+	for i := range values {
+		mid := uuid.New()
+		values[i] = "(?,?,?,?,JSON_OBJECT(),?)"
+		args = append(args, other[:], mid[:], book.ID[:], make([]byte, 32), now.Add(-31*24*time.Hour))
+	}
+	if _, e = db.Exec("INSERT INTO novel_reading_requests(account_id,mutation_id,novel_id,payload_hash,result,created_at) VALUES "+strings.Join(values, ","), args...); e != nil {
+		t.Fatal(e)
+	}
+	removed, e = s.CleanupReadingReceipts(ctx, now)
+	if e != nil || removed != 500 {
+		t.Fatal("retention batch unbounded")
+	}
+	removed, e = s.CleanupReadingReceipts(ctx, now)
+	if e != nil || removed != 1 {
+		t.Fatal("retention next batch failed")
+	}
+
 }

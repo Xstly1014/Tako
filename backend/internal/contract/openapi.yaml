@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.23.0
+  version: 0.24.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -29,7 +29,7 @@ paths:
       operationId: getMyNovelReadingPosition
       tags: [长文]
       summary: 本人私密跨设备续读位置
-      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。原请求回执满30天可被小批清理，现位置与本机候选不受影响；超期查不到不证明从未同步，同标识重试仍CAS，冲突需本人选择。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
       responses:
         '200':
           description: 本人安全位置投影或不可变原写入回执
@@ -50,7 +50,7 @@ paths:
       operationId: saveMyNovelReadingPosition
       tags: [长文]
       summary: 本人私密跨设备续读位置
-      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。原请求回执满30天可被小批清理，现位置与本机候选不受影响；超期查不到不证明从未同步，同标识重试仍CAS，冲突需本人选择。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
       requestBody:
         required: true
         content:
@@ -86,7 +86,7 @@ paths:
       operationId: getMyNovelReadingReceipt
       tags: [长文]
       summary: 本人私密跨设备续读位置
-      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。原请求回执满30天可被小批清理，现位置与本机候选不受影响；超期查不到不证明从未同步，同标识重试仍CAS，冲突需本人选择。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
       responses:
         '200':
           description: 本人安全位置投影或不可变原写入回执
@@ -5926,7 +5926,7 @@ components:
       properties:
         error:
           type: string
-          enum: [novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [reading_position_conflict, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

@@ -174,9 +174,22 @@ func (s Store) SaveReading(ctx context.Context, reader, book uuid.UUID, in Readi
 	if e != nil {
 		return out, e
 	}
-	_, e = tx.ExecContext(ctx, "INSERT INTO novel_reading_requests(account_id,mutation_id,novel_id,payload_hash,result) VALUES(?,?,?,?,?)", reader[:], in.MutationID[:], book[:], hash[:], raw)
+	_, e = tx.ExecContext(ctx, "INSERT INTO novel_reading_requests(account_id,mutation_id,novel_id,payload_hash,result,created_at) VALUES(?,?,?,?,?,?)", reader[:], in.MutationID[:], book[:], hash[:], raw, out.SavedAt)
 	if e != nil {
 		return out, e
 	}
 	return out, tx.Commit()
+}
+
+// Receipts are eligible after 30 days; current private positions are never pruned here.
+// The bound and index keep routine maintenance transactions small.
+func (s Store) CleanupReadingReceipts(ctx context.Context, now time.Time) (int64, error) {
+	if now.IsZero() {
+		return 0, ErrInvalid
+	}
+	result, err := s.DB.ExecContext(ctx, "DELETE FROM novel_reading_requests WHERE created_at<? ORDER BY created_at,account_id,mutation_id LIMIT 500", now.UTC().Add(-30*24*time.Hour))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

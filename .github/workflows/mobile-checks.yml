@@ -66,6 +66,8 @@ jobs:
           docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
       - name: Reader, author and publication fixtures (network disabled)
         run: node scripts/check_mobile_components.cjs
+      - name: Novel reading and navigation fixtures (network disabled)
+        run: node scripts/check_novel_reading_components.cjs
       - name: Draft editing and publication handoff routes (network disabled)
         run: node scripts/check_mobile_drafts.cjs
   real-api:
@@ -92,9 +94,24 @@ jobs:
           python scripts/local_test.py migrate
           python scripts/local_test.py seed --users 10 --works 60
       - name: Start only the real API on loopback
-        run: docker compose --project-directory "$PWD" --env-file .runtime/local-test/.env -f infra/compose.local-test.yaml -f scripts/mobile-checks/compose.ci.yaml up -d --wait --wait-timeout 180 api
+        run: docker compose --project-directory "$PWD" --env-file .runtime/local-test/.env -f infra/compose.local-test.yaml -f scripts/mobile-checks/compose.ci.yaml up -d --wait --wait-timeout 180 api maintenance
       - name: Wait for HTTP readiness without dumping response bodies
         run: curl --fail --silent --output /dev/null --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:3300/health/ready
+      - name: Verify maintenance successfully runs (not just container startup)
+        run: |
+          python - <<'PY'
+          import sys, time
+          sys.path.insert(0, 'scripts')
+          from local_restart import verify_maintenance
+          for attempt in range(30):
+              try:
+                  verify_maintenance()
+                  break
+              except Exception:
+                  if attempt == 29:
+                      raise SystemExit('maintenance_not_ready')
+                  time.sleep(2)
+          PY
       - name: Real reader, comment and author API tests (missing service is failure)
         run: node scripts/check_mobile_tests.cjs service
       - name: Real account and favorite acceptance
@@ -105,6 +122,8 @@ jobs:
           docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
       - name: Real author business workflow with retained page stack
         run: node scripts/check_author_workflow_live.cjs
+      - name: Real novel reading and private position recovery
+        run: node scripts/check_novel_reading_live.cjs
       # Do not upload configurations, fixtures, API logs, or credentials.
       - name: Stop this runner's isolated containers
         if: always()

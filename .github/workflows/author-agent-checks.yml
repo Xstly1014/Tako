@@ -1,0 +1,40 @@
+name: Author agent static checks
+on:
+  push:
+    paths:
+      - 'agents/author-support/**'
+      - 'mobile/src/api/**'
+      - 'mobile/src/auth/**'
+      - 'mobile/src/drafts/model.ts'
+      - 'mobile/src/drafts/access.ts'
+      - '.github/workflows/author-agent-checks.yml'
+  pull_request:
+    paths:
+      - 'agents/author-support/**'
+      - 'mobile/src/api/**'
+      - 'mobile/src/auth/**'
+      - 'mobile/src/drafts/model.ts'
+      - 'mobile/src/drafts/access.ts'
+      - '.github/workflows/author-agent-checks.yml'
+permissions:
+  contents: read
+concurrency:
+  group: author-agent-static-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  static-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: agents/author-support/package-lock.json
+      - run: npm ci --prefix agents/author-support --ignore-scripts --no-audit --no-fund
+      - name: Synthetic unit tests only (no credentials or provider calls)
+        run: npm test --prefix agents/author-support
+      - run: npm run typecheck --prefix agents/author-support
+      - name: No tracked generated changes
+        run: git diff --exit-code

@@ -1,0 +1,53 @@
+// Actual reading screens/Session/decoders -> real test HTTP/MySQL. DOM/journal are explicit adapters.
+const esbuild=require('/tools/node_modules/esbuild'),{chromium}=require('/tools/node_modules/playwright'),path=require('node:path'),assert=require('node:assert/strict'),fs=require('node:fs');let stage='preflight';
+(async()=>{
+ const preflight=await fetch('http://api:8080/api/my/novel-reading/11111111-1111-4111-8111-111111111111');if(preflight.headers.get('X-Tako-Environment')!=='test'||preflight.status!==401)throw Error('test_reading_api_required');
+ stage='bundle';const built=await esbuild.build({entryPoints:[path.join(__dirname,'entry.jsx')],bundle:true,write:false,define:{'process.env.EXPO_PUBLIC_API_URL':JSON.stringify('http://127.0.0.1:3300/api'),'process.env.NODE_ENV':JSON.stringify('development')},tsconfigRaw:{compilerOptions:{jsx:'react-jsx',target:'ES2022'}},format:'esm',jsx:'automatic',loader:{'.png':'dataurl'},nodePaths:['/app/node_modules'],plugins:[{name:'fixture',setup(build){
+  build.onResolve({filter:/^react-native$|^react-native-safe-area-context$/},()=>({path:path.join(__dirname,'native.jsx')}));
+  build.onResolve({filter:/^expo-router$/},()=>({path:path.join(__dirname,'router.jsx')}));
+  build.onResolve({filter:/\/auth\/context$/},()=>({path:path.join(__dirname,'../mobile-author-works-ui/context.jsx')}));
+  build.onResolve({filter:/^\.\/native$/},args=>args.importer.endsWith('ReadingPositionUi.tsx')?{path:path.join(__dirname,'journal.jsx')}:undefined);
+  build.onResolve({filter:/^expo-crypto$/},()=>({path:'crypto',namespace:'fixture'}));build.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const randomUUID=()=>crypto.randomUUID();',loader:'js'}));
+  build.onResolve({filter:/^react-native-svg$/},()=>({path:path.join(__dirname,'svg.jsx')}));
+  build.onResolve({filter:/\/components\/PrototypeUi$/},()=>({path:'chrome',namespace:'chrome'}));build.onLoad({filter:/.*/,namespace:'chrome'},()=>({contents:'export const BottomNavigation=()=>null;',loader:'js'}));
+ }}]});
+ const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];let posts=0,drop=true,disconnected=false;
+ page.on('pageerror',e=>errors.push(e.name));
+ try{
+  await page.route('**/__reading-live',r=>r.fulfill({contentType:'text/html',body:'<style>html,body{margin:0;font-family:Arial,"Microsoft YaHei",sans-serif}button{font:inherit}</style><div id="root"></div><script type="module">'+built.outputFiles[0].text.replaceAll('</script','<\\/script')+'</script>'}));
+  await page.route('**/api/**',async r=>{const q=r.request(),url=new URL(q.url()),headers={...q.headers()};if(disconnected)return r.abort();if(headers.cookie)throw Error('unexpected_cookie');delete headers.origin;const res=await r.fetch({url:'http://api:8080'+url.pathname+url.search,headers});if(res.headers()['x-tako-environment']!=='test')throw Error('environment');if(q.method()==='POST'&&/\/my\/novel-reading\/[^/]+$/.test(url.pathname)){posts++;if(res.ok()&&drop){drop=false;return r.abort()}}return r.fulfill({response:res})});
+  await page.goto('http://127.0.0.1:3300/__reading-live');stage='setup';await page.evaluate(()=>window.readLive.setup());await page.getByText('续读真实链路合成书',{exact:true}).waitFor();
+  stage='actual-reading-save';await page.getByRole('button',{name:'第1章 续读第一章',exact:true}).click();await page.getByRole('button',{name:'检查续读同步',exact:true}).waitFor();await page.getByRole('button',{name:'模拟稳定阅读段落 4',exact:true}).click();
+  await page.waitForFunction(()=>[...window.readLive.records.values()].some(r=>r.candidate?.locator.paragraph===4));await page.getByRole('button',{name:'检查续读同步',exact:true}).click();await page.getByRole('button',{name:'查询原续读请求',exact:true}).waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.getAttribute('aria-label')==='查询原续读请求'&&!b.disabled));assert.equal(posts,1);
+  fs.mkdirSync('/materials/.runtime/reading-live',{recursive:true});const adapterStyle=await page.addStyleTag({content:'button[aria-label^="模拟稳定阅读段落"]{display:none}'});await page.screenshot({path:'/materials/.runtime/reading-live/pending-390.png'});await adapterStyle.evaluate(el=>el.remove());
+  stage='remount-query-only';await page.getByRole('button',{name:'章节目录',exact:true}).click();await page.getByRole('button',{name:'继续上次阅读',exact:true}).waitFor();assert.equal(posts,1);await page.getByRole('button',{name:'继续上次阅读',exact:true}).click();await page.waitForFunction(()=>window.readLive.restoredIndex===4);assert.equal(posts,1);
+  stage='cross-device-conflict';await page.getByRole('button',{name:'模拟稳定阅读段落 5',exact:true}).click();await page.waitForFunction(()=>[...window.readLive.records.values()].some(r=>r.candidate?.locator.paragraph===5));
+  await page.evaluate(async()=>{const s=window.readLive.session,b=window.readLive.book,c=window.readLive.chapter;await s.authorized('/my/novel-reading/'+b,{method:'POST',body:{mutation_id:crypto.randomUUID(),base_revision:1,chapter_id:c,version:1,locator:{algorithm:1,paragraph:9,offset:0}}})});
+  await page.getByRole('button',{name:'检查续读同步',exact:true}).click();await page.getByRole('button',{name:'采用云端位置并继续',exact:true}).waitFor();await page.getByRole('button',{name:'采用云端位置并继续',exact:true}).click();await page.waitForFunction(()=>window.readLive.restoredIndex===9);assert.equal(posts,2);
+  stage='explicit-local-choice';await page.getByRole('button',{name:'模拟稳定阅读段落 7',exact:true}).click();await page.waitForFunction(()=>[...window.readLive.records.values()].some(r=>r.candidate?.locator.paragraph===7));
+  await page.evaluate(async()=>{const f=window.readLive;await f.session.authorized('/my/novel-reading/'+f.book,{method:'POST',body:{mutation_id:crypto.randomUUID(),base_revision:2,chapter_id:f.chapter,version:1,locator:{algorithm:1,paragraph:1,offset:0}}})});
+  await page.getByRole('button',{name:'检查续读同步',exact:true}).click();await page.getByRole('button',{name:'使用本机位置',exact:true}).click();await page.waitForFunction(()=>[...window.readLive.records.values()].some(r=>r.base===4&&!r.candidate));assert.equal(posts,4);
+  stage='revision-fallback';await page.evaluate(async()=>{const f=window.readLive,s=f.owner,b=f.book;
+   await s.authorized('/my/novels/'+b+'/chapter-drafts/save',{method:'POST',body:{mutation_id:crypto.randomUUID(),draft_id:f.draft,base_revision:1,title:'修订后的第一章',content:Array.from({length:20},(_,i)=>`修订后第${i+1}段 合成中文与表情😀。`).join('\n')}});
+   const source=await s.authorized('/my/novels/'+b);const p=await s.authorized('/my/novels/'+b+'/chapter-previews',{method:'POST',body:{mutation_id:crypto.randomUUID(),draft_id:f.draft,source_revision:2,book_revision:source.revision}});
+   const r=await s.authorized('/my/novels/'+b+'/chapter-submissions',{method:'POST',body:{mutation_id:crypto.randomUUID(),preview_id:p.preview_id,rights_confirmed:true}});if(r.version!==2)throw Error('revision');
+  });
+  await page.getByText('续读第一章',{exact:true}).waitFor();await page.evaluate(()=>{window.readLive.restoredIndex=null;window.readLive.open('/novel-chapter?book='+window.readLive.book+'&chapter='+window.readLive.chapter+'&resume=1')});await page.getByText('本章已修订，从本章开头继续；旧位置不会套用到新正文。',{exact:true}).waitFor();await page.waitForFunction(()=>window.readLive.restoredIndex===0);
+  stage='offline-reader-identity';disconnected=true;await page.evaluate(()=>window.readLive.session.restore());
+  await page.waitForFunction(()=>window.readLive.session.snapshot().phase==='offline'&&window.readLive.session.snapshot().localOwner===window.readLive.readerA);
+  await page.getByText('本机保留了续读位置，联网后再同步',{exact:true}).waitFor();const draftAccess=await page.evaluate(()=>window.readLive.session.snapshot().drafts.phase);assert.equal(draftAccess,'locked');assert.equal(posts,4);
+  disconnected=false;await page.evaluate(()=>window.readLive.session.restore());await page.getByText('阅读位置已同步',{exact:true}).waitFor();assert.equal(posts,4);
+  stage='account-isolation';await page.evaluate(async()=>{await window.readLive.session.logout();await window.readLive.session.signIn('register','reading-other-'+crypto.randomUUID()+'@example.test',crypto.randomUUID())});
+  await page.getByText('登录后的阅读位置会私密同步',{exact:true}).waitFor();await page.waitForTimeout(2200);const isolated=await page.evaluate(()=>window.readLive.session.authorized('/my/novel-reading/'+window.readLive.book));assert.equal(isolated.position,null);assert.equal(posts,4);
+  stage='dynamic-unreadable';await page.evaluate(async()=>{const s=window.readLive.owner,b=window.readLive.book;const state=await s.authorized('/my/novels/'+b+'/formal-state');await s.authorized('/my/novels/'+b+'/visibility',{method:'POST',body:{mutation_id:crypto.randomUUID(),expected_revision:state.state_revision,action:'hide'}})});
+  await page.getByText('第1段 合成中文与表情😀。',{exact:false}).first().waitFor();await page.evaluate(()=>window.readLive.open('/novel-chapter?book='+window.readLive.book+'&chapter='+window.readLive.chapter));await page.getByText('章节未能加载',{exact:true}).waitFor();
+  assert.equal(posts,4);assert.deepEqual(errors,[]);await page.evaluate(()=>window.readLive.session.logout());
+  console.log('PASS actual reading/position recovery and account isolation (real HTTP/MySQL, DOM/journal adapters; no native claim).');
+ }catch(e){
+  try{fs.mkdirSync('/materials/.runtime/reading-live',{recursive:true});await page.screenshot({path:'/materials/.runtime/reading-live/failure.png'});const diag=await page.evaluate(()=>({records:window.readLive.records.size,pending:[...window.readLive.records.values()].filter(r=>r.pending).length,candidate:[...window.readLive.records.values()].filter(r=>r.candidate).length}));console.error('DIAG posts='+posts+' records='+diag.records+' pending='+diag.pending+' candidate='+diag.candidate+' error='+(['TimeoutError','AssertionError','Error'].includes(e.name)?e.name:'Error'))}catch{}
+  console.error('FAIL reading live stage='+stage+' line='+(String(e.stack).match(/run.cjs:(\d+)/)?.[1]??'0'));process.exitCode=1}finally{
+  disconnected=false;
+  try{await page.evaluate(async()=>{const f=window.readLive;if(f.owner&&f.book){try{const st=await f.owner.authorized('/my/novels/'+f.book+'/formal-state');if(!st.author_hidden)await f.owner.authorized('/my/novels/'+f.book+'/visibility',{method:'POST',body:{mutation_id:crypto.randomUUID(),expected_revision:st.state_revision,action:'hide'}})}catch{}try{await f.owner.logout()}catch{}}if(f.session?.snapshot().phase==='ready')try{await f.session.logout()}catch{}})}catch{}
+  await browser.close()
+ }
+})().catch(()=>{console.error('FAIL reading live stage='+stage+' line=0');process.exitCode=1});

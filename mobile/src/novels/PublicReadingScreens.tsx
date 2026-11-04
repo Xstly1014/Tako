@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import {
+  FlatList,
+  AppState,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Action, Brand, Status } from "../components/Ui";
@@ -12,8 +19,21 @@ import {
   type DirectoryChapter,
   type PublicNovelChapter,
 } from "./reading-api";
-import { mergeReadingItems, readingChunks } from "./reading-model";
+import { mergeReadingItems } from "./reading-model";
 import { id } from "../drafts/model";
+import {
+  locatedReadingChunks,
+  readingChunkIndex,
+  validReadingLocation,
+  type LocatedChunk,
+} from "./reading-location";
+import {
+  useReadingPosition,
+  useReadingState,
+  useReadingLifecycle,
+  ReadingPositionControls,
+} from "./ReadingPositionUi";
+import type { ReadingCandidate } from "./reading-sync";
 const api = new NovelReadingApi();
 type Page<T> = { items: T[]; next_cursor: string };
 /** A failed next-page request keeps the prior page and cursor. Unmount cancels all reads. */
@@ -222,6 +242,8 @@ export function NovelDirectoryScreen() {
   return <DirectoryContent key={book} book={book} />;
 }
 function DirectoryContent({ book }: { book: string }) {
+  const sync = useReadingPosition(book);
+  const { localError } = useReadingLifecycle(sync);
   const valid = id(book);
   const [details, setDetails] = useState<PublicNovel>();
   const load = useCallback(
@@ -271,6 +293,16 @@ function DirectoryContent({ book }: { book: string }) {
                 {details.introduction ? (
                   <Text style={s.intro}>{details.introduction}</Text>
                 ) : null}
+                <ReadingPositionControls
+                  sync={sync}
+                  error={localError}
+                  onResume={(p) =>
+                    router.push({
+                      pathname: "/novel-chapter",
+                      params: { book, chapter: p.chapter_id, resume: "1" },
+                    })
+                  }
+                />
               </View>
             ) : undefined
           }
@@ -319,19 +351,87 @@ function DirectoryContent({ book }: { book: string }) {
   );
 }
 export function NovelChapterScreen() {
-  const params = useLocalSearchParams<{ book: string; chapter: string }>();
+  const params = useLocalSearchParams<{
+    book: string;
+    chapter: string;
+    resume?: string;
+  }>();
   const book = typeof params.book === "string" ? params.book : "",
     chapter = typeof params.chapter === "string" ? params.chapter : "";
   return (
-    <ChapterContent key={book + "/" + chapter} book={book} chapter={chapter} />
+    <ChapterContent
+      key={book + "/" + chapter}
+      book={book}
+      chapter={chapter}
+      resume={params.resume === "1"}
+    />
   );
 }
-function ChapterContent({ book, chapter }: { book: string; chapter: string }) {
+function ChapterContent({
+  book,
+  chapter,
+  resume,
+}: {
+  book: string;
+  chapter: string;
+  resume: boolean;
+}) {
+  const sync = useReadingPosition(book),
+    state = useReadingState(sync);
+  const { localError, operation, focused } = useReadingLifecycle(sync);
+  const list = useRef<FlatList<LocatedChunk>>(null);
+  const [resumeNotice, setResumeNotice] = useState("");
+  const firstSync = useRef(sync);
+  const applied = useRef<ReturnType<typeof useReadingPosition> | undefined>(
+      undefined,
+    ),
+    captureAllowed = useRef(false),
+    restoreIndex = useRef<number | null>(null),
+    restoreAttempts = useRef(0);
+  const capture = useRef<(p: ReadingCandidate) => void>(() => {});
+  const [visibleLocation, setVisibleLocation] = useState<{
+    sync: NonNullable<typeof sync>;
+    value: ReadingCandidate;
+  } | null>(null);
+  const restoreTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const onVisible = useCallback(
+    ({
+      viewableItems,
+    }: {
+      viewableItems: {
+        item: LocatedChunk;
+        index?: number | null;
+        isViewable: boolean;
+      }[];
+    }) => {
+      if (!captureAllowed.current) return;
+      const first = viewableItems.find(
+        (v) => v.isViewable && typeof v.index === "number",
+      );
+      if (first)
+        capture.current({
+          chapter_id: chapter,
+          version: 0,
+          locator: {
+            algorithm: 1,
+            paragraph: first.item.paragraph,
+            offset: first.item.offset,
+          },
+        });
+    },
+    [chapter],
+  );
+  const viewability = useMemo(
+    () => ({ minimumViewTime: 2000, itemVisiblePercentThreshold: 30 }),
+    [],
+  );
   const valid = id(book) && id(chapter);
   const [result, setResult] = useState<{
       key: string;
       value: PublicNovelChapter;
-      chunks: string[];
+      chunks: LocatedChunk[];
     }>(),
     [error, setError] = useState<unknown>(),
     [retry, setRetry] = useState(0);
@@ -343,7 +443,11 @@ function ChapterContent({ book, chapter }: { book: string; chapter: string }) {
         .chapter(book, chapter, controller.signal)
         .then((value) => {
           if (!controller.signal.aborted)
-            setResult({ key, value, chunks: readingChunks(value.content) });
+            setResult({
+              key,
+              value,
+              chunks: locatedReadingChunks(value.content),
+            });
         })
         .catch((e: unknown) => {
           if (!controller.signal.aborted) setError(e);
@@ -351,6 +455,139 @@ function ChapterContent({ book, chapter }: { book: string; chapter: string }) {
     return () => controller.abort();
   }, [book, chapter, valid, key, retry]);
   const value = result?.key === key ? result : undefined;
+  useEffect(() => {
+    capture.current = (p) => {
+      if (
+        value &&
+        sync &&
+        sync.snapshot().ready &&
+        focused.current &&
+        AppState.currentState === "active"
+      ) {
+        applied.current = sync;
+        setVisibleLocation({
+          sync,
+          value: { ...p, version: value.value.version },
+        });
+      }
+    };
+    return () => {
+      capture.current = () => {};
+    };
+  }, [value, sync, focused]);
+  useEffect(() => {
+    captureAllowed.current = false;
+    return () => {
+      captureAllowed.current = false;
+      if (restoreTimer.current) clearTimeout(restoreTimer.current);
+    };
+  }, [sync]);
+  const applyLocation = useCallback(
+    (p: ReadingCandidate) => {
+      if (p.chapter_id !== chapter) {
+        router.replace({
+          pathname: "/novel-chapter",
+          params: { book, chapter: p.chapter_id, resume: "1" },
+        });
+        return;
+      }
+      if (!value) return;
+      applied.current = sync;
+      captureAllowed.current = false;
+      const compatible =
+        p.version === value.value.version &&
+        validReadingLocation(value.value.content, p.locator);
+      setResumeNotice(
+        compatible
+          ? "已回到上次阅读位置"
+          : "本章已修订，从本章开头继续；旧位置不会套用到新正文。",
+      );
+      const index = compatible
+        ? readingChunkIndex(value.value.content, p.locator)
+        : 0;
+      restoreIndex.current = index;
+      restoreAttempts.current = 0;
+      try {
+        list.current?.scrollToIndex({
+          index,
+          animated: false,
+          viewPosition: 0,
+        });
+      } catch {
+        setResumeNotice("位置暂未定位，可继续阅读或再次点击续读。");
+      }
+    },
+    [book, chapter, value, sync],
+  );
+  useEffect(() => {
+    if (
+      !value ||
+      !sync ||
+      !state.ready ||
+      state.busy ||
+      applied.current === sync
+    )
+      return;
+    // Signing in or changing accounts does not import the previous viewer's scroll position.
+    if (firstSync.current !== sync) {
+      applied.current = sync;
+      return;
+    }
+    const p = state.record?.candidate ?? state.record?.cloud;
+    if (resume && p && p.chapter_id === chapter) {
+      const timer = setTimeout(() => {
+        applied.current = sync;
+        applyLocation(p);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    const timer = setTimeout(() => {
+      if (applied.current === sync) return;
+      applied.current = sync;
+      if (!focused.current || AppState.currentState !== "active") return;
+      captureAllowed.current = true;
+      setVisibleLocation({
+        sync,
+        value: {
+          chapter_id: chapter,
+          version: value.value.version,
+          locator: { algorithm: 1, paragraph: 0, offset: 0 },
+        },
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [
+    value,
+    sync,
+    state.ready,
+    state.busy,
+    state.record,
+    resume,
+    chapter,
+    applyLocation,
+    focused,
+  ]);
+  useEffect(() => {
+    if (!sync || visibleLocation?.sync !== sync) return;
+    void operation(() => sync.capture(visibleLocation.value));
+  }, [sync, visibleLocation, operation]);
+  useEffect(() => {
+    if (
+      !sync ||
+      !state.record?.candidate ||
+      state.record.pending ||
+      state.record.conflict ||
+      state.record.blocked ||
+      state.busy ||
+      state.error
+    )
+      return;
+    const timer = setTimeout(() => {
+      if (focused.current && AppState.currentState === "active")
+        void operation(() => sync.sync());
+    }, 10_000);
+    return () => clearTimeout(timer);
+  }, [sync, state.record, state.busy, state.error, operation, focused]);
   // No focus reload: a reader can finish the already-loaded formal text.
   return (
     <SafeAreaView style={s.screen}>
@@ -384,6 +621,38 @@ function ChapterContent({ book, chapter }: { book: string; chapter: string }) {
         />
       ) : (
         <FlatList
+          ref={list}
+          onViewableItemsChanged={onVisible}
+          viewabilityConfig={viewability}
+          onScrollBeginDrag={() => {
+            captureAllowed.current = true;
+          }}
+          onScrollToIndexFailed={(info) => {
+            if (
+              restoreIndex.current === null ||
+              restoreAttempts.current++ >= 3
+            ) {
+              setResumeNotice("未能精确定位，可以重试续读或从当前处阅读。");
+              return;
+            }
+            list.current?.scrollToOffset({
+              offset: Math.max(0, info.averageItemLength * info.index),
+              animated: false,
+            });
+            if (restoreTimer.current) clearTimeout(restoreTimer.current);
+            restoreTimer.current = setTimeout(() => {
+              try {
+                if (restoreIndex.current !== null)
+                  list.current?.scrollToIndex({
+                    index: restoreIndex.current,
+                    animated: false,
+                    viewPosition: 0,
+                  });
+              } catch {
+                setResumeNotice("位置暂未定位，可重试续读。");
+              }
+            }, 150);
+          }}
           key={key}
           data={value.chunks}
           keyExtractor={(_, index) => String(index)}
@@ -394,11 +663,18 @@ function ChapterContent({ book, chapter }: { book: string; chapter: string }) {
             <View style={s.book}>
               <Text style={s.meta}>第{value.value.ordinal}章</Text>
               <Text style={s.bookTitle}>{value.value.title}</Text>
+              <ReadingPositionControls
+                sync={sync}
+                currentChapter={chapter}
+                onResume={applyLocation}
+                error={localError}
+              />
+              {resumeNotice ? <Text style={s.meta}>{resumeNotice}</Text> : null}
             </View>
           }
           renderItem={({ item }) => (
             <Text selectable style={s.body}>
-              {item}
+              {item.text || "\n"}
             </Text>
           )}
           ListFooterComponent={

@@ -38,6 +38,18 @@ services:
       GOMEMLIMIT: 144MiB
     depends_on:
       mysql: {condition: service_healthy}
+  maintenance:
+    image: writing-community-api:${APP_VERSION:-local}
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      APP_ROLE: maintenance
+      APP_ENVIRONMENT: test
+      PUBLICATION_ENABLED: "true"
+      MYSQL_DSN: tako_test:${MYSQL_PASSWORD}@tcp(mysql:3306)/tako_sandbox?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&timeout=5s&readTimeout=5s&writeTimeout=5s
+      GOMEMLIMIT: 96MiB
+    depends_on:
+      mysql: {condition: service_healthy}
   web:
     image: writing-community-web:${APP_VERSION:-local}
     restart: unless-stopped

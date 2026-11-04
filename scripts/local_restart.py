@@ -69,6 +69,18 @@ def verify_http():
                     raise RuntimeError("community_response_invalid")
 
 
+
+def verify_maintenance():
+    if not run(compose("ps", "--status", "running", "-q", "maintenance"), 30).strip():
+        raise RuntimeError("maintenance_not_running")
+    query = "SELECT COUNT(*) FROM runtime_health WHERE role='maintenance' AND last_seen > UTC_TIMESTAMP(6)-INTERVAL 120 SECOND AND last_success >= last_seen-INTERVAL 1 SECOND;"
+    result = subprocess.run(compose("exec", "-T", "mysql", "sh", "-c",
+                           'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot -N -B "$MYSQL_DATABASE"'),
+                            input=query.encode(), cwd=ROOT, capture_output=True, timeout=30)
+    if result.returncode or result.stdout.strip() != b"1":
+        raise RuntimeError("maintenance_heartbeat_unhealthy")
+
+
 def start(rebuild=False):
     values = preflight()
     for name in CACHES:
@@ -82,10 +94,11 @@ def start(rebuild=False):
     verify_database(values)
     run(compose("run", "--rm", "tools", "go", "run",
                 "github.com/pressly/goose/v3/cmd/goose@v3.26.0", "-dir", "migrations", "up"))
-    run(compose("up", "-d", "api", "web", "gateway"), 180)
+    run(compose("up", "-d", "api", "web", "gateway", "maintenance"), 180)
     for attempt in range(30):
         try:
             verify_http()
+            verify_maintenance()
             break
         except Exception:
             if attempt == 29:
@@ -106,6 +119,7 @@ def main():
         values = preflight()
         verify_database(values)
         verify_http()
+        verify_maintenance()
         print(json.dumps({"event": "local_restart_check_passed", "environment": "test"}))
 
 

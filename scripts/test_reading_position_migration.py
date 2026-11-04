@@ -1,4 +1,4 @@
-"""Exercise 21->22->21 preservation and the reading-receipt rollback guard in an isolated database."""
+"""Exercise 21->22->23 metadata preservation and the reading-receipt rollback guard in an isolated database."""
 import runpy, subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
@@ -20,10 +20,16 @@ try:
  if sql("USE "+DB+"; SELECT title FROM novels")!='preserved book':raise RuntimeError('legacy_book_changed')
  migrate('up-to 22')
  sql("USE "+DB+"; INSERT INTO novel_reading_requests(account_id,mutation_id,novel_id,payload_hash,result) SELECT owner_id,UUID_TO_BIN(UUID()),id,UNHEX(REPEAT('00',32)),JSON_OBJECT() FROM novels;")
+ migrate('up-to 23')
+ if sql("USE "+DB+"; SELECT COUNT(*) FROM novel_reading_requests WHERE created_at IS NOT NULL")!='1':raise RuntimeError('retention_metadata_missing')
+ migrate('down')
+ if sql("USE "+DB+"; SELECT COUNT(*) FROM novel_reading_requests")!='1':raise RuntimeError('metadata_rollback_lost_receipt')
+ migrate('up-to 23')
+ migrate('down')
  migrate('down',False)
  if sql("USE "+DB+"; SELECT COUNT(*) FROM novel_reading_requests")!='1':raise RuntimeError('rollback_lost_receipt')
  sql('DROP DATABASE '+DB)
- print('PASS reading migration: existing book preserved; empty rollback/re-upgrade; non-empty receipt rollback refused. Isolated synthetic database only.')
+ print('PASS reading migration: existing book preserved; 22/23 metadata rollback/re-upgrade preserves receipts; non-empty 22 rollback refused. Isolated synthetic database only.')
 except Exception:
  print('FAIL reading migration; isolated database retained for inspection; application database unchanged.')
  raise SystemExit(1)

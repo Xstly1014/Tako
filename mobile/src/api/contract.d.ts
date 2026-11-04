@@ -15,13 +15,13 @@ export interface paths {
     };
     /**
      * 本人私密跨设备续读位置
-     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。原请求回执满30天可被小批清理，现位置与本机候选不受影响；超期查不到不证明从未同步，同标识重试仍CAS，冲突需本人选择。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
      */
     get: operations["getMyNovelReadingPosition"];
     put?: never;
     /**
      * 本人私密跨设备续读位置
-     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。原请求回执满30天可被小批清理，现位置与本机候选不受影响；超期查不到不证明从未同步，同标识重试仍CAS，冲突需本人选择。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
      */
     post: operations["saveMyNovelReadingPosition"];
     delete?: never;
@@ -42,7 +42,7 @@ export interface paths {
     };
     /**
      * 本人私密跨设备续读位置
-     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。原请求回执满30天可被小批清理，现位置与本机候选不受影响；超期查不到不证明从未同步，同标识重试仍CAS，冲突需本人选择。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
      */
     get: operations["getMyNovelReadingReceipt"];
     put?: never;
@@ -3439,6 +3439,7 @@ export interface components {
     Error: {
       /** @enum {string} */
       error:
+        | "reading_position_conflict"
         | "novel_state_conflict"
         | "novel_restricted"
         | "chapter_preview_expired"

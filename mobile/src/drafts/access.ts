@@ -13,12 +13,17 @@ export interface DraftGrantVault {
   confirm(token: string, owner: string): Promise<DraftGrant>;
   lock(token: string): Promise<void>;
 }
+export interface LocalIdentityVault {
+  read(token: string): Promise<string | null>;
+  bind(token: string, owner: string): Promise<void>;
+  lock(token: string): Promise<void>;
+}
 export interface SecureItem {
   get(): Promise<string | null>;
   set(value: string): Promise<void>;
   remove(): Promise<void>;
 }
-type Envelope = { format: 1; token: string; grant: DraftGrant | null };
+type Envelope = { format: 1; token: string; grant: DraftGrant | null; local_owner?: string | null };
 const validToken = (value: unknown): boolean =>
   typeof value === "string" && /^tako_app_[0-9a-f]{64}$/.test(value);
 
@@ -41,7 +46,8 @@ export function createDraftSessionVault(item: SecureItem) {
     try {
       const value = JSON.parse(raw);
       if (raw.length > 1024 || value?.format !== 1 || !validToken(value.token) ||
-          Object.keys(value).some(key => !["format", "token", "grant"].includes(key)) ||
+          Object.keys(value).some(key => !["format", "token", "grant", "local_owner"].includes(key)) ||
+          !(value.local_owner === undefined || value.local_owner === null || (id(value.local_owner) && value.grant?.owner === value.local_owner)) ||
           !(value.grant === null || (id(value.grant?.owner) && typeof value.grant.confirmed === "boolean" &&
             Object.keys(value.grant).every(key => ["owner", "confirmed"].includes(key)))))
         throw new Error();
@@ -76,13 +82,27 @@ export function createDraftSessionVault(item: SecureItem) {
       await write({ ...current, grant: current.grant ? { ...current.grant, confirmed: false } : null });
     }),
   };
+  const localIdentity: LocalIdentityVault = {
+    read: (token) => serial(async () => (await matching(token)).local_owner ?? null),
+    bind: (token, owner) => serial(async () => {
+      if (!id(owner)) throw new ApiError("contract");
+      const current=await matching(token);
+      if(current.grant?.owner !== owner)throw new ApiError("stale_session");
+      await write({...current,local_owner:owner});
+    }),
+    lock: (token) => serial(async () => {
+      const current=await matching(token);
+      await write({...current,local_owner:null});
+    }),
+  };
   return {
+    localIdentity,
     get: () => serial(async () => (await decode())?.token ?? null),
     set: (token: string) => serial(async () => {
       if (!validToken(token)) throw new ApiError("contract");
       // Fresh login always needs explicit local-draft confirmation, including
       // switching back after another account. No former owner ledger is exposed.
-      await write({ format: 1, token, grant: null });
+      await write({ format: 1, token, grant: null, local_owner: null });
     }),
     remove: () => serial(() => item.remove()),
     drafts,

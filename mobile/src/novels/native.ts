@@ -5,6 +5,7 @@ import type { Session } from "../auth/session";
 import { ApiError } from "../api/client";
 import type { DraftCipher, CipherRows } from "../drafts/storage";
 import { SqliteCipherRows } from "../drafts/sqlite";
+import { EncryptedReadingJournal } from "./reading-journal";
 import { EncryptedNovelManagementJournal } from "./management-journal";
 import { EncryptedBookJournal } from "./journal";
 import { EncryptedChapterPublicationJournal } from "./chapters/publication-journal";
@@ -185,6 +186,45 @@ export function nativeNovelManagementJournal(session: Session) {
         cipher,
         owner,
         current,
+      ).save(value, expectedToken);
+    },
+  };
+}
+
+export function nativeReadingJournal(session: Session, book: string) {
+  const initial = session.snapshot();
+  const owner =
+    initial.account?.id ??
+    (initial.phase === "offline" ? initial.localOwner : null);
+  if (!owner || initial.busy) throw new ApiError("stale_session");
+  const current = () => {
+    const now = session.snapshot();
+    const account =
+      now.account?.id ?? (now.phase === "offline" ? now.localOwner : null);
+    return (
+      !now.busy && now.generation === initial.generation && account === owner
+    );
+  };
+  return {
+    async load() {
+      return new EncryptedReadingJournal(
+        await openRows(),
+        cipher,
+        owner,
+        current,
+        book,
+      ).load();
+    },
+    async save(
+      value: Parameters<EncryptedReadingJournal["save"]>[0],
+      expectedToken: string | null,
+    ) {
+      return new EncryptedReadingJournal(
+        await openRows(),
+        cipher,
+        owner,
+        current,
+        book,
       ).save(value, expectedToken);
     },
   };

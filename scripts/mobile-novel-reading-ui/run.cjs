@@ -11,6 +11,8 @@ let stage='bundle';
       build.onResolve({ filter: /^react-native$|^react-native-safe-area-context$/ }, () => ({ path: path.join(__dirname, 'native.jsx') }));
       build.onResolve({filter:/\/components\/PrototypeUi$/},()=>({path:'chrome',namespace:'fixture-chrome'}));
       build.onLoad({filter:/.*/,namespace:'fixture-chrome'},()=>({contents:'export const BottomNavigation=()=>null;',loader:'js'}));
+      build.onResolve({filter:/^\.\/native$/},args=>args.importer.endsWith('ReadingPositionUi.tsx')?{path:'reading-journal',namespace:'fixture'}:undefined);
+      build.onLoad({filter:/reading-journal/,namespace:'fixture'},()=>({contents:'export function nativeReadingJournal(){throw Error("guest_reading_must_not_open_private_storage")}',loader:'js'}));
       build.onResolve({ filter: /^expo-router$/ }, () => ({ path: path.join(__dirname, 'router.jsx') }));
       build.onResolve({ filter: /^react-native-svg$/ }, () => ({ path: path.join(__dirname, '../mobile-versions-ui/svg.jsx') }));
       build.onResolve({ filter: /\/auth\/context$/ }, () => ({ path: path.join(__dirname, '../mobile-comments-ui/context.jsx') }));
