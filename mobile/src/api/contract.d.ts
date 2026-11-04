@@ -4,6 +4,55 @@
  */
 
 export interface paths {
+  "/api/my/novel-reading/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人私密跨设备续读位置
+     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+     */
+    get: operations["getMyNovelReadingPosition"];
+    put?: never;
+    /**
+     * 本人私密跨设备续读位置
+     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+     */
+    post: operations["saveMyNovelReadingPosition"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novel-reading/{id}/requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人私密跨设备续读位置
+     * @description 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+     */
+    get: operations["getMyNovelReadingReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/author-policy": {
     parameters: {
       query?: never;
@@ -2416,6 +2465,37 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ReadingLocator: {
+      /** @enum {integer} */
+      algorithm: 1;
+      paragraph: number;
+      offset: number;
+    };
+    ReadingPosition: {
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      version: number;
+      locator: components["schemas"]["ReadingLocator"];
+      revision: number;
+      /** Format: date-time */
+      saved_at: string;
+    };
+    ReadingWrite: {
+      /** Format: uuid */
+      mutation_id: string;
+      base_revision: number;
+      /** Format: uuid */
+      chapter_id: string;
+      version: number;
+      locator: components["schemas"]["ReadingLocator"];
+    };
+    ReadingState: {
+      position: components["schemas"]["ReadingPosition"] | (never | null);
+      readable: boolean;
+      current_version: number | null;
+    };
     WorkSubmission: {
       /** Format: uuid */
       id: string;
@@ -3597,6 +3677,107 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getMyNovelReadingPosition: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人安全位置投影或不可变原写入回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadingState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  saveMyNovelReadingPosition: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReadingWrite"];
+      };
+    };
+    responses: {
+      /** @description 本人安全位置投影或不可变原写入回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadingPosition"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelReadingReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人安全位置投影或不可变原写入回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadingPosition"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   getMyAccountAuthorPolicy: {
     parameters: {
       query?: {

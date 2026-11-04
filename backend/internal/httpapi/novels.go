@@ -11,6 +11,8 @@ import (
 func novelError(c *gin.Context, err error) {
 	status, code := 503, "service_unavailable"
 	switch {
+	case errors.Is(err, novel.ErrReadingConflict):
+		status, code = 409, "reading_position_conflict"
 	case errors.Is(err, novel.ErrAppealPending):
 		status, code = 409, "appeal_pending"
 	case errors.Is(err, novel.ErrAppealCooldown):
