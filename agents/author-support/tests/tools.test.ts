@@ -38,6 +38,15 @@ test("unconsumed preview is unconfirmed, not evidence that no submission ever ha
   const {tools}=fixture(()=>fixed);const p=await tools.invoke("read_publication_result",{preview_id:preview});
   assert.equal(p.status,"ok");if(p.status==="ok")assert.equal(p.data.published,null);
 });
+test('pre-review acceptance is distinct from formal publication and current submission status',async()=>{
+  const {tools}=fixture(()=>({...fixed,review_required:true,published:{work_id:work,version:0,published_at:null,review_status:'pre_review',submission_id:draft,submitted_at:at}}));
+  const p=await tools.invoke('read_publication_result',{preview_id:preview});
+  assert.equal(p.status,'ok');if(p.status==='ok'){
+    assert.equal(p.data.published,null);
+    assert.equal((p.data.submission as Record<string,unknown>).submission_id,draft);
+    assert.equal((p.data.submission as Record<string,unknown>).meaning,'historical_acceptance_not_publication_or_current_review_status');
+  }
+});
 test("old display outside the returned page remains unknown; later metadata page can establish it",async()=>{
   const {tools}=fixture(path=>({state,versions:path.includes('before_version=2')?[version(1)]:[version(25)],events:[],next_version_before:path.includes('before_version=2')?0:25,next_event_before:0}));
   const first=await tools.invoke("read_work_state",{work_id:work});

@@ -82,7 +82,10 @@ export function createAuthorTools(authorized:Transport) {
         }
         case "read_publication_result":{
           const p=args(input,["preview_id"],["preview_id"]),preview=await publications.read(id(p.preview_id));
-          data={preview_id:preview.id,draft_id:preview.draft_id,source_revision:preview.source_revision,expected_version:preview.expected_version,expires_at:preview.expires_at,published:preview.published?{work_id:preview.published.work_id,version:preview.published.version,published_at:preview.published.published_at}:null};break;
+          const receipt=preview.published,accepted=receipt?.review_status==='pre_review';
+          data={preview_id:preview.id,draft_id:preview.draft_id,source_revision:preview.source_revision,expected_version:preview.expected_version,expires_at:preview.expires_at,
+            published:receipt&&!accepted?{work_id:receipt.work_id,version:receipt.version,published_at:receipt.published_at}:null,
+            submission:accepted?{submission_id:receipt.submission_id,submitted_at:receipt.submitted_at,meaning:'historical_acceptance_not_publication_or_current_review_status'}:null};break;
         }
         default:bad();
       }

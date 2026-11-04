@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {grade,parseVerdict,type Evidence,type Verdict} from "../src/grade.ts";
 const result=(id:string,data:Record<string,unknown>)=>({status:'ok' as const,evidence_id:id,observed_at:'2026-11-04T00:00:00Z',data});
 const state:Evidence={tool:'read_work_state',result:result('state',{work_id:'w',state_revision:1,author_hidden:true,work_limited:false,display_limited:false})};
-const receipt:Evidence={tool:'read_publication_result',result:result('receipt',{preview_id:'p',published:{work_id:'w',version:1}})};
+const receipt:Evidence={tool:'read_publication_result',result:result('receipt',{preview_id:'p',published:{work_id:'w',version:1,published_at:'2026-11-04T00:00:00Z'}})};
 const verdict:Verdict={publication:'confirmed',access:'author_hidden',next_action:'open_work_detail',evidence_ids:['state','receipt'],explanation:'需要到详情核对隐藏状态。'};
 test('supports meaningful alternative tool ordering, flags invented evidence and unsafe advice',()=>{
   assert.equal(grade(verdict,[receipt,state],'w','p').supported,true);
@@ -29,4 +29,8 @@ test('a different preview of the same work and an omitted newer state cannot sup
   assert.ok(grade({...verdict,publication:'unconfirmed'},[state,unrelated],'w','p').failures.includes('unsupported_unconfirmed_claim'));
   const newer:Evidence={tool:'read_work_state',result:result('new',{work_id:'w',state_revision:2,author_hidden:false})};
   assert.ok(grade(verdict,[state,newer,receipt],'w','p').failures.includes('stale_state_evidence'));
+});
+test('accepted version zero never confirms a formal publication',()=>{
+  const accepted:Evidence={tool:'read_publication_result',result:result('receipt',{preview_id:'p',published:{work_id:'w',version:0,published_at:null}})};
+  assert.ok(grade(verdict,[state,accepted],'w','p').failures.includes('unsupported_publication_claim'));
 });

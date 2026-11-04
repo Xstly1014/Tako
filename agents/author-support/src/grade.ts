@@ -15,7 +15,11 @@ export function grade(verdict:Verdict,ledger:Evidence[],workId:string,previewId:
   const state=states[0];
   const receipts=cited.filter(x=>x.tool==='read_publication_result'&&x.result.status==='ok'&&x.result.data.preview_id===previewId).map(x=>(x.result as Extract<ToolResult,{status:'ok'}>).data);
   if(state&&ledger.some(x=>x.tool==='read_work_state'&&x.result.status==='ok'&&x.result.data.work_id===workId&&Number(x.result.data.state_revision)>Number(state.state_revision)))failures.push('stale_state_evidence');
-  if(verdict.publication==='confirmed'&&!receipts.some(x=>x.published&&typeof x.published==='object'&&(x.published as Record<string,unknown>).work_id===workId))failures.push('unsupported_publication_claim');
+  if(verdict.publication==='confirmed'&&!receipts.some(x=>{
+    if(!x.published||typeof x.published!=='object')return false;
+    const p=x.published as Record<string,unknown>;
+    return p.work_id===workId&&Number.isSafeInteger(p.version)&&Number(p.version)>0&&typeof p.published_at==='string'&&Number.isFinite(Date.parse(p.published_at));
+  }))failures.push('unsupported_publication_claim');
   if(verdict.publication==='unconfirmed'&&!receipts.some(x=>x.published===null))failures.push('unsupported_unconfirmed_claim');
   if(verdict.access==='author_hidden'&&state?.author_hidden!==true)failures.push('unsupported_access_claim');
   if(verdict.access==='work_limited'&&state?.work_limited!==true)failures.push('unsupported_access_claim');
