@@ -1981,3 +1981,50 @@ test("author observation is account-scoped, paged and rejects malformed history"
     (e) => e instanceof ApiError && e.code === "invalid_input",
   );
 });
+
+
+import { locatedReadingChunks, logicalParagraphs, validReadingLocation, readingChunkIndex } from "../src/novels/reading-location.ts";
+test("N3 logical positions survive renderer chunk changes, empty lines and Unicode boundaries", () => {
+  const raw = "😀甲乙丙丁\r\n\r\n末尾\r", canonical = "😀甲乙丙丁\n\n末尾\n";
+  assert.deepEqual(logicalParagraphs(raw), ["😀甲乙丙丁", "", "末尾", ""]);
+  for (const limit of [1, 2, 4, 2000]) {
+    const chunks = locatedReadingChunks(raw, limit);
+    assert.equal(chunks.map(x => x.text).join(""), canonical);
+    assert.ok(chunks.every(x => !/^[\uDC00-\uDFFF]/.test(x.text) && !/[\uD800-\uDBFF]$/.test(x.text)));
+    const location = { algorithm: 1 as const, paragraph: 0, offset: 2 };
+    assert.equal(validReadingLocation(raw, location), true);
+    const chunk = chunks[readingChunkIndex(raw, location, limit)];
+    assert.equal(chunk.paragraph, 0);
+    assert.ok(chunk.offset <= location.offset && chunk.offset + chunk.length >= location.offset);
+  }
+  assert.equal(readingChunkIndex("甲乙丙丁", { algorithm: 1, paragraph: 0, offset: 2 }, 2), 1);
+  assert.equal(validReadingLocation(raw, { algorithm: 1, paragraph: 1, offset: 0 }), true);
+  assert.equal(validReadingLocation(raw, { algorithm: 1, paragraph: 3, offset: 0 }), true);
+  assert.equal(validReadingLocation(raw, { algorithm: 1, paragraph: 0, offset: 6 }), false);
+  for (const bad of [null, [], { algorithm: 2, paragraph: 0, offset: 0 }, { algorithm: 1, paragraph: 4, offset: 0 }, { algorithm: 1, paragraph: 0, offset: -1 }, { algorithm: 1, paragraph: 0.5, offset: 0 }, { algorithm: 1, paragraph: 0, offset: 0, owner_id: "other" }]) assert.equal(validReadingLocation(raw, bad), false);
+  assert.throws(() => readingChunkIndex(raw, { algorithm: 1, paragraph: 0, offset: 6 }), /invalid_reading_location/);
+  assert.throws(() => locatedReadingChunks(raw, 0), /invalid_chunk_limit/);
+  assert.deepEqual(locatedReadingChunks(""), [{ text: "", paragraph: 0, offset: 0, length: 0 }]);
+});
+
+
+import { ReadingPositionApi } from "../src/novels/reading-position-api.ts";
+test("N3 position client rejects mismatched receipts and unsafe availability, does not invent POST after reads", async () => {
+  const book = "1ab89897-67ae-4df0-a373-9fab690699a9", chapter = "a0268cfa-85d8-4a46-8fdb-8e6e6a7478e6", mutation = "d9e37090-2468-4242-b9d6-daf1b88d84d0";
+  const input = { mutation_id: mutation, base_revision: 2, chapter_id: chapter, version: 1, locator: { algorithm: 1 as const, paragraph: 0, offset: 1 } };
+  const p = { novel_id: book, chapter_id: chapter, version: 1, locator: input.locator, revision: 3, saved_at: "2026-11-04T00:00:00Z" };
+  let value: unknown = { position: null, readable: false, current_version: null };
+  const calls: { path: string; method?: string }[] = [];
+  const api = new ReadingPositionApi((async (path, options) => { calls.push({ path, method: options?.method }); return value; }) as import("../src/auth/session.ts").Transport);
+  assert.equal((await api.read(book)).position, null);
+  value = { position: p, readable: false, current_version: null }; assert.deepEqual((await api.read(book)).position, p);
+  value = { position: p, readable: true, current_version: 2 }; assert.equal((await api.read(book)).current_version, 2);
+  for (const invalid of [{ position: null, readable: true, current_version: 1 }, { position: p, readable: false, current_version: 1 }, { position: { ...p, novel_id: chapter }, readable: true, current_version: 1 }, { position: p, readable: true, current_version: 0 }, { position: { ...p, locator: { ...p.locator, algorithm: 2 } }, readable: true, current_version: 1 }]) {
+    value = invalid; await assert.rejects(api.read(book), e => e instanceof ApiError && e.code === "contract");
+  }
+  assert.ok(calls.every(c => c.method !== "POST"));
+  value = p; assert.deepEqual(await api.save(book, input), p);
+  assert.deepEqual(await api.receipt(book, mutation, input), p);
+  value = { ...p, revision: 4 }; await assert.rejects(api.save(book, input), e => e instanceof ApiError && e.code === "contract");
+  const before = calls.length; await assert.rejects(api.receipt(book, chapter, input)); assert.equal(calls.length, before);
+});

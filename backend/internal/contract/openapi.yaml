@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.22.0
+  version: 0.23.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,90 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novel-reading/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelReadingPosition
+      tags: [长文]
+      summary: 本人私密跨设备续读位置
+      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+      responses:
+        '200':
+          description: 本人安全位置投影或不可变原写入回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReadingState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: saveMyNovelReadingPosition
+      tags: [长文]
+      summary: 本人私密跨设备续读位置
+      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReadingWrite'}
+      responses:
+        '200':
+          description: 本人安全位置投影或不可变原写入回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReadingPosition'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-reading/{id}/requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelReadingReceipt
+      tags: [长文]
+      summary: 本人私密跨设备续读位置
+      description: 只取会话账号，不能查询其他读者。空位置不透露作品存在性。位置不是读完；读取动态判权，不含正文或标题。写入要求当前章与来源正式版可读，版本/段落/码点范围有效；隐藏后保留本机候选。CAS冲突reading_position_conflict；相同mutation载荷返回不可变原结果，未知先查原回执，回执不表示现在可读。
+      responses:
+        '200':
+          description: 本人安全位置投影或不可变原写入回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReadingPosition'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/author-policy:
     get:
       operationId: getMyAccountAuthorPolicy
@@ -4339,6 +4423,46 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ReadingLocator:
+      type: object
+      additionalProperties: false
+      required: [algorithm, paragraph, offset]
+      properties:
+        algorithm: {type: integer, enum: [1]}
+        paragraph: {type: integer, minimum: 0, maximum: 9007199254740991}
+        offset: {type: integer, minimum: 0, maximum: 9007199254740991}
+    ReadingPosition:
+      type: object
+      additionalProperties: false
+      required: [novel_id, chapter_id, version, locator, revision, saved_at]
+      properties:
+        novel_id: {type: string, format: uuid}
+        chapter_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        locator: {$ref: '#/components/schemas/ReadingLocator'}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        saved_at: {type: string, format: date-time}
+    ReadingWrite:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, base_revision, chapter_id, version, locator]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        base_revision: {type: integer, minimum: 0, maximum: 9007199254740990}
+        chapter_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        locator: {$ref: '#/components/schemas/ReadingLocator'}
+    ReadingState:
+      type: object
+      additionalProperties: false
+      required: [position, readable, current_version]
+      properties:
+        position:
+          oneOf:
+            - {$ref: '#/components/schemas/ReadingPosition'}
+            - {type: object, nullable: true, enum: [null]}
+        readable: {type: boolean}
+        current_version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
     WorkSubmission:
       type: object
       additionalProperties: false

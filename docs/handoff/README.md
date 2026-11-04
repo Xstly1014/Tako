@@ -4,15 +4,15 @@
 
 先读[主开发进度](primary-progress.md)、[并行端进度](parallel-progress.md)、[本批复盘](../reviews/observation-pre-review-stage-review.md)及[中篇先审规格](../publication/pre-review-spec.md)，再读[N2规格](../novels/n2-publication-reading-spec.md)和[连续复盘](../reviews/n2-publication-implementation-review.md)。同事e99ab22已在3ea66c9合入；不改其进度或将旧APK结果套给本批。
 
-N2工程主链路原观察期缺口关闭；**P0 C1原生尾项、P2新页原生**仍由同事下一设备批次验证，见[设备任务](device-requests.md)。主开发不打包/USB/ECS/邮件。下一独立包N3私密续读与不可逆完结/指定整改一起交付；N4书架追更、N5按章讨论未实现。P1自动48h逾期监测须在团队外创作者开放前完成，不能声称已有自动SLA。
+N2工程主链路原观察期缺口关闭；**P0 C1原生尾项、P2新页原生**仍由同事下一设备批次验证，见[设备任务](device-requests.md)。主开发现接手APK/安装/真机，设备可用时执行；ECS仍暂停。下一独立包N3私密续读与不可逆完结/指定整改一起交付；N4书架追更、N5按章讨论未实现。P1自动48h逾期监测须在团队外创作者开放前完成，不能声称已有自动SLA。
 
 独立真实联调 `node scripts/check_novel_publication_live.cjs` 只对专用test运行，DOM/导航/journal适配与少量case补充分支明确标注；接口唯一源、错误和迁移同源码交付。重启用[tako-restart](../../.agents/skills/tako-restart/SKILL.md)，协作用[tako-collab](../../.agents/skills/tako-collab/SKILL.md)。历史“未接入”绑定原SHA，不覆盖当前状态。
 
-## 当前职责（用户明确）
+## 当前职责（2026-11-04用户重新划分）
 
-**双方执行方式已调整：** 一次规划多个完整业务包，连续完成当前包；小提交不等于小交付，不在内部工作区之间等待用户反复说“继续”。同事下次同步请先读[并行端手册06](06-parallel-development-playbook.md)，并在自己的进度随下一必要提交记录接收情况；主开发同等规则见[手册05](05-development-playbook.md)。每次实际推送的同步、安全和必要验证仍保留。
+主开发接手非Agent的业务/后端/契约、App/Web、CI与验收脚本、APK构建/安装/真机和旧未完成开发任务；同事专职作者服务Agent及业务评测，不再重复原开发/设备任务。详见[接手清单07](07-primary-takeover.md)、[主开发手册05](05-development-playbook.md)及[并行端手册06](06-parallel-development-playbook.md)。旧设备分工已经失效，旧证据仍绑定原SHA，不消除未完成项。
 
-主开发只负责业务、规格、实现、自动化和集成，**不负责APK构建/安装/USB/ADB或真机测试**。每次推送在[设备任务队列](device-requests.md)交接给同事，待其确认/报告。完整规则见[主开发手册](05-development-playbook.md)，旧阶段分工不覆盖本条。
+继续按完整业务包规划实施，必要共享检查点可推送，但不因一个小接口反复结束工作。推前fresh同步/审查/普通集成规则不变，双方各写自己的进度；本条随下一推送通知同事，不等于其已读取。当前源码N3续读API0.23/迁移22已验证，本机3300仍0.22/21；App续读接线与完结整改未交付，读[主开发进度](primary-progress.md)与[N3规格](../novels/n3-reading-completion-spec.md)。
 
 ## 历史证据索引
 

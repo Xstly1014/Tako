@@ -300,6 +300,7 @@ func (a API) Register(r *gin.Engine) error {
 	a.registerChapterDrafts(protected)
 	a.registerChapterPublication(protected)
 	a.registerNovelManagement(protected)
+	a.registerNovelReadingPosition(protected)
 	a.registerNovelModeration(protected)
 	a.registerAuthorPolicy(protected)
 	a.registerWorkSubmissions(protected)
