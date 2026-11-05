@@ -1,3 +1,8 @@
+import {
+  NovelLifecycleApi,
+  checkedLifecycleReceipt,
+  type LifecycleReceipt,
+} from "./lifecycle-api.ts";
 import { ApiError } from "../api/client.ts";
 import { id, integer } from "../drafts/model.ts";
 import type {
@@ -6,7 +11,79 @@ import type {
   SubmitNovelMetadata,
 } from "./management-api.ts";
 import type { ChapterPublicationApi } from "./chapters/publication-api.ts";
+export type LifecycleCommand =
+  | { kind: "completion-check"; book: string; input: { mutation_id: string } }
+  | {
+      kind: "complete";
+      book: string;
+      input: {
+        mutation_id: string;
+        check_id: string;
+        irreversible_confirmed: true;
+      };
+    }
+  | {
+      kind: "rectification-prepare";
+      book: string;
+      grant: string;
+      input: {
+        mutation_id: string;
+        expected_revision: number;
+        draft_id: string;
+        source_revision: number;
+      };
+    }
+  | {
+      kind: "rectification-submit";
+      book: string;
+      grant: string;
+      input: {
+        mutation_id: string;
+        expected_revision: number;
+        preview_id: string;
+        rights_confirmed: true;
+      };
+    }
+  | {
+      kind: "rectification-withdraw";
+      book: string;
+      grant: string;
+      input: {
+        mutation_id: string;
+        expected_revision: number;
+        reason: string;
+        revoke_case: false;
+      };
+    };
+export const isLifecycleCommand = (c: {
+  kind: string;
+}): c is LifecycleCommand =>
+  [
+    "completion-check",
+    "complete",
+    "rectification-prepare",
+    "rectification-submit",
+    "rectification-withdraw",
+  ].includes(c.kind);
+export function lifecycleExpected(c: LifecycleCommand): {
+  operation: LifecycleReceipt["operation"];
+  target?: string;
+} {
+  if (c.kind === "completion-check") return { operation: "completion_check" };
+  if (c.kind === "complete")
+    return { operation: "complete", target: c.input.check_id };
+  if (c.kind === "rectification-prepare")
+    return { operation: "rectification_prepare" };
+  return {
+    operation:
+      c.kind === "rectification-submit"
+        ? "rectification_submit"
+        : "rectification_withdraw",
+    target: c.grant,
+  };
+}
 export type NovelCommand =
+  | LifecycleCommand
   | {
       kind: "visibility";
       book: string;
@@ -24,7 +101,17 @@ export type NovelManagementRecord = {
   format: 1;
   token: string;
   command: NovelCommand;
-  outcome: "pending" | "published" | "withdrawn" | "hidden" | "restored" | null;
+  outcome:
+    | "pending"
+    | "published"
+    | "withdrawn"
+    | "hidden"
+    | "restored"
+    | "prepared"
+    | "completed"
+    | "submitted"
+    | null;
+  result?: LifecycleReceipt;
   rejection: string | null;
 };
 export interface NovelManagementJournal {
@@ -47,7 +134,72 @@ export function checkedNovelCommand(command: unknown): NovelCommand {
   if (!command || typeof command !== "object") throw new ApiError("storage");
   const c = command as NovelCommand;
   if (!id(c.book)) throw new ApiError("storage");
-  if (c.kind === "visibility") {
+  if (isLifecycleCommand(c)) {
+    if (
+      !shape(
+        c,
+        c.kind.startsWith("rectification-")
+          ? ["kind", "book", "grant", "input"]
+          : ["kind", "book", "input"],
+      ) ||
+      !id(c.input.mutation_id)
+    )
+      throw new ApiError("storage");
+    if (c.kind === "completion-check") {
+      if (!shape(c.input, ["mutation_id"])) throw new ApiError("storage");
+    } else if (c.kind === "complete") {
+      if (
+        !shape(c.input, [
+          "mutation_id",
+          "check_id",
+          "irreversible_confirmed",
+        ]) ||
+        !id(c.input.check_id) ||
+        c.input.irreversible_confirmed !== true
+      )
+        throw new ApiError("storage");
+    } else {
+      if (!id(c.grant) || !integer(c.input.expected_revision, 1))
+        throw new ApiError("storage");
+      if (c.kind === "rectification-prepare") {
+        if (
+          !shape(c.input, [
+            "mutation_id",
+            "expected_revision",
+            "draft_id",
+            "source_revision",
+          ]) ||
+          !id(c.input.draft_id) ||
+          !integer(c.input.source_revision, 1)
+        )
+          throw new ApiError("storage");
+      } else if (c.kind === "rectification-submit") {
+        if (
+          !shape(c.input, [
+            "mutation_id",
+            "expected_revision",
+            "preview_id",
+            "rights_confirmed",
+          ]) ||
+          !id(c.input.preview_id) ||
+          c.input.rights_confirmed !== true
+        )
+          throw new ApiError("storage");
+      } else if (
+        !shape(c.input, [
+          "mutation_id",
+          "expected_revision",
+          "reason",
+          "revoke_case",
+        ]) ||
+        typeof c.input.reason !== "string" ||
+        !c.input.reason.trim() ||
+        Array.from(c.input.reason).length > 2000 ||
+        c.input.revoke_case !== false
+      )
+        throw new ApiError("storage");
+    }
+  } else if (c.kind === "visibility") {
     if (
       !shape(c, ["kind", "book", "chapter", "input"]) ||
       !(c.chapter === null || id(c.chapter)) ||
@@ -88,12 +240,26 @@ const rejectionCodes = [
   "novel_revision_conflict",
   "source_revision_unavailable",
   "novel_restricted",
+  "completion_check_expired",
+  "chapter_preview_expired",
+  "invalid_input",
 ];
 export function checkedNovelManagementRecord(
   v: unknown,
 ): NovelManagementRecord | null {
   if (v === null) return null;
-  if (!shape(v, ["format", "token", "command", "outcome", "rejection"]))
+  if (
+    !shape(v, [
+      "format",
+      "token",
+      "command",
+      "outcome",
+      "rejection",
+      ...(v && typeof v === "object" && Object.hasOwn(v, "result")
+        ? ["result"]
+        : []),
+    ])
+  )
     throw new ApiError("storage");
   const r = v as unknown as NovelManagementRecord;
   checkedNovelCommand(r.command);
@@ -102,17 +268,70 @@ export function checkedNovelManagementRecord(
     !id(r.token) ||
     !(
       r.outcome === null ||
-      ["pending", "published", "withdrawn", "hidden", "restored"].includes(
-        r.outcome,
-      )
+      [
+        "pending",
+        "published",
+        "withdrawn",
+        "hidden",
+        "restored",
+        "prepared",
+        "completed",
+        "submitted",
+      ].includes(r.outcome)
     ) ||
     !(r.rejection === null || rejectionCodes.includes(r.rejection)) ||
     (r.outcome && r.rejection)
   )
     throw new ApiError("storage");
+  if (r.rejection === "invalid_input" && !isLifecycleCommand(r.command))
+    throw new ApiError("storage");
+  if (r.result !== undefined) {
+    if (
+      !isLifecycleCommand(r.command) ||
+      !shape(r.result, [
+        "mutation_id",
+        "operation",
+        "novel_id",
+        "target_id",
+        "state",
+        "revision",
+        "version",
+        "accepted_at",
+      ])
+    )
+      throw new ApiError("storage");
+    const expected = lifecycleExpected(r.command);
+    checkedLifecycleReceipt(
+      r.result,
+      r.command.book,
+      r.command.input.mutation_id,
+      expected.operation,
+      expected.target,
+    );
+    if (
+      "expected_revision" in r.command.input &&
+      r.result.revision !==
+        r.command.input.expected_revision +
+          (r.command.kind === "rectification-prepare" ? 0 : 1)
+    )
+      throw new ApiError("storage");
+    if (r.result.state !== r.outcome) throw new ApiError("storage");
+  }
+  if (isLifecycleCommand(r.command) && r.outcome && !r.result)
+    throw new ApiError("storage");
   if (r.outcome) {
-    const allowed =
-      r.command.kind === "visibility"
+    const allowed = isLifecycleCommand(r.command)
+      ? [
+          r.command.kind === "completion-check" ||
+          r.command.kind === "rectification-prepare"
+            ? "prepared"
+            : r.command.kind === "complete"
+              ? "completed"
+              : r.command.kind === "rectification-submit"
+                ? "submitted"
+                : "withdrawn",
+        ]
+      : r.command.kind === "visibility"
         ? [r.command.input.action === "hide" ? "hidden" : "restored"]
         : r.command.kind === "metadata"
           ? ["pending", "published"]
@@ -126,8 +345,38 @@ export async function executeNovelCommand(
   publication: ChapterPublicationApi,
   c: NovelCommand,
   confirm: boolean,
+  lifecycle?: NovelLifecycleApi,
 ) {
   checkedNovelCommand(c);
+  if (isLifecycleCommand(c)) {
+    if (!lifecycle) throw new ApiError("invalid_input");
+    const expect = lifecycleExpected(c);
+    let result: LifecycleReceipt;
+    if (confirm)
+      result = await lifecycle.receipt(
+        c.book,
+        c.input.mutation_id,
+        expect.operation,
+        expect.target,
+      );
+    else if (c.kind === "completion-check")
+      result = await lifecycle.prepareCompletion(c.book, c.input);
+    else if (c.kind === "complete")
+      result = await lifecycle.complete(c.book, c.input);
+    else if (c.kind === "rectification-prepare")
+      result = await lifecycle.prepare(c.book, c.grant, c.input);
+    else if (c.kind === "rectification-submit")
+      result = await lifecycle.submit(c.book, c.grant, c.input);
+    else result = await lifecycle.withdraw(c.book, c.grant, c.input);
+    if (
+      c.kind.startsWith("rectification-") &&
+      "expected_revision" in c.input &&
+      result.revision !==
+        c.input.expected_revision + (c.kind === "rectification-prepare" ? 0 : 1)
+    )
+      throw new ApiError("contract");
+    return result;
+  }
   if (c.kind === "visibility") {
     await (confirm
       ? management.visibilityReceipt(c.book, c.chapter, c.input)
@@ -172,18 +421,21 @@ export class NovelOperations {
   private publication: ChapterPublicationApi;
   private current: () => boolean;
   private uuid: () => string;
+  private lifecycle?: NovelLifecycleApi;
   constructor(
     journal: NovelManagementJournal,
     management: NovelManagementApi,
     publication: ChapterPublicationApi,
     current: () => boolean,
     uuid: () => string,
+    lifecycle?: NovelLifecycleApi,
   ) {
     this.journal = journal;
     this.management = management;
     this.publication = publication;
     this.current = current;
     this.uuid = uuid;
+    this.lifecycle = lifecycle;
   }
   private guard() {
     if (!this.current()) throw new ApiError("stale_session");
@@ -244,17 +496,30 @@ export class NovelOperations {
         this.publication,
         r.command,
         confirm,
+        this.lifecycle,
       );
       this.guard();
-      await this.save({ ...r, token: this.uuid(), outcome });
+      await this.save({
+        ...r,
+        token: this.uuid(),
+        outcome:
+          typeof outcome === "string"
+            ? outcome
+            : (outcome.state as NovelManagementRecord["outcome"]),
+        ...(typeof outcome === "object" ? { result: outcome } : {}),
+      });
       return this.snapshot();
     } catch (e) {
       this.guard();
       if (
         !confirm &&
         e instanceof ApiError &&
-        e.status === 409 &&
-        rejectionCodes.includes(e.code)
+        (([409, 410].includes(e.status) &&
+          rejectionCodes.includes(e.code) &&
+          e.code !== "invalid_input") ||
+          (isLifecycleCommand(r.command) &&
+            e.status === 400 &&
+            e.code === "invalid_input"))
       )
         await this.save({ ...r, token: this.uuid(), rejection: e.code });
       throw e;

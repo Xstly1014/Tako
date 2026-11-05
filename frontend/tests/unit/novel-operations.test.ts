@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   NovelOperationJournal,
+  checkedNovelOperation,
   novelOperationPaths,
   confirmNovelOperation,
   type NovelOperation,
@@ -186,4 +187,63 @@ it('中篇先审与撤回回执不接受另一目标或虚假正式版本', () =
     confirmNovelOperation(withdraw, { ...result, state: 'withdrawn', version: 0 }),
   ).not.toThrow()
   expect(() => confirmNovelOperation(withdraw, result)).toThrow()
+})
+
+it('binds rectification actions to the exact original command, rejects draft text and wrong revision', () => {
+  for (const kind of ['rect-grant', 'rect-approve', 'rect-reject', 'rect-cancel'] as const) {
+    const p: NovelOperation = {
+      owner,
+      book,
+      kind,
+      target,
+      version: 2,
+      body:
+        kind === 'rect-grant'
+          ? {
+              mutation_id: mutation,
+              chapter_id: target,
+              base_version: 2,
+              case_id: 7,
+              case_revision: 1,
+              reason: '指定章整改',
+            }
+          : {
+              mutation_id: mutation,
+              expected_revision: 2,
+              reason: '人工核对',
+              revoke_case: kind === 'rect-approve',
+            },
+    }
+    checkedNovelOperation(p, owner)
+    const paths = novelOperationPaths(p)
+    expect(paths.receipt).toBe(`/ops/novels/${book}/lifecycle-requests/${mutation}`)
+    const receipt = {
+      mutation_id: mutation,
+      operation: 'rectification_' + kind.slice(5),
+      novel_id: book,
+      target_id: target,
+      state:
+        kind === 'rect-grant'
+          ? 'available'
+          : kind === 'rect-approve'
+            ? 'approved'
+            : kind === 'rect-reject'
+              ? 'rejected'
+              : 'cancelled',
+      revision: kind === 'rect-grant' ? 1 : 3,
+      version: kind === 'rect-approve' ? 3 : 0,
+      accepted_at: new Date().toISOString(),
+    }
+    confirmNovelOperation(p, receipt)
+    expect(() => confirmNovelOperation(p, { ...receipt, revision: 99 })).toThrow()
+    expect(() =>
+      checkedNovelOperation({ ...p, body: { ...p.body, content: 'private fixed text' } }, owner),
+    ).toThrow()
+    if (kind !== 'rect-grant')
+      expect(() => confirmNovelOperation(p, { ...receipt, target_id: book })).toThrow()
+    if (kind === 'rect-reject')
+      expect(() =>
+        checkedNovelOperation({ ...p, body: { ...p.body, revoke_case: true } }, owner),
+      ).toThrow()
+  }
 })

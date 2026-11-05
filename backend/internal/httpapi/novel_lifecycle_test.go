@@ -273,8 +273,30 @@ func TestNovelCompletionRectificationHTTP(t *testing.T) {
 	opPath := ops + "/rectifications/" + grant.TargetID.String()
 	call("GET", path, nil, other, 404)
 	detail := novelResult[novel.RectificationDetail](t, call("GET", opPath, nil, operator, 200))
-	if detail.Submitted != nil || !detail.Grant.TargetCurrent {
+	if detail.Submitted != nil || detail.Source != nil || !detail.Grant.TargetCurrent {
 		t.Fatal("operator saw unsubmitted draft")
+	}
+	authorDetail := novelResult[novel.RectificationDetail](t, call("GET", path, nil, owner, 200))
+	if authorDetail.Source == nil || authorDetail.Source.DraftID != c1.d.DraftID || authorDetail.Source.Revision != edited.Revision {
+		t.Fatal("author source metadata mismatch")
+	}
+	call("GET", ops+"/chapters", nil, owner, 403)
+	directory := novelResult[novel.OperatorChapterPage](t, call("GET", ops+"/chapters", nil, operator, 200))
+	if len(directory.Items) < 2 {
+		t.Fatal("operator missing formal chapters")
+	}
+	var last uint64
+	for _, c := range directory.Items {
+		if c.Ordinal <= last || c.Version == 0 || c.Title == "后续私稿" {
+			t.Fatal("operator directory contains private or unordered chapters")
+		}
+		last = c.Ordinal
+	}
+	afterOne := novelResult[novel.OperatorChapterPage](t, call("GET", ops+"/chapters?after=1", nil, operator, 200))
+	for _, c := range afterOne.Items {
+		if c.Ordinal <= 1 {
+			t.Fatal("operator pagination repeated chapter")
+		}
 	}
 	prep := post(path+"/previews", novel.PrepareRectification{MutationID: uuid.New(), ExpectedRevision: 1, DraftID: c1.d.DraftID, SourceRevision: edited.Revision}, owner, 200)
 	call("GET", root+"/rectification-previews/"+prep.TargetID.String(), nil, other, 404)

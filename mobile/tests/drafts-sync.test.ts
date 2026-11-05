@@ -2348,3 +2348,44 @@ test("lifecycle client refuses unsafe confirmation before transport, validates o
     ApiError,
   );
 });
+
+
+import {isLifecycleCommand, lifecycleExpected, checkedNovelManagementRecord, type LifecycleCommand} from "../src/novels/management-requests.ts";
+test("完结整改五类命令先加密后POST，丢响应重挂只GET原结果并保留固定目标",async ctx=>{
+ const local=await fixture();ctx.after(local.close);const f=managementFixture(),owner=randomUUID(),grant=randomUUID();let current=true,drop=true;const calls:{method?:string}[]=[],receipts=new Map<string,LifecycleReceipt>();let active:LifecycleCommand;
+ const api=new NovelLifecycleApi(async<T>(_path:string,o?:{method?:string;body?:unknown})=>{
+  calls.push({method:o?.method});const expected=lifecycleExpected(active);let receipt=receipts.get(active.input.mutation_id);
+  if(o?.method==="POST"){
+   assert.ok(await journal.load());
+   const revision="expected_revision" in active.input?active.input.expected_revision+(active.kind==="rectification-prepare"?0:1):2;
+   receipt={mutation_id:active.input.mutation_id,operation:expected.operation,novel_id:f.book,target_id:expected.target??randomUUID(),state:active.kind==="complete"?"completed":active.kind==="rectification-submit"?"submitted":active.kind==="rectification-withdraw"?"withdrawn":"prepared",revision,version:0,accepted_at:new Date().toISOString()};receipts.set(active.input.mutation_id,receipt);
+   if(drop){drop=false;throw new ApiError("network")}
+  }
+  if(!receipt)throw new ApiError("resource_not_found","",404);return receipt as T;
+ });
+ const journal=new EncryptedNovelManagementJournal(local.rows,local.cipher,owner,()=>current),make=()=>new NovelOperations(journal,f.management,f.publication,()=>current,randomUUID,api);
+ const commands:LifecycleCommand[]=[{kind:"completion-check",book:f.book,input:{mutation_id:randomUUID()}},{kind:"complete",book:f.book,input:{mutation_id:randomUUID(),check_id:randomUUID(),irreversible_confirmed:true}},{kind:"rectification-prepare",book:f.book,grant,input:{mutation_id:randomUUID(),expected_revision:1,draft_id:randomUUID(),source_revision:4}},{kind:"rectification-submit",book:f.book,grant,input:{mutation_id:randomUUID(),expected_revision:1,preview_id:randomUUID(),rights_confirmed:true}},{kind:"rectification-withdraw",book:f.book,grant,input:{mutation_id:randomUUID(),expected_revision:2,reason:"作者主动撤回",revoke_case:false}}];
+ for(const c of commands){active=c;drop=true;let ops=make();await ops.load();const before=calls.length;await assert.rejects(ops.start(c),ApiError);assert.equal(calls.length,before+1);await assert.rejects(ops.clear());ops=make();await ops.load();assert.equal(calls.length,before+1);await ops.confirm();assert.equal(calls.at(-1)?.method,undefined);assert.equal(ops.snapshot()?.result?.mutation_id,c.input.mutation_id);assert.equal(ops.snapshot()?.result?.target_id,receipts.get(c.input.mutation_id)?.target_id);current=false;await assert.rejects(ops.clear());current=true;await ops.clear()}
+ assert.equal(calls.filter(c=>c.method==="POST").length,5);
+ const other=new EncryptedNovelManagementJournal(local.rows,local.cipher,randomUUID(),()=>true);assert.equal(await other.load(),null);
+});
+test("完结整改存储失败不发请求，410明确拒绝可确认；未知404不可丢弃",async ctx=>{
+ const local=await fixture();ctx.after(local.close);const f=managementFixture(),owner=randomUUID();let calls=0,code="completion_check_expired",status=410;
+ const api=new NovelLifecycleApi(async()=>{calls++;throw new ApiError(code,"",status)}),journal=new EncryptedNovelManagementJournal(local.rows,local.cipher,owner,()=>true),ops=new NovelOperations(journal,f.management,f.publication,()=>true,randomUUID,api);
+ await ops.load();const c:LifecycleCommand={kind:"complete",book:f.book,input:{mutation_id:randomUUID(),check_id:randomUUID(),irreversible_confirmed:true}};
+ local.db.failBeforeCommit=true;await assert.rejects(ops.start(c));assert.equal(calls,0);
+ await assert.rejects(ops.start(c),ApiError);assert.equal(ops.snapshot()?.rejection,"completion_check_expired");await ops.clear();
+ code="invalid_input";status=400;await assert.rejects(ops.start({...c,input:{...c.input,mutation_id:randomUUID()}}),ApiError);assert.equal(ops.snapshot()?.rejection,"invalid_input");await ops.clear();
+ code="resource_not_found";status=404;await assert.rejects(ops.start({...c,input:{...c.input,mutation_id:randomUUID()}}),ApiError);assert.equal(ops.snapshot()?.rejection,null);await assert.rejects(ops.clear());await assert.rejects(ops.confirm(),ApiError);assert.equal(ops.snapshot()?.outcome,null);
+});
+test("管理密文拒绝正文、跨目标或错误修订回执，不把缺失回执当成功",async ctx=>{
+ const local=await fixture();ctx.after(local.close);const f=managementFixture(),owner=randomUUID(),grant=randomUUID(),mutation=randomUUID();let revision=99;
+ const api=new NovelLifecycleApi(async<T>()=>({mutation_id:mutation,operation:"rectification_submit",novel_id:f.book,target_id:grant,state:"submitted",revision,version:0,accepted_at:new Date().toISOString()}) as T);
+ const journal=new EncryptedNovelManagementJournal(local.rows,local.cipher,owner,()=>true),ops=new NovelOperations(journal,f.management,f.publication,()=>true,randomUUID,api);
+ await ops.load();const c:LifecycleCommand={kind:"rectification-submit",book:f.book,grant,input:{mutation_id:mutation,expected_revision:1,preview_id:randomUUID(),rights_confirmed:true}};
+ await assert.rejects(ops.start({...c,content:"不可写入操作记录的正文"} as unknown as NovelCommand));assert.equal(await journal.load(),null);
+ await assert.rejects(ops.start(c),ApiError);assert.equal(ops.snapshot()?.outcome,null);revision=2;await ops.confirm();const saved=ops.snapshot()!;assert.ok(isLifecycleCommand(saved.command));
+ assert.throws(()=>checkedNovelManagementRecord({...saved,result:{...saved.result,content:"不该持久化的正文"}}),ApiError);
+ assert.throws(()=>checkedNovelManagementRecord({...saved,result:{...saved.result,target_id:randomUUID()}}),ApiError);
+ assert.throws(()=>checkedNovelManagementRecord({...saved,result:{...saved.result,revision:3}}),ApiError);
+});

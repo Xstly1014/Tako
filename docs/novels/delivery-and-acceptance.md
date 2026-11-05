@@ -1,5 +1,11 @@
 # 长文交付计划与验收矩阵
 
+## 2026-11-05 · N3证据状态
+
+源码/本机API0.26、迁移24；N18～24在真实MySQL/HTTP、不可逆/待审/并发/原回执/独立限制反例及实际App＋Web运营整条通过。N25～28有定位/冲突/账号隔离模型、真实HTTP及实际阅读页面适配器整条证据，保持私密；没有真实多设备或Android结论。明细见[N3连续复盘](../reviews/n3-reading-completion-implementation-review.md)。N3工程链路已实现，设备P0/P2按主开发队列继续，真实用户结果仍无；不能用本段关闭真机项。N4/N5仍待实现。
+
+下表“设备／同事”为旧分工，现统一主开发承担，设备可用时执行。
+
 日期：2026-11-03。基线：[业务规格](longform-business-spec.md)。N1-A私密资料与N1-B私密写章已实现，实际通过项分别见[书籍复盘](../reviews/private-novels-review.md)和[章节复盘](../reviews/private-chapter-drafts-review.md)。本表仍是分期验收要求，不代表真机或N2以后全部通过。
 
 ## 1. 分期与入口开放条件

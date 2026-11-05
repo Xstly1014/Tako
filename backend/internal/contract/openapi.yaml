@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.25.0
+  version: 0.26.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -5180,6 +5180,28 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NovelRectificationAction'
+  /api/ops/novels/{id}/chapters:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listOperatorFormalChapters
+      tags: [长文]
+      summary: 运营选择已正式章的分页目录
+      description: 运营白名单；仅正式章元信息，含隐藏受限章，不含私稿、未提交正文和未正式章。按正式章号递增分页，after不改变章号。
+      parameters:
+        - {in: query, name: after, schema: {type: integer, minimum: 0, maximum: 9007199254740991}}
+      responses:
+        '200':
+          description: 正式章目录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OperatorFormalChapterPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
 components:
   securitySchemes:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
@@ -7147,6 +7169,7 @@ components:
       required:
       - grant
       - submitted
+      - source
       properties:
         grant:
           $ref: '#/components/schemas/NovelRectification'
@@ -7154,6 +7177,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/NovelRectificationPreview'
           nullable: true
+        source:
+          nullable: true
+          allOf: [{$ref: '#/components/schemas/RectificationSource'}]
     NovelRectificationPage:
       type: object
       additionalProperties: false
@@ -7171,6 +7197,31 @@ components:
           minimum: 0
           maximum: 9007199254740991
 
+    RectificationSource:
+      type: object
+      additionalProperties: false
+      required: [draft_id, title, revision]
+      properties:
+        draft_id: {type: string, format: uuid}
+        title: {type: string, maxLength: 200}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+    OperatorFormalChapter:
+      type: object
+      additionalProperties: false
+      required: [chapter_id, ordinal, title, version, state_revision]
+      properties:
+        chapter_id: {type: string, format: uuid}
+        ordinal: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, minLength: 1, maxLength: 200}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+    OperatorFormalChapterPage:
+      type: object
+      additionalProperties: false
+      required: [items, next]
+      properties:
+        items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OperatorFormalChapter'}}
+        next: {type: integer, minimum: 0, maximum: 9007199254740991}
   responses:
     PreviewExpired:
       description: 未提交预览已过期，重新准备；不会删除草稿或已提交版本

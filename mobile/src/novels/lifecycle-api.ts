@@ -183,7 +183,9 @@ export function checkedRectificationPreview(
 }
 export class NovelLifecycleApi {
   private transport: Transport;
-  constructor(transport: Transport) { this.transport = transport; }
+  constructor(transport: Transport) {
+    this.transport = transport;
+  }
   private root(book: string) {
     if (!id(book)) throw new ApiError("invalid_input");
     return `/my/novels/${book}`;
@@ -267,6 +269,14 @@ export class NovelLifecycleApi {
     );
     if (!d) fail();
     checkedRectification(d.grant, book, grant);
+    if (
+      d.source !== null &&
+      (!d.source ||
+        !id(d.source.draft_id) ||
+        !text(d.source.title, 200) ||
+        !integer(d.source.revision, 1))
+    )
+      fail();
     if ((d.grant.preview_id === null) !== (d.submitted === null)) fail();
     if (d.submitted)
       checkedRectificationPreview(

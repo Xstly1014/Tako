@@ -43,6 +43,19 @@ func (a API) registerNovelLifecycle(protected *gin.RouterGroup) {
 		c.JSON(200, out)
 	}
 	root := "/my/novels/:id"
+	protected.GET("/ops/novels/:id/chapters", func(c *gin.Context) {
+		_, book, ok := scope(c, true)
+		if !ok {
+			return
+		}
+		after, e := strconv.ParseUint(c.DefaultQuery("after", "0"), 10, 64)
+		if e != nil {
+			novelError(c, novel.ErrInvalid)
+			return
+		}
+		out, e := s.OperatorChapters(c.Request.Context(), book, after)
+		send(c, out, e)
+	})
 	protected.POST(root+"/completion-checks", func(c *gin.Context) {
 		owner, book, ok := scope(c, false)
 		if !ok {

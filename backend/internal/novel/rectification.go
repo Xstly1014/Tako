@@ -72,6 +72,14 @@ type RectificationPreview struct {
 type RectificationDetail struct {
 	Grant     Rectification         `json:"grant"`
 	Submitted *RectificationPreview `json:"submitted"`
+	Source    *RectificationSource  `json:"source"`
+}
+
+// Author-only current source metadata. Never projected to operators.
+type RectificationSource struct {
+	DraftID  uuid.UUID `json:"draft_id"`
+	Title    string    `json:"title"`
+	Revision uint64    `json:"revision"`
 }
 type RectificationPage struct {
 	Items []Rectification `json:"items"`
@@ -242,6 +250,21 @@ func (s Store) Rectification(ctx context.Context, owner, book, id uuid.UUID) (Re
 	out.Grant, err = scanRectification(s.DB.QueryRowContext(ctx, q, args...))
 	if err != nil {
 		return out, err
+	}
+	if owner != uuid.Nil {
+		var source RectificationSource
+		var raw []byte
+		err = s.DB.QueryRowContext(ctx, `SELECT d.id,d.title,d.revision FROM novel_chapters c JOIN chapter_drafts d ON d.id=c.primary_draft_id AND d.chapter_id=c.id AND d.novel_id=c.novel_id AND d.owner_id=c.owner_id WHERE c.id=? AND c.novel_id=? AND c.owner_id=?`, out.Grant.ChapterID[:], book[:], owner[:]).Scan(&raw, &source.Title, &source.Revision)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return out, err
+		}
+		if err == nil {
+			source.DraftID, err = uuid.FromBytes(raw)
+			if err != nil {
+				return out, err
+			}
+			out.Source = &source
+		}
 	}
 	if out.Grant.PreviewID != nil {
 		var raw []byte

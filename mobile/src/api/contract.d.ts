@@ -2784,6 +2784,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ops/novels/{id}/chapters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 运营选择已正式章的分页目录
+     * @description 运营白名单；仅正式章元信息，含隐藏受限章，不含私稿、未提交正文和未正式章。按正式章号递增分页，after不改变章号。
+     */
+    get: operations["listOperatorFormalChapters"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4048,9 +4070,28 @@ export interface components {
     NovelRectificationDetail: {
       grant: components["schemas"]["NovelRectification"];
       submitted: components["schemas"]["NovelRectificationPreview"] | null;
+      source: components["schemas"]["RectificationSource"] | null;
     };
     NovelRectificationPage: {
       items: components["schemas"]["NovelRectification"][];
+      next: number;
+    };
+    RectificationSource: {
+      /** Format: uuid */
+      draft_id: string;
+      title: string;
+      revision: number;
+    };
+    OperatorFormalChapter: {
+      /** Format: uuid */
+      chapter_id: string;
+      ordinal: number;
+      title: string;
+      version: number;
+      state_revision: number;
+    };
+    OperatorFormalChapterPage: {
+      items: components["schemas"]["OperatorFormalChapter"][];
       next: number;
     };
   };
@@ -9086,6 +9127,36 @@ export interface operations {
       415: components["responses"]["NotJSON"];
       429: components["responses"]["Limited"];
       500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listOperatorFormalChapters: {
+    parameters: {
+      query?: {
+        after?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 正式章目录 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OperatorFormalChapterPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      429: components["responses"]["Limited"];
       503: components["responses"]["Unavailable"];
     };
   };

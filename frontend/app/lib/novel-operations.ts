@@ -3,7 +3,19 @@ export type NovelSchema<K extends keyof components['schemas']> = components['sch
 export type NovelOperation = {
   owner: string
   book: string
-  kind: 'chapter' | 'metadata' | 'post' | 'limit' | 'case' | 'policy' | 'work-pre' | 'work-withdraw'
+  kind:
+    | 'chapter'
+    | 'metadata'
+    | 'post'
+    | 'limit'
+    | 'case'
+    | 'policy'
+    | 'work-pre'
+    | 'work-withdraw'
+    | 'rect-grant'
+    | 'rect-approve'
+    | 'rect-reject'
+    | 'rect-cancel'
   policy_kind?: 'novel' | 'work'
   target: string
   version: number
@@ -15,6 +27,18 @@ const uuid = (v: unknown): v is string =>
   v !== '00000000-0000-0000-0000-000000000000'
 const positive = (v: unknown): v is number => Number.isSafeInteger(v) && Number(v) > 0
 const reason = (v: unknown): v is string => typeof v === 'string' && Array.from(v).length <= 2000
+type LifecycleReceipt=NovelSchema<'NovelLifecycleReceipt'>
+const validDate=(v:unknown)=>typeof v==='string'&&Number.isFinite(Date.parse(v));
+function checkedLifecycleReceipt(value:LifecycleReceipt,book:string,mutation:string,operation:LifecycleReceipt['operation'],target?:string){
+ const states:Record<string,string>={rectification_grant:'available',rectification_approve:'approved',rectification_reject:'rejected',rectification_cancel:'cancelled'};
+ if(!value||value.novel_id!==book||value.mutation_id!==mutation||value.operation!==operation||value.state!==states[operation]||!uuid(value.target_id)||(target&&value.target_id!==target)||!positive(value.revision)||!Number.isSafeInteger(value.version)||value.version<0||!validDate(value.accepted_at))throw Error('invalid_receipt');return value;
+}
+export function checkedRectification(g:NovelSchema<'NovelRectification'>,book:string,target?:string){
+ if(!g||g.novel_id!==book||!uuid(g.id)||(target&&g.id!==target)||!uuid(g.chapter_id)||![g.case_id,g.case_revision,g.base_version,g.revision].every(positive)||!['available','submitted','approved','rejected','cancelled','withdrawn'].includes(g.state)||!reason(g.reason)||!g.reason.trim()||!reason(g.decision_reason)||!(g.preview_id===null||uuid(g.preview_id))||!validDate(g.created_at)||!(g.submitted_at===null||validDate(g.submitted_at))||!(g.decided_at===null||validDate(g.decided_at))||typeof g.target_current!=='boolean'||typeof g.revoked_case!=='boolean'||!Number.isSafeInteger(g.published_version)||g.published_version<0||(g.state==='approved'?g.published_version!==g.base_version+1:g.published_version!==0)||(['available','submitted'].includes(g.state)!==(g.decided_at===null))||(g.revoked_case&&g.state!=='approved'))throw Error('invalid_receipt');return g;
+}
+export function checkedRectificationPreview(p:NovelSchema<'NovelRectificationPreview'>,book:string,preview:string,g:NovelSchema<'NovelRectification'>){
+ if(!p||p.id!==preview||p.novel_id!==book||p.grant_id!==g.id||p.chapter_id!==g.chapter_id||p.base_version!==g.base_version||!uuid(p.draft_id)||!positive(p.source_revision)||p.grant_revision!==1||!reason(p.title)||Array.from(p.title).length>200||!p.title.trim()||typeof p.content!=='string'||!p.content.trim()||new TextEncoder().encode(p.content).length>1048576||!validDate(p.expires_at))throw Error('invalid_receipt');return p;
+}
 export function checkedNovelOperation(v: unknown, owner: string): NovelOperation {
   const p = v as NovelOperation
   if (
@@ -33,6 +57,10 @@ export function checkedNovelOperation(v: unknown, owner: string): NovelOperation
       'policy',
       'work-pre',
       'work-withdraw',
+      'rect-grant',
+      'rect-approve',
+      'rect-reject',
+      'rect-cancel',
     ].includes(p.kind) ||
     !Number.isSafeInteger(p.version) ||
     p.version < 0 ||
@@ -86,6 +114,34 @@ export function checkedNovelOperation(v: unknown, owner: string): NovelOperation
     throw Error('invalid_operation')
   if (p.kind === 'work-withdraw' && (p.version !== 0 || Object.keys(p.body).length !== 1))
     throw Error('invalid_operation')
+  if (p.kind.startsWith('rect-')) {
+    const keys =
+      p.kind === 'rect-grant'
+        ? ['mutation_id', 'chapter_id', 'base_version', 'case_id', 'case_revision', 'reason']
+        : ['mutation_id', 'expected_revision', 'reason', 'revoke_case']
+    if (
+      Object.keys(p.body).length !== keys.length ||
+      keys.some((k) => !Object.hasOwn(p.body, k)) ||
+      !positive(p.version) ||
+      !reason(p.body.reason) ||
+      !p.body.reason.trim()
+    )
+      throw Error('invalid_operation')
+    if (p.kind === 'rect-grant') {
+      if (
+        p.target !== p.body.chapter_id ||
+        p.version !== p.body.base_version ||
+        !positive(p.body.case_id) ||
+        !positive(p.body.case_revision)
+      )
+        throw Error('invalid_operation')
+    } else if (
+      !positive(p.body.expected_revision) ||
+      typeof p.body.revoke_case !== 'boolean' ||
+      (p.kind !== 'rect-approve' && p.body.revoke_case !== false)
+    )
+      throw Error('invalid_operation')
+  }
   if (
     p.policy_kind !== undefined &&
     (p.kind !== 'policy' || !['novel', 'work'].includes(p.policy_kind))
@@ -99,6 +155,16 @@ export function novelOperationPaths(p: NovelOperation) {
     mine = `/my/novels/${p.book}`
   const id = p.body.mutation_id
   switch (p.kind) {
+    case 'rect-grant':
+      return { write: `${base}/rectifications`, receipt: `${base}/lifecycle-requests/${id}` }
+    case 'rect-approve':
+    case 'rect-reject':
+    case 'rect-cancel':
+      return {
+        write: `${base}/rectifications/${p.target}/actions/${p.kind.slice(5)}`,
+        receipt: `${base}/lifecycle-requests/${id}`,
+      }
+
     case 'work-withdraw':
       return {
         write: `/my/work-submissions/${p.target}/withdraw`,
@@ -139,6 +205,31 @@ export function novelOperationPaths(p: NovelOperation) {
   }
 }
 export function confirmNovelOperation(p: NovelOperation, value: unknown) {
+  if (p.kind.startsWith('rect-')) {
+    checkedNovelOperation(p, p.owner)
+    const operation = (
+      {
+        'rect-grant': 'rectification_grant',
+        'rect-approve': 'rectification_approve',
+        'rect-reject': 'rectification_reject',
+        'rect-cancel': 'rectification_cancel',
+      } as const
+    )[p.kind as 'rect-grant' | 'rect-approve' | 'rect-reject' | 'rect-cancel']
+    const r = checkedLifecycleReceipt(
+      value as LifecycleReceipt,
+      p.book,
+      p.body.mutation_id,
+      operation,
+      p.kind === 'rect-grant' ? undefined : p.target,
+    )
+    if (
+      r.revision !== (p.kind === 'rect-grant' ? 1 : Number(p.body.expected_revision) + 1) ||
+      r.version !== (p.kind === 'rect-approve' ? p.version + 1 : 0)
+    )
+      throw Error('invalid_receipt')
+    return
+  }
+
   const v = value as Record<string, unknown>
   if (
     !v ||
