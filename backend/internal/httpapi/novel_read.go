@@ -72,6 +72,13 @@ func (a API) registerNovelReading(api *gin.RouterGroup) {
 			return
 		}
 		out, e := s.PublicChapter(c.Request.Context(), id, chapter)
-		send(c, out, e)
+		if e != nil {
+			novelError(c, e)
+			return
+		}
+		c.JSON(200, struct {
+			novel.PublicNovelChapter
+			CommentContext string `json:"comment_context"`
+		}{out, a.signChapterCommentContext(id, chapter, out.Version)})
 	})
 }

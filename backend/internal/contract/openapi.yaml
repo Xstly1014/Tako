@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.28.0
+  version: 0.29.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -780,7 +780,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       parameters:
         - in: query
           name: cursor
@@ -808,7 +808,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       responses:
         '200':
           description: 当前可读正式内容或安全目录占位
@@ -832,7 +832,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       parameters:
         - in: query
           name: cursor
@@ -864,7 +864,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       responses:
         '200':
           description: 当前可读正式内容或安全目录占位
@@ -5398,6 +5398,278 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '429': {$ref: '#/components/responses/Limited'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/novels/{id}/chapters/{chapter}/comments:
+    parameters:
+    - in: path
+      name: chapter
+      required: true
+      schema: {type: string, format: uuid}
+    - &chapterpath002
+      name: id
+      in: path
+      required: true
+      schema: &chapterpath001
+        type: string
+        format: uuid
+    get:
+      operationId: chapterListWorkComments
+      summary: listWorkComments
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security: []
+      parameters:
+      - &chapterpath003
+        name: cursor
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      - name: root
+        in: query
+        schema: *chapterpath001
+    post:
+      operationId: chapterPublishComment
+      summary: publishComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChapterCommentCreate'
+  /api/chapter-comments/{id}/actions:
+    parameters:
+    - *chapterpath002
+    post:
+      operationId: chapterDeleteComment
+      summary: deleteComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChapterCommentAction'
+  /api/my/chapter-comments:
+    get:
+      operationId: chapterMyCommentsAndReasons
+      summary: myCommentsAndReasons
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - *chapterpath003
+  /api/ops/chapter-comments:
+    get:
+      operationId: chapterReviewComments
+      summary: reviewComments
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - *chapterpath003
+  /api/ops/chapter-comments/{id}/actions:
+    parameters:
+    - *chapterpath002
+    post:
+      operationId: chapterModerateComment
+      summary: moderateComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChapterCommentAction'
+  /api/my/novels/{id}/chapter-comments:
+    get:
+      operationId: chapterListAuthorNovelComments
+      summary: myCommentsAndReasons
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - *chapterpath003
 components:
   securitySchemes:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
@@ -5670,6 +5942,7 @@ components:
       additionalProperties: false
       required: [novel_id, chapter_id, ordinal, title, content, version, published_at]
       properties:
+        comment_context: {type: string, maxLength: 512, description: 临时章评论判权上下文，不是永久读权或评论版本归属}
         novel_id: {type: string, format: uuid}
         chapter_id: {type: string, format: uuid}
         ordinal: {type: integer, minimum: 1, maximum: 9007199254740991}
@@ -7500,6 +7773,142 @@ components:
       properties:
         items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OperatorFormalChapter'}}
         next: {type: integer, minimum: 0, maximum: 9007199254740991}
+    ChapterComment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - chapter_id
+      - novel_id
+      - author_id
+      - nickname
+      - root_id
+      - reply_to
+      - reply_name
+      - content
+      - sequence
+      - revision
+      - replies
+      - can_delete
+      - created_at
+      - deleted
+      - blocked
+      - reason
+      properties:
+        id: &chapterid001
+          type: string
+          format: uuid
+        chapter_id: *chapterid001
+        novel_id: *chapterid001
+        author_id: *chapterid001
+        nickname:
+          type: string
+        root_id:
+          type: string
+          format: uuid
+          nullable: true
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+        reply_name:
+          type: string
+        content:
+          type: string
+        sequence: &chapterid002
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        revision: *chapterid002
+        replies: *chapterid002
+        can_delete:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted:
+          type: boolean
+        blocked:
+          type: boolean
+        reason:
+          type: string
+    ChapterCommentPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ChapterComment'
+        next: *id002
+    ChapterCommentResult:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - revision
+      - state
+      properties:
+        id: *id001
+        revision: *id002
+        state:
+          type: string
+          enum:
+          - published
+          - deleted
+          - blocked
+    ChapterCommentCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_account_id
+      - content
+      - context
+      properties:
+        mutation_id: *id001
+        expected_account_id: *id001
+        content:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        context:
+          type: string
+          minLength: 1
+          maxLength: 512
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+    ChapterCommentAction:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_account_id
+      - expected_revision
+      - action
+      - reason
+      properties:
+        mutation_id: *id001
+        expected_account_id: *id001
+        expected_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        action:
+          type: string
+          enum:
+          - delete
+          - block
+          - unblock
+        reason:
+          type: string
+          maxLength: 500
   responses:
     PreviewExpired:
       description: 未提交预览已过期，重新准备；不会删除草稿或已提交版本

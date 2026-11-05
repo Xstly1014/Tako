@@ -2939,6 +2939,116 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/novels/{id}/chapters/{chapter}/comments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    /** listWorkComments */
+    get: operations["chapterListWorkComments"];
+    put?: never;
+    /** publishComment */
+    post: operations["chapterPublishComment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/chapter-comments/{id}/actions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** deleteComment */
+    post: operations["chapterDeleteComment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/chapter-comments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** myCommentsAndReasons */
+    get: operations["chapterMyCommentsAndReasons"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/chapter-comments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** reviewComments */
+    get: operations["chapterReviewComments"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/chapter-comments/{id}/actions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** moderateComment */
+    post: operations["chapterModerateComment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novels/{id}/chapter-comments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** myCommentsAndReasons */
+    get: operations["chapterListAuthorNovelComments"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3155,6 +3265,8 @@ export interface components {
       title: string | null;
     };
     PublicNovelChapter: {
+      /** @description 临时章评论判权上下文，不是永久读权或评论版本归属 */
+      comment_context?: string;
       /** Format: uuid */
       novel_id: string;
       /** Format: uuid */
@@ -4290,6 +4402,63 @@ export interface components {
     OperatorFormalChapterPage: {
       items: components["schemas"]["OperatorFormalChapter"][];
       next: number;
+    };
+    ChapterComment: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      chapter_id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: uuid */
+      author_id: string;
+      nickname: string;
+      /** Format: uuid */
+      root_id: string | null;
+      /** Format: uuid */
+      reply_to: string | null;
+      reply_name: string;
+      content: string;
+      sequence: number;
+      revision: number;
+      replies: number;
+      can_delete: boolean;
+      /** Format: date-time */
+      created_at: string;
+      deleted: boolean;
+      blocked: boolean;
+      reason: string;
+    };
+    ChapterCommentPage: {
+      items: components["schemas"]["ChapterComment"][];
+      next: number;
+    };
+    ChapterCommentResult: {
+      /** Format: uuid */
+      id: string;
+      revision: number;
+      /** @enum {string} */
+      state: "published" | "deleted" | "blocked";
+    };
+    ChapterCommentCreate: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      expected_account_id: string;
+      content: string;
+      context: string;
+      /** Format: uuid */
+      reply_to?: string | null;
+    };
+    ChapterCommentAction: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** Format: uuid */
+      expected_account_id: string;
+      expected_revision: number;
+      /** @enum {string} */
+      action: "delete" | "block" | "unblock";
+      reason: string;
     };
   };
   responses: {
@@ -9586,6 +9755,249 @@ export interface operations {
       403: components["responses"]["OriginRejected"];
       404: components["responses"]["NotFound"];
       429: components["responses"]["Limited"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterListWorkComments: {
+    parameters: {
+      query?: {
+        cursor?: number;
+        root?: string;
+      };
+      header?: never;
+      path: {
+        chapter: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterPublishComment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterCommentCreate"];
+      };
+    };
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterDeleteComment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterCommentAction"];
+      };
+    };
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterMyCommentsAndReasons: {
+    parameters: {
+      query?: {
+        cursor?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterReviewComments: {
+    parameters: {
+      query?: {
+        cursor?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterModerateComment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterCommentAction"];
+      };
+    };
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentResult"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  chapterListAuthorNovelComments: {
+    parameters: {
+      query?: {
+        cursor?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 成功；不包含评论版本归属 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterCommentPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
       503: components["responses"]["Unavailable"];
     };
   };

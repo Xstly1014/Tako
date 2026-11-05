@@ -268,7 +268,7 @@ func (s Store) CreateComment(ctx context.Context, actor, work uuid.UUID, version
 		replyArg = in.ReplyTo[:]
 	}
 	var recent int
-	e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM work_comments WHERE author_id=? AND created_at>UTC_TIMESTAMP(6)-INTERVAL 1 MINUTE", actor[:]).Scan(&recent)
+	e = tx.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM work_comments WHERE author_id=? AND created_at>UTC_TIMESTAMP(6)-INTERVAL 1 MINUTE)+(SELECT COUNT(*) FROM chapter_comments WHERE author_id=? AND created_at>UTC_TIMESTAMP(6)-INTERVAL 1 MINUTE)", actor[:], actor[:]).Scan(&recent)
 	if e != nil {
 		return out, e
 	}

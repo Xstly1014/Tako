@@ -1,5 +1,12 @@
 # Tako 开发交接入口
 
+## 2026-11-05 · N5章讨论服务检查点
+
+源码API0.29/迁移27，N5-A章评论读/发/回复/删、本人原因、作者按书管理和运营屏蔽撤销已通过完整HTTP/MySQL/契约回归；5客户端模型/生成/类型lint/7门禁通过。实际App评论面板与Web运营尚未接入；下一步按[N5规格](../novels/n5-discussion-discovery-spec.md)与[阶段复盘](../reviews/n5-discussion-discovery-stage-review.md)推进，不能把API当App完成。
+
+本机3300仍0.28/26、N4书架/消息可用，未在服务检查点重复部署。只有专用验证库已27；新代码启动前必须迁移27，旧中篇共享限频也依赖新表。下一运行升级先备份/恢复再保卷迁移，不回退有新评论/回执的数据。主开发继续非Agent及设备，同事仅Agent，无需重复本包；无新APK、ECS或真实用户结果。
+
+
 ## 2026-11-05 · N4-C当前运行与交接基线
 
 本机3300现为API0.28/迁移26，保留配置/数据库卷，seeded=false。实际App已有我的书架、底部消息、汇总详情→目录/正文→消息返回；新章由真实maintenance批次投递。用户确认N-D20同书本批当前可读待提醒章汇总一条、生成后不追加。工程证据见[N4复盘](../reviews/n4-shelf-follow-stage-review.md)与[ADR005](../novels/adr-005-novel-notices.md)，无本批APK/Android/真实用户结果。
