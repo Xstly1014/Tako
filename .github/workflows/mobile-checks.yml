@@ -126,7 +126,7 @@ jobs:
           docker run --rm -v "$PWD/mobile:/app" -v tako-mobile-node-modules:/app/node_modules -w /app node:24.19.0-bookworm-slim npm ci --no-audit --no-fund
       - name: Real author business workflow with retained page stack
         run: node scripts/check_author_workflow_live.cjs
-      - name: Real novel reading, shelves and private position recovery
+      - name: Real novel reading, shelves, site notices and private recovery
         run: node scripts/check_novel_reading_live.cjs
       - name: Actual novel author and operator lifecycle (real Cookie/Origin and MySQL)
         run: node scripts/check_novel_publication_live.cjs

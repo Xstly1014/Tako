@@ -127,7 +127,7 @@ export function BottomNavigation({
   active = "home",
 }: {
   onHome: () => void;
-  active?: "home" | "me";
+  active?: "home" | "me" | "message";
 }) {
   const [creating, setCreating] = useState(false);
   return (
@@ -184,12 +184,12 @@ export function BottomNavigation({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="消息，尚未开放"
-        onPress={() => unavailable("消息")}
+        accessibilityLabel="消息"
+        onPress={() => {if(active!=="message")router.push("/notices");}}
         style={s.nav}
       >
-        <Icon name="message" />
-        <Text style={s.navText}>消息</Text>
+        <Icon name="message" color={active==="message"?t.brand:t.muted}/>
+        <Text style={[s.navText,active==="message"&&{color:t.brand,fontWeight:"600"}]}>消息</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"

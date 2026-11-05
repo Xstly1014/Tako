@@ -238,22 +238,33 @@ export function NovelCommunityScreen() {
   );
 }
 export function NovelDirectoryScreen() {
-  const params = useLocalSearchParams<{ id: string; from?: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    from?: string;
+    notice?: string;
+  }>();
   const book = typeof params.id === "string" ? params.id : "";
   return (
     <DirectoryContent
       key={book}
       book={book}
       fromShelf={params.from === "shelf"}
+      fromNotice={
+        params.from === "notice" && id(params.notice)
+          ? params.notice
+          : undefined
+      }
     />
   );
 }
 function DirectoryContent({
   book,
   fromShelf,
+  fromNotice,
 }: {
   book: string;
   fromShelf: boolean;
+  fromNotice?: string;
 }) {
   const sync = useReadingPosition(book);
   const { localError } = useReadingLifecycle(sync);
@@ -274,9 +285,14 @@ function DirectoryContent({
     <SafeAreaView style={s.screen}>
       <Header
         title="章节目录"
-        back={fromShelf ? "我的书架" : "长文频道"}
+        back={fromNotice ? "消息详情" : fromShelf ? "我的书架" : "长文频道"}
         onBack={() =>
-          router.dismissTo(fromShelf ? "/shelf" : "/novel-community")
+          fromNotice
+            ? router.dismissTo({
+                pathname: "/notice/[id]",
+                params: { id: fromNotice },
+              })
+            : router.dismissTo(fromShelf ? "/shelf" : "/novel-community")
         }
       />
       {!valid || !page ? (
@@ -319,7 +335,11 @@ function DirectoryContent({
                         book,
                         chapter: p.chapter_id,
                         resume: "1",
-                        ...(fromShelf ? { from: "shelf" } : {}),
+                        ...(fromNotice
+                          ? { from: "notice", notice: fromNotice }
+                          : fromShelf
+                            ? { from: "shelf" }
+                            : {}),
                       },
                     })
                   }
@@ -344,7 +364,11 @@ function DirectoryContent({
                   params: {
                     book,
                     chapter: item.id,
-                    ...(fromShelf ? { from: "shelf" } : {}),
+                    ...(fromNotice
+                      ? { from: "notice", notice: fromNotice }
+                      : fromShelf
+                        ? { from: "shelf" }
+                        : {}),
                   },
                 })
               }
@@ -381,6 +405,7 @@ export function NovelChapterScreen() {
     chapter: string;
     resume?: string;
     from?: string;
+    notice?: string;
   }>();
   const book = typeof params.book === "string" ? params.book : "",
     chapter = typeof params.chapter === "string" ? params.chapter : "";
@@ -391,6 +416,11 @@ export function NovelChapterScreen() {
       chapter={chapter}
       resume={params.resume === "1"}
       fromShelf={params.from === "shelf"}
+      fromNotice={
+        params.from === "notice" && id(params.notice)
+          ? params.notice
+          : undefined
+      }
     />
   );
 }
@@ -399,11 +429,13 @@ function ChapterContent({
   chapter,
   resume,
   fromShelf,
+  fromNotice,
 }: {
   book: string;
   chapter: string;
   resume: boolean;
   fromShelf: boolean;
+  fromNotice?: string;
 }) {
   const sync = useReadingPosition(book),
     state = useReadingState(sync);
@@ -520,7 +552,11 @@ function ChapterContent({
             book,
             chapter: p.chapter_id,
             resume: "1",
-            ...(fromShelf ? { from: "shelf" } : {}),
+            ...(fromNotice
+              ? { from: "notice", notice: fromNotice }
+              : fromShelf
+                ? { from: "shelf" }
+                : {}),
           },
         });
         return;
@@ -551,7 +587,7 @@ function ChapterContent({
         setResumeNotice("位置暂未定位，可继续阅读或再次点击续读。");
       }
     },
-    [book, chapter, value, sync, fromShelf],
+    [book, chapter, value, sync, fromShelf, fromNotice],
   );
   useEffect(() => {
     if (
@@ -627,14 +663,26 @@ function ChapterContent({
     <SafeAreaView style={s.screen}>
       <Header
         title="长文阅读"
-        back={id(book) ? "章节目录" : "长文频道"}
+        back={fromNotice ? "消息详情" : id(book) ? "章节目录" : "长文频道"}
         onBack={() =>
-          id(book)
+          fromNotice
             ? router.dismissTo({
-                pathname: "/novel/[id]",
-                params: { id: book, ...(fromShelf ? { from: "shelf" } : {}) },
+                pathname: "/notice/[id]",
+                params: { id: fromNotice },
               })
-            : router.dismissTo("/novel-community")
+            : id(book)
+              ? router.dismissTo({
+                  pathname: "/novel/[id]",
+                  params: {
+                    id: book,
+                    ...(fromNotice
+                      ? { from: "notice", notice: fromNotice }
+                      : fromShelf
+                        ? { from: "shelf" }
+                        : {}),
+                  },
+                })
+              : router.dismissTo("/novel-community")
         }
       />
       {!value ? (
@@ -721,7 +769,11 @@ function ChapterContent({
                     pathname: "/novel/[id]",
                     params: {
                       id: book,
-                      ...(fromShelf ? { from: "shelf" } : {}),
+                      ...(fromNotice
+                        ? { from: "notice", notice: fromNotice }
+                        : fromShelf
+                          ? { from: "shelf" }
+                          : {}),
                     },
                   })
                 }

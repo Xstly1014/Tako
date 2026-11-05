@@ -364,13 +364,18 @@ function SignedShelfControls({
               />
               <ShelfLink
                 label="查看我的书架"
-                onPress={() => router.push("/shelf")}
+                onPress={() =>
+                  router.push({
+                    pathname: "/shelf",
+                    params: { fromBook: book },
+                  })
+                }
               />
             </>
           )}
         </View>
       ) : null}
-      <Text style={s.note}>新章提醒尚未开放，当前先保存追更选择。</Text>
+      <Text style={s.note}>新章更新会汇总到站内消息。</Text>
     </View>
   );
 }

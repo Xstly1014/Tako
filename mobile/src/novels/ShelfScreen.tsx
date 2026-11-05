@@ -8,9 +8,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { id } from "../drafts/model";
 import { useSession } from "../auth/context";
 import { Icon } from "../components/PrototypeUi";
 import { Status } from "../components/Ui";
@@ -25,10 +26,16 @@ import {
   useShelfStartup,
 } from "./ShelfUi";
 export function ShelfScreen() {
-  const { generation, account, phase } = useSession();
-  return <ShelfList key={generation + "/" + phase + "/" + account?.id} />;
+  const { generation, account, phase } = useSession(),
+    params = useLocalSearchParams<{ fromBook?: string }>();
+  return (
+    <ShelfList
+      key={generation + "/" + phase + "/" + account?.id}
+      fromBook={id(params.fromBook) ? params.fromBook : undefined}
+    />
+  );
 }
-function ShelfList() {
+function ShelfList({ fromBook }: { fromBook?: string }) {
   const { phase } = useSession(),
     tools = useShelfTools(),
     op = useShelfState(tools);
@@ -136,9 +143,16 @@ function ShelfList() {
       <View style={s.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="返回我的"
+          accessibilityLabel={fromBook ? "返回作品目录" : "返回我的"}
           onPress={() =>
-            router.canGoBack() ? router.back() : router.replace("/account")
+            fromBook
+              ? router.canGoBack()
+                ? router.back()
+                : router.replace({
+                    pathname: "/novel/[id]",
+                    params: { id: fromBook },
+                  })
+              : router.dismissTo("/account")
           }
           style={s.back}
         >
@@ -165,7 +179,7 @@ function ShelfList() {
           contentContainerStyle={s.list}
           ListHeaderComponent={
             <View style={s.summary}>
-              <Text style={s.note}>新章提醒尚未开放，当前先保存追更选择。</Text>
+              <Text style={s.note}>新章更新会汇总到站内消息。</Text>
               <ShelfRecovery tools={tools} onSettled={settle} />
             </View>
           }

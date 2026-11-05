@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const mode = process.argv[2];
 const files = {
-  model: ['novel-shelf.test.ts', 'session.test.ts', 'comments.test.ts', 'versions.test.ts', 'author-works.test.ts', 'publications.test.ts', 'drafts-storage.test.ts', 'drafts-sync.test.ts'],
+  model: ['novel-notices.test.ts', 'novel-shelf.test.ts', 'session.test.ts', 'comments.test.ts', 'versions.test.ts', 'author-works.test.ts', 'publications.test.ts', 'drafts-storage.test.ts', 'drafts-sync.test.ts'],
   service: ['reader.test.ts', 'comments-service.test.ts', 'versions-service.test.ts', 'author-works-service.test.ts', 'publications-service.test.ts', 'drafts-service.test.ts'],
 };
 async function main() {

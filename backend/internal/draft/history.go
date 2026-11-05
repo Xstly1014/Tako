@@ -126,6 +126,22 @@ func (s Store) RunMaintenance(ctx context.Context, logger *slog.Logger) {
 					logger.Info("reading_receipt_retention_completed", "removed", receipts)
 				}
 			}
+			if err == nil {
+				started := time.Now()
+				store := novel.Store{DB: s.DB}
+				var sent int
+				sent, err = store.DispatchNovelNotices(runCtx, 25)
+				if err == nil {
+					var backlog novel.NoticeBacklog
+					backlog, err = store.NovelNoticeBacklog(runCtx)
+					if err == nil {
+						logger.Info("novel_notice_batch", "delivered", sent, "ready_subscriptions", backlog.Ready, "waiting_subscriptions", backlog.Waiting, "ready_capped", backlog.ReadyCapped, "waiting_capped", backlog.WaitingCapped, "duration_ms", time.Since(started).Milliseconds())
+					}
+				}
+				if err != nil {
+					logger.Error("novel_notice_delivery_failed", "delivered", sent, "failure_code", "database_failure", "duration_ms", time.Since(started).Milliseconds())
+				}
+			}
 		}
 		if err != nil {
 			_ = ops.Beat(runCtx, s.DB, "maintenance", false, 1)

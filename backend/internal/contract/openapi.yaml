@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.27.0
+  version: 0.28.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,12 +19,98 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novel-notices:
+    get:
+      operationId: listMyNovelNotices
+      tags: [长文]
+      summary: 本人站内新章消息
+      description: 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人动态安全站内消息或幂等已读结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelNoticePage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-notices/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelNotice
+      tags: [长文]
+      summary: 本人站内新章消息
+      description: 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人动态安全站内消息或幂等已读结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelNoticeDetail'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-notices/{id}/read:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: readMyNovelNotice
+      tags: [长文]
+      summary: 本人站内新章消息
+      description: 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, properties: {}}
+      responses:
+        '200':
+          description: 本人动态安全站内消息或幂等已读结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelNoticeRead'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/novel-shelf:
     get:
       operationId: listMyNovelShelf
       tags: [长文]
       summary: 本人书架与追更关系
-      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
       parameters:
         - in: query
           name: cursor
@@ -55,7 +141,7 @@ paths:
       operationId: getMyNovelShelf
       tags: [长文]
       summary: 本人书架与追更关系
-      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
       responses:
         '200':
           description: 本人关系、安全分页或不可变原受理回执
@@ -76,7 +162,7 @@ paths:
       operationId: changeMyNovelShelf
       tags: [长文]
       summary: 本人书架与追更关系
-      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
       requestBody:
         required: true
         content:
@@ -112,7 +198,7 @@ paths:
       operationId: getMyNovelShelfReceipt
       tags: [长文]
       summary: 本人书架与追更关系
-      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
       responses:
         '200':
           description: 本人关系、安全分页或不可变原受理回执
@@ -5317,6 +5403,42 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    NovelNotice:
+      type: object
+      additionalProperties: false
+      required: [id, novel_id, created_at, read_at, book, readable_chapters]
+      properties:
+        id: {type: string, format: uuid}
+        novel_id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+        read_at: {type: string, format: date-time, nullable: true}
+        readable_chapters: {type: integer, minimum: 0, maximum: 9007199254740991}
+        book:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicNovel'}
+            - {type: object, nullable: true, enum: [null]}
+    NovelNoticePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, maxItems: 12, items: {$ref: '#/components/schemas/NovelNotice'}}
+        next_cursor: {type: string}
+    NovelNoticeDetail:
+      type: object
+      additionalProperties: false
+      required: [notice, items, next_cursor]
+      properties:
+        notice: {$ref: '#/components/schemas/NovelNotice'}
+        items: {type: array, maxItems: 50, items: {$ref: '#/components/schemas/NovelDirectoryChapter'}}
+        next_cursor: {type: string}
+    NovelNoticeRead:
+      type: object
+      additionalProperties: false
+      required: [id, read_at]
+      properties:
+        id: {type: string, format: uuid}
+        read_at: {type: string, format: date-time}
     NovelShelfState:
       type: object
       additionalProperties: false

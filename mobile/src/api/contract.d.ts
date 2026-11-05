@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+  "/api/my/novel-notices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 本人站内新章消息
+     * @description 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+     */
+    get: operations["listMyNovelNotices"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novel-notices/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人站内新章消息
+     * @description 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+     */
+    get: operations["getMyNovelNotice"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novel-notices/{id}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 本人站内新章消息
+     * @description 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+     */
+    post: operations["readMyNovelNotice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novel-shelf": {
     parameters: {
       query?: never;
@@ -13,7 +77,7 @@ export interface paths {
     };
     /**
      * 本人书架与追更关系
-     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
      */
     get: operations["listMyNovelShelf"];
     put?: never;
@@ -35,13 +99,13 @@ export interface paths {
     };
     /**
      * 本人书架与追更关系
-     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
      */
     get: operations["getMyNovelShelf"];
     put?: never;
     /**
      * 本人书架与追更关系
-     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
      */
     post: operations["changeMyNovelShelf"];
     delete?: never;
@@ -62,7 +126,7 @@ export interface paths {
     };
     /**
      * 本人书架与追更关系
-     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
      */
     get: operations["getMyNovelShelfReceipt"];
     put?: never;
@@ -2879,6 +2943,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    NovelNotice: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      novel_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      read_at: string | null;
+      readable_chapters: number;
+      book: components["schemas"]["PublicNovel"] | (never | null);
+    };
+    NovelNoticePage: {
+      items: components["schemas"]["NovelNotice"][];
+      next_cursor: string;
+    };
+    NovelNoticeDetail: {
+      notice: components["schemas"]["NovelNotice"];
+      items: components["schemas"]["NovelDirectoryChapter"][];
+      next_cursor: string;
+    };
+    NovelNoticeRead: {
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      read_at: string;
+    };
     NovelShelfState: {
       /** Format: uuid */
       novel_id: string;
@@ -4311,6 +4402,105 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listMyNovelNotices: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人动态安全站内消息或幂等已读结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelNoticePage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelNotice: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人动态安全站内消息或幂等已读结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelNoticeDetail"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readMyNovelNotice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description 本人动态安全站内消息或幂等已读结果 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelNoticeRead"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listMyNovelShelf: {
     parameters: {
       query?: {
