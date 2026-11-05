@@ -58,7 +58,7 @@ export function checkedShelfState(v: ShelfState, book?: string) {
     fail();
   return v;
 }
-function checkedInput(book: string, v: ShelfWrite) {
+export function checkedShelfWrite(book: string, v: ShelfWrite) {
   if (
     !id(book) ||
     !shape(v, ["mutation_id", "base_revision", "operation"]) ||
@@ -74,7 +74,7 @@ export function checkedShelfReceipt(
   book: string,
   input: ShelfWrite,
 ) {
-  checkedInput(book, input);
+  checkedShelfWrite(book, input);
   if (
     !shape(v, ["mutation_id", "operation", "state", "accepted_at"]) ||
     v.mutation_id !== input.mutation_id ||
@@ -110,7 +110,7 @@ export class NovelShelfApi {
     );
   }
   async write(book: string, input: ShelfWrite, signal?: AbortSignal) {
-    checkedInput(book, input);
+    checkedShelfWrite(book, input);
     return checkedShelfReceipt(
       await this.transport<ShelfReceipt>(`/my/novel-shelf/${book}`, {
         method: "POST",
@@ -122,7 +122,7 @@ export class NovelShelfApi {
     );
   }
   async receipt(book: string, input: ShelfWrite, signal?: AbortSignal) {
-    checkedInput(book, input);
+    checkedShelfWrite(book, input);
     return checkedShelfReceipt(
       await this.transport<ShelfReceipt>(
         `/my/novel-shelf/${book}/requests/${input.mutation_id}`,

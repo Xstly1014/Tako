@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ShelfControls } from "./ShelfUi";
 import { Action, Brand, Status } from "../components/Ui";
 import { BottomNavigation } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
@@ -237,11 +238,23 @@ export function NovelCommunityScreen() {
   );
 }
 export function NovelDirectoryScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; from?: string }>();
   const book = typeof params.id === "string" ? params.id : "";
-  return <DirectoryContent key={book} book={book} />;
+  return (
+    <DirectoryContent
+      key={book}
+      book={book}
+      fromShelf={params.from === "shelf"}
+    />
+  );
 }
-function DirectoryContent({ book }: { book: string }) {
+function DirectoryContent({
+  book,
+  fromShelf,
+}: {
+  book: string;
+  fromShelf: boolean;
+}) {
   const sync = useReadingPosition(book);
   const { localError } = useReadingLifecycle(sync);
   const valid = id(book);
@@ -261,8 +274,10 @@ function DirectoryContent({ book }: { book: string }) {
     <SafeAreaView style={s.screen}>
       <Header
         title="章节目录"
-        back="长文频道"
-        onBack={() => router.dismissTo("/novel-community")}
+        back={fromShelf ? "我的书架" : "长文频道"}
+        onBack={() =>
+          router.dismissTo(fromShelf ? "/shelf" : "/novel-community")
+        }
       />
       {!valid || !page ? (
         <Status
@@ -293,13 +308,19 @@ function DirectoryContent({ book }: { book: string }) {
                 {details.introduction ? (
                   <Text style={s.intro}>{details.introduction}</Text>
                 ) : null}
+                <ShelfControls book={book} readable={!error} />
                 <ReadingPositionControls
                   sync={sync}
                   error={localError}
                   onResume={(p) =>
                     router.push({
                       pathname: "/novel-chapter",
-                      params: { book, chapter: p.chapter_id, resume: "1" },
+                      params: {
+                        book,
+                        chapter: p.chapter_id,
+                        resume: "1",
+                        ...(fromShelf ? { from: "shelf" } : {}),
+                      },
                     })
                   }
                 />
@@ -320,7 +341,11 @@ function DirectoryContent({ book }: { book: string }) {
               onPress={() =>
                 router.push({
                   pathname: "/novel-chapter",
-                  params: { book, chapter: item.id },
+                  params: {
+                    book,
+                    chapter: item.id,
+                    ...(fromShelf ? { from: "shelf" } : {}),
+                  },
                 })
               }
               style={({ pressed }) => [s.chapterRow, pressed && s.pressed]}
@@ -355,6 +380,7 @@ export function NovelChapterScreen() {
     book: string;
     chapter: string;
     resume?: string;
+    from?: string;
   }>();
   const book = typeof params.book === "string" ? params.book : "",
     chapter = typeof params.chapter === "string" ? params.chapter : "";
@@ -364,6 +390,7 @@ export function NovelChapterScreen() {
       book={book}
       chapter={chapter}
       resume={params.resume === "1"}
+      fromShelf={params.from === "shelf"}
     />
   );
 }
@@ -371,10 +398,12 @@ function ChapterContent({
   book,
   chapter,
   resume,
+  fromShelf,
 }: {
   book: string;
   chapter: string;
   resume: boolean;
+  fromShelf: boolean;
 }) {
   const sync = useReadingPosition(book),
     state = useReadingState(sync);
@@ -487,7 +516,12 @@ function ChapterContent({
       if (p.chapter_id !== chapter) {
         router.replace({
           pathname: "/novel-chapter",
-          params: { book, chapter: p.chapter_id, resume: "1" },
+          params: {
+            book,
+            chapter: p.chapter_id,
+            resume: "1",
+            ...(fromShelf ? { from: "shelf" } : {}),
+          },
         });
         return;
       }
@@ -517,7 +551,7 @@ function ChapterContent({
         setResumeNotice("位置暂未定位，可继续阅读或再次点击续读。");
       }
     },
-    [book, chapter, value, sync],
+    [book, chapter, value, sync, fromShelf],
   );
   useEffect(() => {
     if (
@@ -598,7 +632,7 @@ function ChapterContent({
           id(book)
             ? router.dismissTo({
                 pathname: "/novel/[id]",
-                params: { id: book },
+                params: { id: book, ...(fromShelf ? { from: "shelf" } : {}) },
               })
             : router.dismissTo("/novel-community")
         }
@@ -685,7 +719,10 @@ function ChapterContent({
                 onPress={() =>
                   router.dismissTo({
                     pathname: "/novel/[id]",
-                    params: { id: book },
+                    params: {
+                      id: book,
+                      ...(fromShelf ? { from: "shelf" } : {}),
+                    },
                   })
                 }
               />

@@ -1,6 +1,8 @@
 import React,{useState} from "react";
 import {createRoot} from "react-dom/client";
 import {NovelDirectoryScreen,NovelChapterScreen} from "../../mobile/src/novels/PublicReadingScreens.tsx";
+import {ShelfScreen} from "../../mobile/src/novels/ShelfScreen.tsx";
+import Account from "../../mobile/src/app/account.tsx";
 import {Session} from "../../mobile/src/auth/session.ts";
 import {request} from "../../mobile/src/api/client.ts";
 import {session} from "../mobile-author-works-ui/context.jsx";
@@ -18,5 +20,5 @@ window.readLive.setup=async()=>{
  await session.signIn('register','reading-reader-'+crypto.randomUUID()+'@example.test',crypto.randomUUID());await session.setNickname('续读合成读者');
  window.readLive.owner=owner;window.readLive.book=book.id;window.readLive.chapter=receipt.chapter_id;window.readLive.readerA=session.snapshot().account.id;window.readLive.open('/novel/'+book.id);
 };
-function Harness(){const [route,setRoute]=useState(''),[epoch,setEpoch]=useState(0);window.readLive.open=route=>{window.readLive.route=route;setRoute(route);setEpoch(n=>n+1)};return route.startsWith('/novel-chapter')?<NovelChapterScreen key={epoch}/>:route?<NovelDirectoryScreen key={epoch}/>:<p>准备真实续读链路</p>}
+function Harness(){const [route,setRoute]=useState(''),[epoch,setEpoch]=useState(0);window.readLive.open=route=>{window.readLive.route=route;setRoute(route);setEpoch(n=>n+1)};return route==='/account'?<Account key={epoch}/>:route==='/shelf'?<ShelfScreen key={epoch}/>:route.startsWith('/novel-chapter')?<NovelChapterScreen key={epoch}/>:route?<NovelDirectoryScreen key={epoch}/>:<p>准备真实续读链路</p>}
 createRoot(document.getElementById('root')).render(<React.StrictMode><Harness/></React.StrictMode>);
