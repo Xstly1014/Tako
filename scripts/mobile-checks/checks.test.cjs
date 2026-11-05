@@ -87,6 +87,7 @@ test('model gate rejects skips and new unclassified files, and withholds asserti
     delete env.NODE_TEST_CONTEXT;
     const run = () => spawnSync(process.execPath, [path.join(fixture, 'scripts/check_mobile_tests.cjs'), 'model'],
       { encoding: 'utf8', timeout: 15000, env });
+    write('novel-shelf.test.ts', 'require("node:test")("shelf model passes",()=>{});');
     write('session.test.ts', 'require("node:test")("passes",()=>{});');
     write('versions.test.ts', 'require("node:test")("version model passes",()=>{});');
     write('author-works.test.ts', 'require("node:test")("author model passes",()=>{});');

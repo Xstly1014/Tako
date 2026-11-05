@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.26.0
+  version: 0.27.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,116 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novel-shelf:
+    get:
+      operationId: listMyNovelShelf
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-shelf/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelShelf
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: changeMyNovelShelf
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NovelShelfWrite'}
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-shelf/{id}/requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelShelfReceipt
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/novel-reading/{id}:
     parameters:
       - in: path
@@ -5207,6 +5317,52 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    NovelShelfState:
+      type: object
+      additionalProperties: false
+      required: [novel_id, in_shelf, following, revision, generation, added_at, updated_at]
+      properties:
+        novel_id: {type: string, format: uuid}
+        in_shelf: {type: boolean}
+        following: {type: boolean}
+        revision: {type: integer, minimum: 0, maximum: 9007199254740991}
+        generation: {type: integer, minimum: 0, maximum: 9007199254740991}
+        added_at: {type: string, format: date-time, nullable: true}
+        updated_at: {type: string, format: date-time, nullable: true}
+    NovelShelfWrite:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, base_revision, operation]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        base_revision: {type: integer, minimum: 0, maximum: 9007199254740990}
+        operation: {type: string, enum: [join, follow, unfollow, remove]}
+    NovelShelfReceipt:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, operation, state, accepted_at]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        operation: {type: string, enum: [join, follow, unfollow, remove]}
+        state: {$ref: '#/components/schemas/NovelShelfState'}
+        accepted_at: {type: string, format: date-time}
+    NovelShelfItem:
+      type: object
+      additionalProperties: false
+      required: [relation, book]
+      properties:
+        relation: {$ref: '#/components/schemas/NovelShelfState'}
+        book:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicNovel'}
+            - {type: object, nullable: true, enum: [null]}
+    NovelShelfPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, maxItems: 12, items: {$ref: '#/components/schemas/NovelShelfItem'}}
+        next_cursor: {type: string}
     ReadingLocator:
       type: object
       additionalProperties: false
@@ -6710,7 +6866,7 @@ components:
       properties:
         error:
           type: string
-          enum: [reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [novel_shelf_conflict, reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

@@ -13,6 +13,8 @@ func novelError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, novel.ErrCompletionExpired):
 		status, code = 410, "completion_check_expired"
+	case errors.Is(err, novel.ErrShelfConflict):
+		status, code = 409, "novel_shelf_conflict"
 	case errors.Is(err, novel.ErrReadingConflict):
 		status, code = 409, "reading_position_conflict"
 	case errors.Is(err, novel.ErrAppealPending):

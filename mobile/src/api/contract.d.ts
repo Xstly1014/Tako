@@ -4,6 +4,75 @@
  */
 
 export interface paths {
+  "/api/my/novel-shelf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 本人书架与追更关系
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     */
+    get: operations["listMyNovelShelf"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novel-shelf/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人书架与追更关系
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     */
+    get: operations["getMyNovelShelf"];
+    put?: never;
+    /**
+     * 本人书架与追更关系
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     */
+    post: operations["changeMyNovelShelf"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/novel-shelf/{id}/requests/{mutation}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 本人书架与追更关系
+     * @description 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。首版站内投递尚未接通，这组接口只交付关系内核。
+     */
+    get: operations["getMyNovelShelfReceipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novel-reading/{id}": {
     parameters: {
       query?: never;
@@ -2810,6 +2879,42 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    NovelShelfState: {
+      /** Format: uuid */
+      novel_id: string;
+      in_shelf: boolean;
+      following: boolean;
+      revision: number;
+      generation: number;
+      /** Format: date-time */
+      added_at: string | null;
+      /** Format: date-time */
+      updated_at: string | null;
+    };
+    NovelShelfWrite: {
+      /** Format: uuid */
+      mutation_id: string;
+      base_revision: number;
+      /** @enum {string} */
+      operation: "join" | "follow" | "unfollow" | "remove";
+    };
+    NovelShelfReceipt: {
+      /** Format: uuid */
+      mutation_id: string;
+      /** @enum {string} */
+      operation: "join" | "follow" | "unfollow" | "remove";
+      state: components["schemas"]["NovelShelfState"];
+      /** Format: date-time */
+      accepted_at: string;
+    };
+    NovelShelfItem: {
+      relation: components["schemas"]["NovelShelfState"];
+      book: components["schemas"]["PublicNovel"] | (never | null);
+    };
+    NovelShelfPage: {
+      items: components["schemas"]["NovelShelfItem"][];
+      next_cursor: string;
+    };
     ReadingLocator: {
       /** @enum {integer} */
       algorithm: 1;
@@ -3784,6 +3889,7 @@ export interface components {
     Error: {
       /** @enum {string} */
       error:
+        | "novel_shelf_conflict"
         | "reading_position_conflict"
         | "completion_check_expired"
         | "novel_state_conflict"
@@ -4205,6 +4311,139 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listMyNovelShelf: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人关系、安全分页或不可变原受理回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelShelfPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelShelf: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人关系、安全分页或不可变原受理回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelShelfState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeMyNovelShelf: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelShelfWrite"];
+      };
+    };
+    responses: {
+      /** @description 本人关系、安全分页或不可变原受理回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelShelfReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getMyNovelShelfReceipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        mutation: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人关系、安全分页或不可变原受理回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelShelfReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      429: components["responses"]["Limited"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   getMyNovelReadingPosition: {
     parameters: {
       query?: never;
