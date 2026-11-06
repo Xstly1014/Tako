@@ -6,7 +6,7 @@
 
 | 目录 | 内容 |
 |---|---|
-| `backend/` | Go/Gin 模块化单体，identity/draft/publication，MySQL migrations 目前 00013 |
+| `backend/` | Go/Gin模块化单体及MySQL迁移；模块与编号以源码为准，运行基线见[项目状态](../project-status.md) |
 | `backend/internal/contract/openapi.yaml` | HTTP 唯一契约源，当前 0.12.0；运行时校验及路由/响应测试共用 |
 | `frontend/` | Nuxt/Vue/TS Web，已具备完整于 App 的创作/管理/互动能力 |
 | `mobile/` | Expo 58 / RN 0.88 / Expo Router 独立原生页面；生成类型 `src/api/contract.d.ts`，`src/auth/session.ts` 管生命周期，SecureStore 仅在 context 适配 |

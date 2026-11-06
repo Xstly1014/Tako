@@ -131,3 +131,5 @@ Tako 由人和 AI 一起推进：业务选择、实现、审查和真实验证�
 GitHub 右侧的 Contributors 由真实提交和账号关联自动统计，与本区头像分别维护。[如何关联账号与头像](docs/contribution-display.md)
 
 欢迎带着对内容、业务或技术的兴趣参与。提议功能时，说明它解决谁的问题、失败时应该怎样，再讨论实现；开始修改前先核对 [协作边界](docs/handoff/03-parallel-work.md)，避免覆盖并行工作。
+
+文档导航：[当前项目状态](docs/project-status.md) · [完整文档目录](docs/catalog.md) · [工具脚本](scripts/README.md)。
