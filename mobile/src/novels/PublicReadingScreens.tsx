@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
+  Alert,
   FlatList,
   AppState,
   Pressable,
@@ -7,8 +8,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, usePreventRemove } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSession } from "../auth/context";
+import { request } from "../api/client";
+import { CommentsPanel } from "../components/CommentsPanel";
+import { chapterPanelApi } from "./comment-panel-api";
 import { ShelfControls } from "./ShelfUi";
 import { Action, Brand, Status } from "../components/Ui";
 import { BottomNavigation } from "../components/PrototypeUi";
@@ -437,6 +442,38 @@ function ChapterContent({
   fromShelf: boolean;
   fromNotice?: string;
 }) {
+  const { session } = useSession();
+  const [comments, setComments] = useState(false),
+    [commentDirty, setCommentDirty] = useState(false);
+  const commentsApi = useMemo(
+    () =>
+      chapterPanelApi(
+        (path, options) =>
+          options?.method || session.snapshot().phase === "ready"
+            ? session.authorized(path, options)
+            : request(path, options),
+        book,
+        chapter,
+      ),
+    [session, book, chapter],
+  );
+  usePreventRemove(commentDirty, ({ repeat }) =>
+    Alert.alert(
+      "离开阅读页？",
+      "未发表文字将丢弃；离开不会取消服务端已经收到的请求。",
+      [
+        { text: "继续编辑", style: "cancel" },
+        {
+          text: "丢弃并离开",
+          style: "destructive",
+          onPress: () => {
+            setCommentDirty(false);
+            repeat();
+          },
+        },
+      ],
+    ),
+  );
   const sync = useReadingPosition(book),
     state = useReadingState(sync);
   const { localError, operation, focused } = useReadingLifecycle(sync);
@@ -763,6 +800,14 @@ function ChapterContent({
             <View style={s.footer}>
               <Text style={s.meta}>本章结束</Text>
               <Action
+                label="本章讨论"
+                disabled={!value.value.comment_context}
+                onPress={() => setComments(true)}
+              />
+              {!value.value.comment_context ? (
+                <Text style={s.meta}>当前服务暂未开放章讨论。</Text>
+              ) : null}
+              <Action
                 label="返回目录"
                 onPress={() =>
                   router.dismissTo({
@@ -782,6 +827,16 @@ function ChapterContent({
           }
         />
       )}
+      {value?.value.comment_context ? (
+        <CommentsPanel
+          workId={chapter}
+          context={value.value.comment_context}
+          api={commentsApi}
+          visible={comments}
+          onClose={() => setComments(false)}
+          onDirtyChange={setCommentDirty}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -49,6 +49,7 @@ export function commentMessage(e: unknown) {
     ? (codes[e.code] ?? apiMessage(e))
     : apiMessage(e);
 }
+export type CommentPanelApi = Pick<CommentsApi, "list" | "create" | "remove">;
 export function useCommentsApi() {
   const { session } = useSession();
   return useMemo(
@@ -207,7 +208,7 @@ function Replies({
   root,
   render,
 }: {
-  api: CommentsApi;
+  api: CommentPanelApi;
   workId: string;
   root: string;
   render: (item: Comment) => React.ReactElement;
@@ -299,7 +300,7 @@ function Thread({
   disabled,
 }: {
   item: Comment;
-  api: CommentsApi;
+  api: CommentPanelApi;
   onReply: (item: Comment) => void;
   onDelete: (item: Comment) => void;
   disabled: boolean;
@@ -352,6 +353,7 @@ export function CommentsPanel({
   onClose,
   onDirtyChange,
   loadThread,
+  api: suppliedApi,
 }: {
   workId: string;
   context: string;
@@ -359,9 +361,11 @@ export function CommentsPanel({
   onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
   loadThread?: (signal?: AbortSignal) => Promise<CommentPage>;
+  api?: CommentPanelApi;
 }) {
   const { session, account, phase, generation } = useSession();
-  const api = useCommentsApi();
+  const defaultApi = useCommentsApi();
+  const api = suppliedApi ?? defaultApi;
   const [editor] = useState(() => {
     const value = new CommentEditor(Crypto.randomUUID);
     value.syncAccount(session.snapshot().account?.id ?? null);

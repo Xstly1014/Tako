@@ -4,3 +4,6 @@ const history=[];
 export const router={push:v=>{history.push(window.readLive.route);window.readLive.open(path(v))},replace:v=>window.readLive.open(path(v)),dismissTo:v=>window.readLive.open(path(v)),canGoBack:()=>history.length>0,back:()=>window.readLive.open(history.pop()??'/account')};
 export function useLocalSearchParams(){const u=new URL(window.readLive.route,'http://fixture');return {id:u.pathname.split('/').pop(),...Object.fromEntries(u.searchParams)}};
 export function useFocusEffect(fn){useEffect(()=>fn(),[fn]);}
+
+// Navigation blocking is a native-device gate; these reading fixtures do not certify it.
+export function usePreventRemove(){return ()=>{}}
