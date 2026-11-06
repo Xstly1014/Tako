@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useSession } from "../auth/context";
 import { MyChapterComments } from "../novels/MyChapterComments";
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { MyCommentList, commentStyles as s } from "../components/CommentsPanel";
 export default function MyComments() {
+  const { account, generation } = useSession();
   const [kind, setKind] = useState<"work" | "chapter">("work");
   return (
     <SafeAreaView style={s.screen}>
@@ -36,7 +38,11 @@ export default function MyComments() {
           </Pressable>
         ))}
       </View>
-      {kind === "work" ? <MyCommentList /> : <MyChapterComments />}
+      {kind === "work" ? (
+        <MyCommentList />
+      ) : (
+        <MyChapterComments key={account?.id + ":" + generation} />
+      )}
     </SafeAreaView>
   );
 }

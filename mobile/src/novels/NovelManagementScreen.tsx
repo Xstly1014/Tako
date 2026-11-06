@@ -1449,6 +1449,14 @@ function Management({
           </Text>
         </Pressable>
         <Text style={s.title}>正式管理</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({ pathname: "/novel-comments", params: { book } })
+          }
+        >
+          <Text style={s.link}>管理章评论</Text>
+        </Pressable>
       </View>
       <View style={s.book}>
         <Text style={s.bookTitle} numberOfLines={2}>

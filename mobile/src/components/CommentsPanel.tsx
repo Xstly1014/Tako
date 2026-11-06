@@ -784,9 +784,13 @@ const s = commentStyles;
 export function MyCommentList({
   loadComments,
   onOpen,
+  onDelete,
+  deleting = false,
 }: {
   loadComments?: (cursor: number, signal?: AbortSignal) => Promise<CommentPage>;
   onOpen?: (item: Comment) => void;
+  onDelete?: (item: Comment) => void;
+  deleting?: boolean;
 } = {}) {
   const api = useCommentsApi();
   const { account, generation } = useSession();
@@ -821,6 +825,13 @@ export function MyCommentList({
               <Text style={s.muted}>
                 {new Date(item.created_at).toLocaleString("zh-CN")}
               </Text>
+              {onDelete && item.can_delete && !item.deleted ? (
+                <Button
+                  label="删除评论"
+                  disabled={deleting}
+                  onPress={() => onDelete(item)}
+                />
+              ) : null}
               <Button
                 label="打开所属作品"
                 onPress={() =>

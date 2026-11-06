@@ -73,3 +73,56 @@ test("发表保留原载荷与标识，错误主题不会发请求", async () =>
   await assert.rejects(() => api.create(book, body));
   assert.equal(calls, 2);
 });
+
+test("本人删除丢响应保留原载荷，禁止改目标或换号重放", async () => {
+  const { ChapterCommentDeletion } = await import(
+    "../src/novels/comment-deletion.ts"
+  );
+  let current = true,
+    calls = 0;
+  const bodies: unknown[] = [];
+  const flow = new ChapterCommentDeletion(
+    owner,
+    randomUUID,
+    () => current,
+    async (id, body) => {
+      calls++;
+      bodies.push(body);
+      if (calls === 1) throw new Error("lost");
+      return { id, revision: 2, state: "deleted" };
+    },
+  );
+  await assert.rejects(() => flow.remove(comment, 1));
+  assert.equal(flow.pendingId(), comment);
+  await assert.rejects(() => flow.remove(randomUUID(), 1));
+  assert.equal(calls, 1);
+  current = false;
+  await assert.rejects(() => flow.remove(comment, 2));
+  assert.equal(calls, 1);
+  current = true;
+  assert.equal(await flow.remove(comment, 2), true);
+  assert.equal(bodies[0], bodies[1]);
+  assert.equal(flow.pendingId(), null);
+});
+test("本人删除确认后迟到结果不更新换号界面", async () => {
+  const { ChapterCommentDeletion } = await import(
+    "../src/novels/comment-deletion.ts"
+  );
+  let current = true;
+  let release!: () => void;
+  const wait = new Promise<void>((r) => (release = r));
+  const flow = new ChapterCommentDeletion(
+    owner,
+    randomUUID,
+    () => current,
+    async (id) => {
+      await wait;
+      return { id, revision: 2, state: "deleted" };
+    },
+  );
+  const operation = flow.remove(comment, 1);
+  await assert.rejects(() => flow.remove(comment, 1));
+  current = false;
+  release();
+  assert.equal(await operation, false);
+});

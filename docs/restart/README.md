@@ -1,5 +1,12 @@
 # Tako 本机重启手册
 
+当前N5-B实际App讨论/本人和作者隐藏书评论删除/真实运营治理整条已通过，运行0.29/27。删除未知原请求不换标识，确认后GET失败仅重读。下一N5-C长文搜索；Android/真实用户结果仍待，详见[N5复盘](../reviews/n5-discussion-discovery-stage-review.md)。
+
+## 2026-11-06 · 当前运行已升级N5服务
+
+本机3300已保配置/卷升级API0.29/迁移27，seeded=false，含章节讨论和运营页面。升级前加密快照20261106T021328Z-bba848bb.tako.enc，31,229,897字节；独立恢复62表/20,118草稿/20,185修订，99.55秒核对一致，本机非离机。不是生产部署，无新APK/设备结果。实际讨论联调以N5复盘及primary-progress为准，不沿用下文旧0.28运行状态。
+
+
 ## 2026-11-05 · N5章讨论服务检查点
 
 源码API0.29/迁移27，N5-A章评论读/发/回复/删、本人原因、作者按书管理和运营屏蔽撤销已通过完整HTTP/MySQL/契约回归；5客户端模型/生成/类型lint/7门禁通过。实际App评论面板与Web运营尚未接入；下一步按[N5规格](../novels/n5-discussion-discovery-spec.md)与[阶段复盘](../reviews/n5-discussion-discovery-stage-review.md)推进，不能把API当App完成。
