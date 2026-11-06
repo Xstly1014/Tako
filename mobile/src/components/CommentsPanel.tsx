@@ -781,12 +781,19 @@ export const commentStyles = StyleSheet.create({
 });
 const s = commentStyles;
 
-export function MyCommentList() {
+export function MyCommentList({
+  loadComments,
+  onOpen,
+}: {
+  loadComments?: (cursor: number, signal?: AbortSignal) => Promise<CommentPage>;
+  onOpen?: (item: Comment) => void;
+} = {}) {
   const api = useCommentsApi();
   const { account, generation } = useSession();
   const load = useCallback(
-    (cursor: number, signal?: AbortSignal) => api.mine(cursor, signal),
-    [api],
+    (cursor: number, signal?: AbortSignal) =>
+      loadComments ? loadComments(cursor, signal) : api.mine(cursor, signal),
+    [api, loadComments],
   );
   return (
     <View style={s.flex}>
@@ -817,10 +824,12 @@ export function MyCommentList() {
               <Button
                 label="打开所属作品"
                 onPress={() =>
-                  router.push({
-                    pathname: "/works/[id]",
-                    params: { id: item.work_id },
-                  })
+                  onOpen
+                    ? onOpen(item)
+                    : router.push({
+                        pathname: "/works/[id]",
+                        params: { id: item.work_id },
+                      })
                 }
               />
             </View>
