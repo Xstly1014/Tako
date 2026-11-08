@@ -1,4 +1,9 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,7 +16,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { SearchFlow } from "./flow";
+import { searchWorks } from "../api/search";
+import { PagedSearch, type SearchLoader } from "./flow";
+import { ApiError } from "../api/client";
 import { ReaderError, errorMessage } from "../api/reader";
 import { WorkRow } from "../components/WorkRow";
 import { Action, Status } from "../components/Ui";
@@ -23,7 +30,34 @@ function message(error: unknown) {
   return errorMessage(error);
 }
 export default function SearchScreen() {
-  const [flow] = useState(() => new SearchFlow());
+  return (
+    <SearchView
+      load={searchWorks}
+      scope="中篇"
+      backLabel="返回社区"
+      onBack={() =>
+        router.canGoBack() ? router.back() : router.replace("/community")
+      }
+      renderResult={(item) => <WorkRow item={item} />}
+    />
+  );
+}
+export function SearchView<T extends { id: string }>({
+  load,
+  scope,
+  backLabel,
+  onBack,
+  renderResult,
+  describeError = message,
+}: {
+  load: SearchLoader<T>;
+  scope: string;
+  backLabel: string;
+  onBack: () => void;
+  renderResult: (item: T) => ReactElement;
+  describeError?: (error: unknown) => string;
+}) {
+  const [flow] = useState(() => new PagedSearch(load));
   const state = useSyncExternalStore(flow.subscribe, flow.snapshot);
   useEffect(() => () => flow.dispose(), [flow]);
   const submittingSame = state.loading && state.input.trim() === state.query;
@@ -36,11 +70,9 @@ export default function SearchScreen() {
       <View style={s.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="返回社区"
+          accessibilityLabel={backLabel}
           style={({ pressed }) => [s.back, pressed && { opacity: 0.6 }]}
-          onPress={() =>
-            router.canGoBack() ? router.back() : router.replace("/community")
-          }
+          onPress={onBack}
         >
           <Icon name="back" size={24} color={t.ink} />
         </Pressable>
@@ -89,13 +121,13 @@ export default function SearchScreen() {
       ) : null}
       {state.query ? (
         <Text style={s.caption} numberOfLines={2}>
-          “{state.query}”的中篇作品 · 最新发布
+          “{state.query}”的{scope}作品 · 最新发布
         </Text>
       ) : null}
       <View style={s.results}>
         {!state.query ? (
           <Status
-            title="搜索中篇作品"
+            title={"搜索" + scope + "作品"}
             message="输入作品名、作者或简介关键词。"
           />
         ) : state.loading ? (
@@ -103,9 +135,11 @@ export default function SearchScreen() {
         ) : state.error ? (
           <Status
             title="搜索未完成"
-            message={message(state.error)}
+            message={describeError(state.error)}
             requestId={
-              state.error instanceof ReaderError ? state.error.requestId : ""
+              state.error instanceof ReaderError || state.error instanceof ApiError
+                ? state.error.requestId
+                : ""
             }
             onRetry={submit}
             actionLabel="重试搜索"
@@ -115,7 +149,7 @@ export default function SearchScreen() {
             key={state.searchId}
             data={state.items}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <WorkRow item={item} />}
+            renderItem={({ item }) => renderResult(item)}
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <Status
@@ -127,7 +161,7 @@ export default function SearchScreen() {
               <View style={s.footer}>
                 {state.moreError ? (
                   <Text accessibilityRole="alert" style={s.error}>
-                    {message(state.moreError)}
+                    {describeError(state.moreError)}
                   </Text>
                 ) : null}
                 {state.moreLoading ? (

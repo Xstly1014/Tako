@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -109,6 +110,51 @@ func TestNovelPublicReadingVisibilityAndThousandChapterDirectory(t *testing.T) {
 		extra := newBook(fmt.Sprintf("分页合成作品%d", n))
 		publishFirst(extra)
 		ownBooks[extra.ID] = true
+	}
+	search := func(query, cursor string, status int) novel.PublicNovelPage {
+		t.Helper()
+		path := "/api/novels/search?q=" + url.QueryEscape(query)
+		if cursor != "" {
+			path += "&cursor=" + url.QueryEscape(cursor)
+		}
+		raw := call(path, status)
+		if status != 200 {
+			return novel.PublicNovelPage{}
+		}
+		return novelResult[novel.PublicNovelPage](t, raw)
+	}
+	byAuthor := search("目录合成作者", "", 200)
+	if len(byAuthor.Items) != 12 || byAuthor.NextCursor == "" {
+		t.Fatal("search pagination")
+	}
+	tail := search(" 目录合成作者 ", byAuthor.NextCursor, 200)
+	if len(tail.Items) != 1 || tail.Items[0].ID != b.ID || tail.NextCursor != "" {
+		t.Fatal("search stable ordering")
+	}
+	search("分页合成", byAuthor.NextCursor, 400)
+	call("/api/novels?cursor="+url.QueryEscape(byAuthor.NextCursor), 400)
+	feed := novelResult[novel.PublicNovelPage](t, call("/api/novels", 200))
+	search("目录合成作者", feed.NextCursor, 400)
+	for _, q := range []string{"", " ", "abc\n", strings.Repeat("字", 65)} {
+		search(q, "", 400)
+	}
+	for _, q := range []string{"PRIVATE_UNPUBLISHED_SENTINEL", "公开合成正文", "%", "_"} {
+		if len(search(q, "", 200).Items) != 0 {
+			t.Fatal("search leaked private source or wildcard")
+		}
+	}
+	if _, e := db.Exec("UPDATE novel_publications SET introduction=? WHERE novel_id=?", "LIKE%_!字面标记", b.ID[:]); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := db.Exec("UPDATE novels SET title=? WHERE id=?", "PRIVATE_REVISED_METADATA", b.ID[:]); e != nil {
+		t.Fatal(e)
+	}
+	literal := search("like%_!", "", 200)
+	if len(literal.Items) != 1 || literal.Items[0].ID != b.ID || literal.Items[0].Title != b.Title {
+		t.Fatal("search literal/current public metadata")
+	}
+	if len(search("PRIVATE_REVISED_METADATA", "", 200).Items) != 0 {
+		t.Fatal("search included private metadata")
 	}
 	// Privileged, random-owner read fixtures only. This tests 1,001-row query /
 	// pagination behavior, not 1,000 actual publications or production capacity.
@@ -244,6 +290,9 @@ func TestNovelPublicReadingVisibilityAndThousandChapterDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	call(root, 404)
+	if len(search("千章合成作品", "", 200).Items) != 0 {
+		t.Fatal("unreadable book in search")
+	}
 	call(root+"/directory", 404)
 	call(root+"/chapters/"+firstChapter.String(), 404)
 	if loaded.Content != "公开合成正文" {
@@ -263,6 +312,9 @@ func TestNovelPublicReadingVisibilityAndThousandChapterDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	call(root, 404)
+	if len(search("千章合成作品", "", 200).Items) != 0 {
+		t.Fatal("unreadable book in search")
+	}
 	call(root+"/directory", 404)
 	call(root+"/chapters/"+firstChapter.String(), 404)
 	if _, err = s.DecideNovelCase(ctx, owner, b.ID, limited.ID, novel.NovelCaseAction{MutationID: uuid.New(), ExpectedRevision: 1, Decision: "revoke", Reason: "测试撤销"}); err != nil {

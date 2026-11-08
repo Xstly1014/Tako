@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.29.0
+  version: 0.30.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -782,6 +782,33 @@ paths:
       summary: 公开长文发现、正式目录与单章阅读
       description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 当前可读正式内容或安全目录占位
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicNovelPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/novels/search:
+    get:
+      operationId: searchPublicNovels
+      tags: [长文]
+      security: []
+      summary: 搜索当前公开长文
+      description: 只匹配当前公开书名、正式简介与作者笔名。按首次正式发布时间倒序分页，游标绑定归一关键词。
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 64}
         - in: query
           name: cursor
           schema: {type: string, maxLength: 512}

@@ -7,3 +7,6 @@ export const FlatList=forwardRef(function List({data,renderItem,keyExtractor,Lis
 });
 
 export {KeyboardAvoidingView,Platform,Alert} from "../mobile-comments-ui/native.jsx";
+
+// DOM test adapter. Native keyboard behavior is verified on device.
+export const Keyboard = { dismiss() {} };

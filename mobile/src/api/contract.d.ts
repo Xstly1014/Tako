@@ -506,9 +506,29 @@ export interface paths {
     };
     /**
      * 公开长文发现、正式目录与单章阅读
-     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
      */
     get: operations["listPublicNovels"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/novels/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 搜索当前公开长文
+     * @description 只匹配当前公开书名、正式简介与作者笔名。按首次正式发布时间倒序分页，游标绑定归一关键词。
+     */
+    get: operations["searchPublicNovels"];
     put?: never;
     post?: never;
     delete?: never;
@@ -528,7 +548,7 @@ export interface paths {
     };
     /**
      * 公开长文发现、正式目录与单章阅读
-     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
      */
     get: operations["getPublicNovel"];
     put?: never;
@@ -550,7 +570,7 @@ export interface paths {
     };
     /**
      * 公开长文发现、正式目录与单章阅读
-     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
      */
     get: operations["getNovelDirectory"];
     put?: never;
@@ -573,7 +593,7 @@ export interface paths {
     };
     /**
      * 公开长文发现、正式目录与单章阅读
-     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+     * @description 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
      */
     get: operations["getPublicNovelChapter"];
     put?: never;
@@ -5468,6 +5488,35 @@ export interface operations {
   listPublicNovels: {
     parameters: {
       query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前可读正式内容或安全目录占位 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicNovelPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      413: components["responses"]["TooLarge"];
+      500: components["responses"]["InternalError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  searchPublicNovels: {
+    parameters: {
+      query: {
+        q: string;
         cursor?: string;
       };
       header?: never;

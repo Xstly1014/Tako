@@ -1,6 +1,6 @@
 # 长文／连载小说文档
 
-当前实现、运行与证据层级见[项目状态](../project-status.md)。N1～N4和N5-B讨论主要工程链路已接入；完整N5仍缺长文元数据搜索。Android及真实用户结果单独验收。
+当前实现、运行与证据层级见[项目状态](../project-status.md)。N1～N5 的主要工程链路已接入，包括章讨论和长文元数据搜索。Android 和真实用户结果单独验收。
 
 | 阅读目的 | 入口 |
 |---|---|
@@ -12,6 +12,6 @@
 | 书架与站内汇总 | [N4规格](n4-shelf-follow-spec.md)、[ADR004](adr-004-shelf-subscriptions.md)、[ADR005](adr-005-novel-notices.md)、[N4复盘](../reviews/n4-shelf-follow-stage-review.md) |
 | 章讨论与搜索 | [N5完整规格](n5-discussion-discovery-spec.md)、[ADR006](adr-006-chapter-comments.md)、[N5复盘](../reviews/n5-discussion-discovery-stage-review.md) |
 
-规格不是实现声明，历史阶段版本不代表当前运行。接口唯一源为backend/internal/contract/openapi.yaml，不能用Markdown替代请求/响应契约。下一连续包N5-C；不重复扩张讨论通知、点赞或离线正文。
+规格不是实现声明，历史阶段版本不代表当前运行。接口唯一源为backend/internal/contract/openapi.yaml，不能用Markdown替代请求/响应契约。N5 阶段证据与未验项见上表复盘。
 
 [整理前入口快照](../history/2026-11-06/novels-entry.md)保留旧阶段索引与当时文字。

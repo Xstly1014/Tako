@@ -5,3 +5,6 @@ export function FlatList({data,renderItem,keyExtractor,ListHeaderComponent,ListE
 }
 
 export const AppState={currentState:"active",addEventListener:()=>({remove(){}})};
+
+// DOM test adapter. Native keyboard behavior is verified on device.
+export const Keyboard = { dismiss() {} };

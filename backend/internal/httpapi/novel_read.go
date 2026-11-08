@@ -37,6 +37,13 @@ func (a API) registerNovelReading(api *gin.RouterGroup) {
 		out, e := s.PublicNovels(c.Request.Context(), c.Query("cursor"))
 		send(c, out, e)
 	})
+	api.GET("/novels/search", func(c *gin.Context) {
+		if !enabled(c) {
+			return
+		}
+		out, e := s.SearchPublicNovels(c.Request.Context(), c.Query("q"), c.Query("cursor"))
+		send(c, out, e)
+	})
 	api.GET("/novels/:id", func(c *gin.Context) {
 		if !enabled(c) {
 			return
