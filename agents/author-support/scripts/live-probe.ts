@@ -21,6 +21,7 @@ async function main(){
   const {contextFromInput}=await import('../src/delivery.ts');
   const {followUp}=await import('../src/follow-up.ts');
   const {runFixedFlow}=await import('../src/fixed-flow.ts');
+  const {checkPublication}=await import('../src/session-diagnostic.ts');
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
   const directory=path.resolve('.runtime/author-agent/runs',runId);mkdirSync(directory,{recursive:true});
@@ -146,7 +147,6 @@ async function main(){
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }
     setupComplete=true;report.checks=checks;report.tool_trace=tools.trace();report.foreign_trace=foreign.trace();
-    console.log(`PASS real author tool probe: ${checks.length} checks; no model score or external model call implied`);
     if(process.argv.includes('--model')){
       const {diagnose}=await import('../src/diagnostic.ts');
       const ledger=new BudgetLedger(path.resolve('.runtime/author-agent/budget.sqlite'));
@@ -170,6 +170,34 @@ async function main(){
       }catch(e){report={...report,model_called:true,model_status:'incomplete',budget:ledger.summary(runId)};throw e;}
       finally{ledger.close();}
     }
+    phase='session_bound_delivery';
+    const guarded=await checkPublication(author,{workId:r1.work_id,previewId:p2.id});
+    assert.ok(guarded);
+    assert.equal(guarded.getDelivery()?.verdict.publication,'confirmed');
+    const followed=await guarded.followUp();
+    assert.ok(followed);
+    assert.equal(ok(followed).work_id,r1.work_id);
+    let release!:()=>void;
+    let start!:()=>void;
+    const received=new Promise<void>(resolve=>{start=resolve});
+    const waiting=new Promise<void>(resolve=>{release=resolve});
+    const delayed=checkPublication({
+      snapshot:author.snapshot,
+      authorized:async<T>(p:string,o?:Parameters<typeof author.authorized>[1])=>{
+        const value=await author.authorized<T>(p,o);
+        start();
+        await waiting;
+        return value;
+      },
+    },{previewId:p2.id});
+    await Promise.race([received,delayed.then(()=>{throw Error('diagnosis_not_read')})]);
+    try{await author.restore()}finally{release()}
+    assert.equal(author.snapshot().phase,'ready');
+    assert.equal(await delayed,null);
+    assert.equal(guarded.getDelivery(),null);
+    assert.equal(await guarded.followUp(),null);
+    checks.push('session_generation_invalidates_pending_and_delivered_diagnostics');
+    console.log(`PASS real author tool probe: ${checks.length} checks; no model score or external model call implied`);
   }catch(error){
     const {ApiError}=await import('../../../mobile/src/api/client.ts');
     report.failure={phase,http_status:error instanceof ApiError?error.status:null};
