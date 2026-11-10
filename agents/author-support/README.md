@@ -15,6 +15,9 @@ node --env-file=.runtime/author-agent/.env agents/author-support/scripts/live-pr
 node agents/author-support/scripts/live-probe.ts --pre-review
 # 无模型：11个参考解检查，不算模型成绩。
 node agents/author-support/scripts/suite.ts
+# 开发对照：固定查询；加 --model 才配对运行当前 Agent。
+node agents/author-support/scripts/compare.ts
+node --env-file=.runtime/author-agent/.env agents/author-support/scripts/compare.ts --model
 # 付费：11个开发任务，真实模型＋受控transport，非真实HTTP/工单。
 node --env-file=.runtime/author-agent/.env agents/author-support/scripts/suite.ts --model --json-mode
 # 可选 --case ambiguous，仅运行指定任务；不因重跑覆盖原run。
@@ -36,6 +39,8 @@ node agents/author-support/scripts/delivery-replay.ts .runtime/author-agent/suit
 
 批次报告位于 `.runtime/author-agent/suites/`，保留案例摘要、代码/策略/锁文件哈希、真实模型标识与用量、每次工具投影、最终答案和失败前已完成的步骤。不保存模型推理或原HTTP正文；仅允许本目录预定义的合成场景，不将真实用户数据直接写入这类人工复核包。模型不得看到 `reference`/expected/评分器，参考解仅供夹具验证和人工判定。
 
+开发对照写入 `.runtime/author-agent/comparisons/`。两个方案分别读取相同的合成初始状态，每轮用同一证据门禁、交付函数及最多 8 次只读工具调用。收到要求补标识的下一步才输入脚本中的用户补充；第二轮带上原始用户问题和补充信息。报告分别保留原提案检查、交付检查、实际答复和人工复核状态。固定流程的原提案文字只是交付模板的输入，文字评分以用户实际收到的答复为准。
+
 `replay`不调用模型，按当前评分器重算原证据，显示原评分器版本，不覆盖旧成绩。案例变化或答案/证据绑定不一致时拒绝；哈希是本地一致性检查，不是防篡改签名。`review`输入需包含run_id、reviewer和items，每项为case_id、review_binding、四个布尔criteria（factual/answers_question/advice_safe/uncertainty）及notes；不会默认判通过，不覆盖已有human-review.json。程序通过但人工不通过，仍不能算业务通过。记录复核者身份，不冒充独立双人标注。
 
 首批原始失败、改动与成本详见 [多任务复盘](../../docs/reviews/author-agent-development-suite-review.md)。当前仍有失败，测试工具与真实接口通过不代表Agent可上线。共享CI归主开发维护，本包先提供可独立执行的本机门禁。
@@ -46,7 +51,7 @@ node agents/author-support/scripts/delivery-replay.ts .runtime/author-agent/suit
 
 程序检查和模板不是对所有错误的证明。当前语境解析只支持既有中文标识写法；缺少或冲突标识保守回退，不能声称支持任意自然语言实体解析。测试里的SDK client注入是可信测试代码依赖，不是模型工具参数，也没有生产CLI改供应商地址的选项。成本不明仍保持账本阻断，真实供应商对账恢复未验。结果及退出门槛见[回答校验复盘](../../docs/reviews/author-agent-delivery-review.md)。
 
-当前v2交付增加 `recovered`：只允许对已引用、无矛盾且资源匹配的证据修正结论/下一步，记录原拒绝原因与corrected_fields，再经原事实校验；不修改raw_verdict或模型成绩。伪造引用、跨资源、矛盾快照及401/403不会拼接补救。`verification`分别为facts_checked、needs_clarification、unable_to_check；应答目标通过不代表读者问题都已解决。
+交付的 `recovered` 只允许对已引用、无矛盾且资源匹配的证据修正结论或下一步，记录原拒绝原因与 corrected_fields，再经原事实校验。原提案与交付分开保存。伪造引用、跨资源、矛盾快照及 401/403 不会拼接补救。`verification` 分别为 facts_checked、needs_clarification、unable_to_check。v3 在作者已选定作品后去掉同名候选的歧义提示。
 
 `delivery.next_step`是消费方执行的只读下一步，不是任意URL、模型新工具或自动轮询。`follow-up.ts` 的 `followUp(step, session.authorized)` 只调用已有原预览、作品状态或本人提交记录GET；提交详情经既有解码器校验后只投影状态元信息，不输出正文、标题、处置理由或候选版号。每次重新按当前会话授权，404不揭示归属，401要求重新确认身份。contact_support只返回操作提示，不发送消息。交付函数不执行下一步，当前尚未接App按钮或新HTTP路由。
 

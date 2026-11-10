@@ -3,7 +3,7 @@ import type {Transport} from '../../../mobile/src/auth/session.ts';
 import {createAuthorTools} from './tools.ts';
 import type {Verdict,Evidence} from './grade.ts';
 
-export const fixtureVersion='author-diagnostics-v1';
+export const fixtureVersion='author-diagnostics-v2';
 export const ids={work:'11111111-1111-4111-8111-111111111111',draft:'22222222-2222-4222-8222-222222222222',preview:'33333333-3333-4333-8333-333333333333',other:'44444444-4444-4444-8444-444444444444'};
 const at='2026-11-04T01:00:00Z';
 export type Call={tool:string;args:Record<string,unknown>};
@@ -51,16 +51,17 @@ export function environment(task:Case){
       return structuredClone(preview);
     }
     if(p===`/drafts/${ids.draft}`)return {id:ids.draft,revision:2,title:'合成标题',content:'FIXTURE_PRIVATE_BODY',saved_at:at};
-    if(p.startsWith(`/my/works/${ids.work}/versions?`)){
+    const alternate=p.startsWith(`/my/works/${ids.other}/versions?`)&&task.id==='ambiguous';
+    if(p.startsWith(`/my/works/${ids.work}/versions?`)||alternate){
       const params=new URL(p,'http://fixture.invalid').searchParams;
       const before=Number(params.get('before_version')??0);
       const all=Array.from({length:versions},(_,i)=>versions-i).filter(n=>!before||n<before);
       const page=all.slice(0,20);
-      return {state,versions:page.map(version),events:[],next_version_before:all.length>page.length?page.at(-1)!:0,next_event_before:0};
+      return {state:alternate?{...state,id:ids.other,draft_id:ids.other}:state,versions:page.map(version),events:[],next_version_before:all.length>page.length?page.at(-1)!:0,next_event_before:0};
     }
     if(p.startsWith('/my/works?')){
-      const summary={...state,title:'山间来信',latest_title:'山间来信',display_limited:false,comment_count:0,favorite_count:0};
-      return {items:task.id==='ambiguous'?[summary,{...summary,id:ids.other,draft_id:ids.preview}]:[summary],next_cursor:''};
+      const summary={...state,title:'山间来信',latest_title:'山间来信',display_limited:version(state.display_version).platform_limited,comment_count:0,favorite_count:0};
+      return {items:task.id==='ambiguous'?[summary,{...summary,id:ids.other,draft_id:ids.other}]:[summary],next_cursor:''};
     }
     throw new ApiError('resource_not_found','',404);
   }) as Transport;

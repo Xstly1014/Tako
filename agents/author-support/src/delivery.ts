@@ -1,7 +1,7 @@
 import {UUID} from '../../../mobile/src/api/reader.ts';
 import {grade,parseVerdict,workSnapshot,type Evidence,type Verdict} from './grade.ts';
 
-export const deliveryVersion='evidence-delivery-v2';
+export const deliveryVersion='evidence-delivery-v3';
 export type Context={work_id?:string;preview_id?:string;draft_id?:string;original_result_only:boolean;ambiguous_identifiers:boolean};
 export type NextStep={kind:'read_original_result';preview_id:string}|{kind:'read_submission_record';submission_id:string}|{kind:'read_work_state';work_id:string}|{kind:'provide_identifiers'|'contact_support'|'reauthenticate'};
 export type Delivery={version:string;status:'admitted'|'recovered'|'fallback';verdict:Verdict;reasons:string[];free_text_used:false;next_step?:NextStep;verification?:'facts_checked'|'needs_clarification'|'unable_to_check';corrected_fields?:string[]};
@@ -54,7 +54,7 @@ export function admit(context:Context,proposed:unknown,evidence:Evidence[]):Deli
     if(errors.includes('tool_unavailable'))text.push('查询工具暂未取得可靠结果，查询失败不代表未发布。');
     if(errors.includes('authentication_required'))text.push('当前会话需要重新确认身份。');
     const catalog=cited.find(x=>x.tool==='find_my_works'&&x.result.status==='ok')?.result;
-    if(catalog?.status==='ok'&&Array.isArray(catalog.data.items)&&catalog.data.items.length>1)text.push(`标题查询有${catalog.data.items.length}个候选，尚未明确具体作品。`);
+    if(!work&&catalog?.status==='ok'&&Array.isArray(catalog.data.items)&&catalog.data.items.length>1)text.push(`标题查询有${catalog.data.items.length}个候选，尚未明确具体作品。`);
     if(verdict.access!=='unknown'&&snapshot){
       if(!Number.isSafeInteger(snapshot.state_revision)||!Number.isSafeInteger(snapshot.display_version)||!Number.isSafeInteger(snapshot.last_version))return fallback(context,['invalid_snapshot_metadata']);
       const access={author_hidden:'作者已隐藏',work_limited:'作品层受限',display_limited:'当前展示版本受限',no_recorded_block:'未记录作者隐藏、作品限制或展示版本限制'};
