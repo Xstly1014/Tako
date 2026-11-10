@@ -117,30 +117,37 @@ type PublicPost struct {
 
 const readablePost = "s.first_published_at IS NOT NULL AND s.author_hidden=FALSE AND s.platform_limited=FALSE"
 
-func (s PostStore) Public(ctx context.Context, id uuid.UUID, version uint64) (PublicPost, error) {
-	return s.readVersion(ctx, id, version, uuid.Nil)
+type OwnedPostVersion struct {
+	PublicPost
+	PlatformLimited bool   `json:"platform_limited"`
+	ReviewReason    string `json:"review_reason"`
 }
 
-func (s PostStore) OwnerVersion(ctx context.Context, id, owner uuid.UUID, version uint64) (PublicPost, error) {
+func (s PostStore) Public(ctx context.Context, id uuid.UUID, version uint64) (PublicPost, error) {
+	out, err := s.readVersion(ctx, id, version, uuid.Nil)
+	return out.PublicPost, err
+}
+
+func (s PostStore) OwnerVersion(ctx context.Context, id, owner uuid.UUID, version uint64) (OwnedPostVersion, error) {
 	return s.readVersion(ctx, id, version, owner)
 }
 
-func (s PostStore) readVersion(ctx context.Context, id uuid.UUID, version uint64, ownerScope uuid.UUID) (PublicPost, error) {
-	out := PublicPost{ID: id}
+func (s PostStore) readVersion(ctx context.Context, id uuid.UUID, version uint64, ownerScope uuid.UUID) (OwnedPostVersion, error) {
+	out := OwnedPostVersion{PublicPost: PublicPost{ID: id}}
 	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
-		return PublicPost{}, err
+		return OwnedPostVersion{}, err
 	}
 	defer tx.Rollback()
 	var owner, preview uuid.UUID
 	var book uuid.NullUUID
-	query := `SELECT s.owner_id,v.preview_id,p.title,p.content,p.novel_id,a.nickname,v.version,v.published_at
+	query := `SELECT s.owner_id,v.preview_id,p.title,p.content,p.novel_id,a.nickname,v.version,v.published_at,v.platform_limited
  FROM short_posts s JOIN short_post_versions v ON v.post_id=s.id
  JOIN short_post_previews p ON p.owner_id=v.owner_id AND p.id=v.preview_id
  JOIN accounts a ON a.id=s.owner_id WHERE s.id=?`
 	args := []any{id[:]}
 	if ownerScope == uuid.Nil {
-		query += " AND " + readablePost
+		query += " AND " + readablePost + " AND v.platform_limited=FALSE"
 	} else {
 		query += " AND s.owner_id=?"
 		args = append(args, ownerScope[:])
@@ -154,13 +161,19 @@ func (s PostStore) readVersion(ctx context.Context, id uuid.UUID, version uint64
 			query += " AND (v.version=s.display_version OR s.history_enabled)"
 		}
 	}
-	err = tx.QueryRowContext(ctx, query, args...).Scan(&owner, &preview, &out.Title, &out.Content, &book, &out.Author, &out.Version, &out.PublishedAt)
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&owner, &preview, &out.Title, &out.Content, &book, &out.Author, &out.Version, &out.PublishedAt, &out.PlatformLimited)
 	if err != nil {
-		return PublicPost{}, err
+		return OwnedPostVersion{}, err
+	}
+	if ownerScope != uuid.Nil {
+		err = tx.QueryRowContext(ctx, "SELECT reason FROM short_post_actions WHERE post_id=? AND target_version=? ORDER BY state_revision DESC LIMIT 1", id[:], out.Version).Scan(&out.ReviewReason)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return OwnedPostVersion{}, err
+		}
 	}
 	out.Images, err = previewImages(ctx, tx, owner, preview)
 	if err != nil {
-		return PublicPost{}, err
+		return OwnedPostVersion{}, err
 	}
 	if book.Valid {
 		title, err := novel.OwnedPublicTitle(ctx, tx, owner, book.UUID)
@@ -168,7 +181,7 @@ func (s PostStore) readVersion(ctx context.Context, id uuid.UUID, version uint64
 		case err == nil:
 			out.Novel = &RelatedNovel{ID: book.UUID, Title: title}
 		case !errors.Is(err, sql.ErrNoRows):
-			return PublicPost{}, err
+			return OwnedPostVersion{}, err
 		}
 	}
 	return out, tx.Commit()
@@ -181,7 +194,7 @@ func (s PostStore) PublicImage(ctx context.Context, post, image uuid.UUID, versi
  JOIN short_post_versions v ON v.post_id=s.id
  JOIN short_post_preview_images p ON p.owner_id=v.owner_id AND p.preview_id=v.preview_id
  JOIN short_post_images i ON i.owner_id=p.owner_id AND i.id=p.image_id
- WHERE s.id=? AND `+readablePost+" AND i.id=? AND v.version=? AND (v.version=s.display_version OR s.history_enabled)", post[:], image[:], version).Scan(&mediaType, &content)
+ WHERE s.id=? AND `+readablePost+" AND i.id=? AND v.version=? AND v.platform_limited=FALSE AND (v.version=s.display_version OR s.history_enabled)", post[:], image[:], version).Scan(&mediaType, &content)
 	return mediaType, content, err
 }
 

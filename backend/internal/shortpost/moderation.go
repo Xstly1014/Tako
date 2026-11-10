@@ -60,7 +60,7 @@ func (s PostStore) Manage(ctx context.Context, post, owner uuid.UUID) (ManagedPo
 	var ownerID, preview uuid.UUID
 	query := `SELECT s.owner_id,p.id,s.state_revision,s.review_status,s.author_hidden,s.platform_limited,
  s.first_published_at,s.submitted_at,p.title,p.content,s.display_version,s.history_enabled,
- COALESCE((SELECT reason FROM short_post_actions WHERE post_id=s.id AND target_revision_id IS NULL AND action IN ('approve','reject','limit','revoke_limit')
+ COALESCE((SELECT reason FROM short_post_actions WHERE post_id=s.id AND target_revision_id IS NULL AND target_version IS NULL AND action IN ('approve','reject','limit','revoke_limit')
  ORDER BY state_revision DESC LIMIT 1),'')
  FROM short_posts s
  LEFT JOIN short_post_versions v ON v.post_id=s.id AND v.version=s.display_version AND ?
@@ -96,10 +96,11 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 	const maxRevision = 9007199254740991
 	in.Reason = strings.TrimSpace(in.Reason)
 	ownerAction := in.Action == "hide" || in.Action == "restore" || in.Action == "history_open" || in.Action == "history_close" || in.Action == "show_version"
-	operatorAction := in.Action == "approve" || in.Action == "reject" || in.Action == "limit" || in.Action == "revoke_limit"
+	versionLimit := in.Action == "limit_version" || in.Action == "revoke_version_limit"
+	operatorAction := in.Action == "approve" || in.Action == "reject" || in.Action == "limit" || in.Action == "revoke_limit" || versionLimit
 	if actor == uuid.Nil || post == uuid.Nil || in.MutationID == uuid.Nil || in.ExpectedRevision == 0 || in.ExpectedRevision >= maxRevision ||
 		(operator && !operatorAction) || (!operator && !ownerAction) ||
-		(in.Action == "show_version") != (in.Version > 0) || in.Version > maxRevision ||
+		(in.Action == "show_version" || versionLimit) != (in.Version > 0) || in.Version > maxRevision ||
 		(in.RevisionID != nil && (!operator || *in.RevisionID == uuid.Nil || (in.Action != "approve" && in.Action != "reject"))) ||
 		!utf8.ValidString(in.Reason) || utf8.RuneCountInString(in.Reason) > 500 || (!operator && in.Reason != "") ||
 		(operator && in.Action != "approve" && in.Reason == "") {
@@ -152,6 +153,13 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 		return PostState{}, ErrStateConflict
 	}
 	switch {
+	case versionLimit:
+		if err = changeVersionLimit(ctx, tx, post, in.Version, in.Action == "limit_version"); err != nil {
+			return PostState{}, err
+		}
+		if in.Version == 1 && in.Action == "limit_version" {
+			out.ReviewStatus = "reviewed"
+		}
 	case in.RevisionID != nil:
 		if lastVersion == 0 {
 			return PostState{}, ErrStateConflict
@@ -177,13 +185,26 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 		if out.PlatformLimited {
 			return PostState{}, ErrPostRestricted
 		}
+		var limited bool
+		if err = tx.QueryRowContext(ctx, "SELECT platform_limited FROM short_post_versions WHERE post_id=? AND version=? FOR UPDATE", post[:], in.Version).Scan(&limited); err != nil {
+			return PostState{}, err
+		}
+		if limited {
+			return PostState{}, ErrPostRestricted
+		}
 		displayVersion = in.Version
 	default:
 		if err = applyPostAction(ctx, tx, &out, in.Action); err != nil {
 			return PostState{}, err
 		}
 		if in.Action == "restore" {
-			displayVersion = lastVersion
+			err = tx.QueryRowContext(ctx, "SELECT version FROM short_post_versions WHERE post_id=? AND platform_limited=FALSE ORDER BY version DESC LIMIT 1 FOR UPDATE", post[:]).Scan(&displayVersion)
+			if errors.Is(err, sql.ErrNoRows) {
+				return PostState{}, ErrPostRestricted
+			}
+			if err != nil {
+				return PostState{}, err
+			}
 		}
 	}
 	firstPublication := lastVersion == 0 && out.PublishedAt != nil
@@ -204,12 +225,15 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 	if err != nil {
 		return PostState{}, err
 	}
-	var targetRevision any
+	var targetRevision, targetVersion any
+	if versionLimit {
+		targetVersion = in.Version
+	}
 	if in.RevisionID != nil {
 		targetRevision = (*in.RevisionID)[:]
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO short_post_actions(actor_id,mutation_id,post_id,state_revision,action,reason,payload_hash,receipt,target_revision_id)
- VALUES(?,?,?,?,?,?,?,?,?)`, actor[:], in.MutationID[:], post[:], out.Revision, in.Action, in.Reason, digest[:], receipt, targetRevision); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO short_post_actions(actor_id,mutation_id,post_id,state_revision,action,reason,payload_hash,receipt,target_revision_id,target_version)
+ VALUES(?,?,?,?,?,?,?,?,?,?)`, actor[:], in.MutationID[:], post[:], out.Revision, in.Action, in.Reason, digest[:], receipt, targetRevision, targetVersion); err != nil {
 		return PostState{}, err
 	}
 	return out, tx.Commit()
@@ -260,4 +284,22 @@ func applyPostAction(ctx context.Context, tx *sql.Tx, out *PostState, action str
 		out.AuthorHidden = false
 	}
 	return nil
+}
+
+func changeVersionLimit(ctx context.Context, tx *sql.Tx, post uuid.UUID, version uint64, limit bool) error {
+	result, err := tx.ExecContext(ctx, "UPDATE short_post_versions SET platform_limited=? WHERE post_id=? AND version=? AND platform_limited<>?", limit, post[:], version, limit)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return ErrStateConflict
+	}
+	if limit {
+		_, err = tx.ExecContext(ctx, "UPDATE short_post_revision_submissions SET post_review_pending=FALSE WHERE post_id=? AND version=?", post[:], version)
+	}
+	return err
 }

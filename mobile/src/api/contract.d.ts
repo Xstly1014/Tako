@@ -11,7 +11,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** 运营浏览当前待先审修订 */
+    /** 运营浏览待先审和待后审修订 */
     get: operations["listShortPostRevisionQueue"];
     put?: never;
     post?: never;
@@ -246,7 +246,7 @@ export interface paths {
     put?: never;
     /**
      * 运营处理短帖状态
-     * @description 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。 同一账号、原请求 ID 与载荷重试返回原回执。
+     * @description 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。限制或撤销指定正式版本时填写 version。 同一账号、原请求 ID 与载荷重试返回原回执。
      */
     post: operations["changeOpsShortPost"];
     delete?: never;
@@ -3447,6 +3447,8 @@ export interface components {
         /** Format: uuid */
         post_id: string;
         title: string;
+        pre_review: boolean;
+        version: number | null;
         /** Format: date-time */
         submitted_at: string;
       }[];
@@ -3458,6 +3460,7 @@ export interface components {
       readable: boolean;
     };
     ShortPostRevisionSnapshot: {
+      post_review_pending: boolean;
       /** Format: uuid */
       id: string;
       /** Format: uuid */
@@ -3535,6 +3538,24 @@ export interface components {
       submitted_at: string;
     };
     PublicShortPost: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      content: string;
+      author: string;
+      version: number;
+      /** Format: date-time */
+      published_at: string;
+      images: components["schemas"]["ShortPostImage"][];
+      novel: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+      } | null;
+    };
+    OwnedShortPostVersion: {
+      platform_limited: boolean;
+      review_reason: string;
       /** Format: uuid */
       id: string;
       title: string;
@@ -5106,7 +5127,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description 待先审修订列表 */
+      /** @description 待处理修订列表 */
       200: {
         headers: {
           [name: string]: unknown;
@@ -5224,7 +5245,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["PublicShortPost"];
+          "application/json": components["schemas"]["OwnedShortPostVersion"];
         };
       };
       400: components["responses"]["BadInput"];
@@ -5529,7 +5550,14 @@ export interface operations {
           mutation_id: string;
           expected_revision: number;
           /** @enum {string} */
-          action: "approve" | "reject" | "limit" | "revoke_limit";
+          action:
+            | "approve"
+            | "reject"
+            | "limit"
+            | "revoke_limit"
+            | "limit_version"
+            | "revoke_version_limit";
+          version?: number;
           /** Format: uuid */
           revision_id?: string;
           reason?: string;
