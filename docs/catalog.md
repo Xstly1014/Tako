@@ -74,6 +74,7 @@
 ## publication
 
 - [publication/pre-review-spec.md](<publication/pre-review-spec.md>)
+- [publication/short-posts-v1.md](<publication/short-posts-v1.md>)
 
 ## recruitment
 
