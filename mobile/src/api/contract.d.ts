@@ -4,6 +4,137 @@
  */
 
 export interface paths {
+  "/api/short-posts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 浏览短内容频道
+     * @description 仅 test 环境。每页 12 条按首次公开时间倒序，隐藏和恢复不改变排序。
+     */
+    get: operations["listShortPosts"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 运营查看待处理短帖
+     * @description 仅运营。每页 12 条，区分先审与后审。
+     */
+    get: operations["listShortPostReviewQueue"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}/images/{imageId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营查看已提交版本图片 */
+    get: operations["readShortPostReviewImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 作者查看固定提交与当前状态 */
+    get: operations["readMyShortPost"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}/actions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 作者处理短帖状态
+     * @description 作品存在平台限制时无法恢复公开。 同一账号、原请求 ID 与载荷重试返回原回执。
+     */
+    post: operations["changeMyShortPost"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营查看固定提交与当前状态 */
+    get: operations["readOpsShortPost"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}/actions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 运营处理短帖状态
+     * @description 驳回、限制及撤销限制须填写原因。 同一账号、原请求 ID 与载荷重试返回原回执。
+     */
+    post: operations["changeOpsShortPost"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/short-post-submissions/{id}": {
     parameters: {
       query?: never;
@@ -3188,6 +3319,49 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ShortPostState: {
+      /** Format: uuid */
+      id: string;
+      state_revision: number;
+      /** @enum {string} */
+      review_status: "pending" | "reviewed" | "rejected";
+      author_hidden: boolean;
+      platform_limited: boolean;
+      /** Format: date-time */
+      published_at: string | null;
+    };
+    ShortPostManaged: components["schemas"]["ShortPostState"] & {
+      title: string;
+      content: string;
+      /** Format: date-time */
+      submitted_at: string;
+      images: components["schemas"]["ShortPostImage"][];
+      review_reason: string;
+    };
+    ShortPostFeedPage: {
+      next_cursor: string;
+      items: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+        excerpt: string;
+        author: string;
+        /** Format: date-time */
+        published_at: string;
+        cover: components["schemas"]["ShortPostImage"] | null;
+      }[];
+    };
+    ShortPostReviewPage: {
+      next_cursor: string;
+      items: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+        /** Format: date-time */
+        submitted_at: string;
+        pre_review: boolean;
+      }[];
+    };
     ShortPostSubmissionReceipt: {
       /** Format: uuid */
       id: string;
@@ -4761,6 +4935,222 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listShortPosts: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 浏览短内容频道 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostFeedPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listShortPostReviewQueue: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 运营查看待处理短帖 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostReviewPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readShortPostReviewImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        imageId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 运营查看已提交版本图片 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/jpeg": string;
+          "image/png": string;
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readMyShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 作者查看固定提交与当前状态 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostManaged"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeMyShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          mutation_id: string;
+          expected_revision: number;
+          /** @enum {string} */
+          action: "hide" | "restore";
+          reason?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 作者处理短帖状态 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readOpsShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 运营查看固定提交与当前状态 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostManaged"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  changeOpsShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          mutation_id: string;
+          expected_revision: number;
+          /** @enum {string} */
+          action: "approve" | "reject" | "limit" | "revoke_limit";
+          reason?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 运营处理短帖状态 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostState"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   readMyShortPostSubmission: {
     parameters: {
       query?: never;

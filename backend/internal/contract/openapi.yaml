@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.33.0
+  version: 0.34.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,191 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/short-posts:
+    get:
+      operationId: listShortPosts
+      tags: [短内容]
+      summary: 浏览短内容频道
+      security: []
+      description: 仅 test 环境。每页 12 条按首次公开时间倒序，隐藏和恢复不改变排序。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 36}
+      responses:
+        '200':
+          description: 浏览短内容频道
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostFeedPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts:
+    get:
+      operationId: listShortPostReviewQueue
+      tags: [短内容]
+      summary: 运营查看待处理短帖
+      description: 仅运营。每页 12 条，区分先审与后审。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 36}
+      responses:
+        '200':
+          description: 运营查看待处理短帖
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostReviewPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/images/{imageId}:
+    get:
+      operationId: readShortPostReviewImage
+      tags: [短内容]
+      summary: 运营查看已提交版本图片
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: imageId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 运营查看已提交版本图片
+          content:
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}:
+    get:
+      operationId: readMyShortPost
+      tags: [短内容]
+      summary: 作者查看固定提交与当前状态
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 作者查看固定提交与当前状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostManaged'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/actions:
+    post:
+      operationId: changeMyShortPost
+      tags: [短内容]
+      summary: 作者处理短帖状态
+      description: 作品存在平台限制时无法恢复公开。 同一账号、原请求 ID 与载荷重试返回原回执。
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mutation_id, expected_revision, action]
+              properties:
+                mutation_id: {type: string, format: uuid}
+                expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
+                action: {type: string, enum: [hide, restore]}
+                reason: {type: string, maxLength: 500}
+      responses:
+        '200':
+          description: 作者处理短帖状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}:
+    get:
+      operationId: readOpsShortPost
+      tags: [短内容]
+      summary: 运营查看固定提交与当前状态
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 运营查看固定提交与当前状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostManaged'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/actions:
+    post:
+      operationId: changeOpsShortPost
+      tags: [短内容]
+      summary: 运营处理短帖状态
+      description: 驳回、限制及撤销限制须填写原因。 同一账号、原请求 ID 与载荷重试返回原回执。
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mutation_id, expected_revision, action]
+              properties:
+                mutation_id: {type: string, format: uuid}
+                expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
+                action: {type: string, enum: [approve, reject, limit, revoke_limit]}
+                reason: {type: string, maxLength: 500}
+      responses:
+        '200':
+          description: 运营处理短帖状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-post-submissions/{id}:
     parameters:
       - in: path
@@ -5936,6 +6121,72 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ShortPostState:
+      type: object
+      required: [id, state_revision, review_status, author_hidden, platform_limited, published_at]
+      properties:
+        id: {type: string, format: uuid}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        review_status: {type: string, enum: [pending, reviewed, rejected]}
+        author_hidden: {type: boolean}
+        platform_limited: {type: boolean}
+        published_at: {type: string, format: date-time, nullable: true}
+    ShortPostManaged:
+      allOf:
+        - $ref: '#/components/schemas/ShortPostState'
+        - type: object
+          required: [title, content, submitted_at, images, review_reason]
+          properties:
+            title: {type: string, minLength: 1, maxLength: 80}
+            content: {type: string, minLength: 1, maxLength: 2000}
+            submitted_at: {type: string, format: date-time}
+            images:
+              type: array
+              maxItems: 4
+              items: {$ref: '#/components/schemas/ShortPostImage'}
+            review_reason: {type: string, maxLength: 500}
+    ShortPostFeedPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: {type: string, maxLength: 36}
+        items:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, title, excerpt, author, published_at, cover]
+            properties:
+              id: {type: string, format: uuid}
+              title: {type: string, minLength: 1, maxLength: 80}
+              excerpt: {type: string, maxLength: 120}
+              author: {type: string}
+              published_at: {type: string, format: date-time}
+              cover:
+                type: object
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/ShortPostImage'
+    ShortPostReviewPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: {type: string, maxLength: 36}
+        items:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, title, submitted_at, pre_review]
+            properties:
+              id: {type: string, format: uuid}
+              title: {type: string, minLength: 1, maxLength: 80}
+              submitted_at: {type: string, format: date-time}
+              pre_review: {type: boolean}
     ShortPostSubmissionReceipt:
       type: object
       additionalProperties: false
