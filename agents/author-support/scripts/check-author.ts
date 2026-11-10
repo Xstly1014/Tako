@@ -4,17 +4,17 @@ const localApi='http://127.0.0.1:3300/api';
 
 async function main(){
   const {values,tokens}=parseArgs({
-    options:{work:{type:'string'},preview:{type:'string'},case:{type:'string'}},
+    options:{work:{type:'string'},preview:{type:'string'},case:{type:'string'},'follow-up':{type:'boolean'}},
     tokens:true,
   });
   const targets=tokens.filter(token=>token.kind==='option').map(token=>token.name);
   if(new Set(targets).size!==targets.length){
     throw Error('invalid_target');
   }
-  const {work:workId,preview:previewId,case:caseText}=values;
+  const {work:workId,preview:previewId,case:caseText,'follow-up':followRequested}=values;
   const caseId=caseText===undefined?undefined:Number(caseText);
   if(caseText!==undefined){
-    if(!/^[1-9]\d*$/.test(caseText)||!Number.isSafeInteger(caseId)||workId!==undefined||previewId!==undefined){
+    if(!/^[1-9]\d*$/.test(caseText)||!Number.isSafeInteger(caseId)||workId!==undefined||previewId!==undefined||followRequested){
       throw Error('invalid_target');
     }
   }else if(!workId&&!previewId){
@@ -34,7 +34,7 @@ async function main(){
   const session=new Session({
     get:async()=>token,set:async value=>{token=value},remove:async()=>{token=null},
   },request);
-  await session.signIn('login','author@tako-test.invalid',password);
+  await session.signIn('login',process.env.TEST_AUTHOR_EMAIL??'author@tako-test.invalid',password);
   try{
     if(caseId!==undefined){
       const result=await checkModerationVisibility(session,caseId);
@@ -44,17 +44,22 @@ async function main(){
     }
     const diagnosis=await checkPublication(session,{workId,previewId});
     const visibility=await diagnosis?.checkReaderVisibility()??null;
+    const followed=followRequested?await diagnosis?.followUp():undefined;
     const delivery=diagnosis?.getDelivery();
     if(!delivery){
       console.log(JSON.stringify({status:'session_changed'}));
       process.exitCode=1;
       return;
     }
+    const followUp=followed?.status==='ok'?{status:'ok',data:followed.data}:
+      followed?.status==='error'?{status:'error',error:followed.error,guidance:followed.guidance}:null;
     console.log(JSON.stringify({
       status:delivery.verification,publication:delivery.verdict.publication,access:delivery.verdict.access,
       explanation:delivery.verdict.explanation,nextStep:delivery.next_step??null,visibility,
+      ...(followRequested?{followUp}:{}),
     },null,2));
-    if(delivery.verification==='unable_to_check'||visibility?.status==='unavailable')process.exitCode=1;
+    if(delivery.verification==='unable_to_check'||visibility?.status==='unavailable'||
+      (followRequested&&followed?.status!=='ok'))process.exitCode=1;
   }finally{
     if(session.snapshot().phase==='ready')await session.logout();
   }

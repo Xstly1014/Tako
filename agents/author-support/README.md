@@ -11,6 +11,8 @@ npm run typecheck --prefix agents/author-support
 # 使用现有本地测试作者会话查询；将占位标识换为该账号的真实标识。
 node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --work <作品UUID>
 node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --preview <原预览UUID>
+# 显式读取答复给出的下一步。先审场景读取同一提交的当前状态。
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --preview <原预览UUID> --follow-up
 node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --case <处置编号>
 node agents/author-support/scripts/live-probe.ts
 # 付费，先将密钥写入忽略文件；不要放命令行参数或提交。

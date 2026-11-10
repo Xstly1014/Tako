@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {randomUUID,createHash} from "node:crypto";
+import {execFileSync} from "node:child_process";
 import {mkdirSync,writeFileSync,readFileSync} from "node:fs";
 import path from "node:path";
+import {fileURLToPath} from "node:url";
 
 // Only this setup/cleanup script writes. The agent receives read-only transports.
 async function main(){
@@ -24,6 +26,7 @@ async function main(){
   const {checkModerationVisibility,checkPublication}=await import('../src/session-diagnostic.ts');
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
+  const authorEmail=prefix+'@example.test',authorPassword=randomUUID();
   const directory=path.resolve('.runtime/author-agent/runs',runId);mkdirSync(directory,{recursive:true});
   const session=()=>{let token:string|null=null;return new Session({get:async()=>token,set:async(v:string)=>{token=v},remove:async()=>{token=null}},request)};
   const author=session(),other=session(),operator=session();
@@ -39,7 +42,7 @@ async function main(){
   let phase='core_fixture';
   try{
     await author.restore();await other.restore();
-    await author.signIn('register',prefix+'@example.test',randomUUID());await author.setNickname('Agent合成作者');
+    await author.signIn('register',authorEmail,authorPassword);await author.setNickname('Agent合成作者');
     await other.signIn('register',prefix+'-other@example.test',randomUUID());await other.setNickname('Agent隔离合成账号');
     assert.deepEqual(ok(await tools.invoke('find_my_works',{query:prefix})).items,[]);checks.push('no_formal_work');
     const body1='PRIVATE_PROBE_BODY_'+randomUUID(),body2='PRIVATE_PROBE_REVISION_'+randomUUID();
@@ -183,12 +186,29 @@ async function main(){
       const current=ok(await followUp(recovered.next_step!,transport));assert.equal(current.state,'pending');
       assert.equal(current.meaning,'current_submission_state_not_public_visibility');
       assert.equal('content' in current,false);assert.equal('reason' in current,false);checks.push('offered_submission_step_reads_current_record_only');
+      const checkCommand=()=>{
+        const output=execFileSync(process.execPath,[
+          '--no-warnings',fileURLToPath(new URL('./check-author.ts',import.meta.url)),'--preview',pending.id,'--follow-up',
+        ],{encoding:'utf8',timeout:30000,env:{...process.env,TEST_AUTHOR_EMAIL:authorEmail,TEST_AUTHOR_PASSWORD:authorPassword}});
+        return JSON.parse(output);
+      };
+      const pendingAnswer=checkCommand();
+      assert.equal(pendingAnswer.publication,'unconfirmed');
+      assert.match(pendingAnswer.explanation,/历史先审受理/);
+      assert.equal(pendingAnswer.followUp.data.submission_id,accepted.submission_id);
+      assert.equal(pendingAnswer.followUp.data.state,'pending');
       const denied=await followUp(recovered.next_step!,(p,o)=>other.authorized(p,o));
       assert.equal(denied.status,'error');if(denied.status==='error')assert.equal(denied.error,'resource_unavailable');checks.push('foreign_submission_step_denied');
       await author.authorized('/my/work-submissions/'+accepted.submission_id+'/withdraw',{method:'POST',body:{mutation_id:randomUUID()}});
       pendingSubmissions.splice(pendingSubmissions.indexOf(accepted.submission_id),1);
       assert.equal(ok(await followUp(recovered.next_step!,transport)).state,'withdrawn');
       const historical=ok(await tools.invoke('read_publication_result',{preview_id:pending.id}));
+      const withdrawnAnswer=checkCommand();
+      assert.equal(withdrawnAnswer.publication,pendingAnswer.publication);
+      assert.equal(withdrawnAnswer.explanation,pendingAnswer.explanation);
+      assert.equal(withdrawnAnswer.followUp.data.submission_id,accepted.submission_id);
+      assert.equal(withdrawnAnswer.followUp.data.state,'withdrawn');
+      checks.push('preview_cli_follows_same_submission_before_and_after_withdrawal');
       assert.equal(historical.published,null);assert.ok(historical.submission);checks.push('current_withdrawn_does_not_rewrite_original_acceptance');
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }
