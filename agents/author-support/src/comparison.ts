@@ -12,7 +12,7 @@ const selectedWork:Case={
   assertions:['state'],
 };
 
-type Scenario={id:string;task:Case;reply?:string;afterReply?:Case};
+export type Scenario={id:string;task:Case;reply?:string;afterReply?:Case};
 export const developmentScenarios:Scenario[]=[
   ...cases.filter(task=>task!==ambiguous).map(task=>({id:task.id,task})),
   {id:'clarification-selected',task:ambiguous,reply:`我查到了，要核对的是作品ID ${ids.work}。请继续核对访问状态。`,afterReply:selectedWork},

@@ -3,8 +3,8 @@ import type {Transport} from '../../../mobile/src/auth/session.ts';
 import {createAuthorTools} from './tools.ts';
 import type {Verdict,Evidence} from './grade.ts';
 
-export const fixtureVersion='author-diagnostics-v2';
-export const ids={work:'11111111-1111-4111-8111-111111111111',draft:'22222222-2222-4222-8222-222222222222',preview:'33333333-3333-4333-8333-333333333333',other:'44444444-4444-4444-8444-444444444444'};
+export const fixtureVersion='author-diagnostics-v3';
+export const ids={work:'11111111-1111-4111-8111-111111111111',draft:'22222222-2222-4222-8222-222222222222',preview:'33333333-3333-4333-8333-333333333333',other:'44444444-4444-4444-8444-444444444444',missing:'55555555-5555-4555-8555-555555555555'};
 const at='2026-11-04T01:00:00Z';
 export type Call={tool:string;args:Record<string,unknown>};
 export type Case={
@@ -12,6 +12,8 @@ export type Case={
   expected:Pick<Verdict,'publication'|'access'>;actions:Verdict['next_action'][];
   assertions:('receipt'|'state'|'draft'|'older_display'|'complete_display'|'ambiguity'|'denied'|'unavailable'|'acceptance')[];
   reference_calls:Call[];
+  fixture?:{title?:string;latest?:number;display?:number;receipt?:number;alternate?:'visible'|'hidden'};
+  target_work?:string;
 };
 const readReceipt:Call={tool:'read_publication_result',args:{preview_id:ids.preview}};
 const readState:Call={tool:'read_work_state',args:{work_id:ids.work}};
@@ -36,11 +38,14 @@ export const cases:Case[]=[
 // Exercises the production adapter and its existing response checks over a
 // controlled HTTP boundary. No database, session or real authorization claim.
 export function environment(task:Case){
-  const versions=task.id==='display-pagination'?25:task.id==='draft-ahead'?1:2;
-  const state={id:ids.work,draft_id:ids.draft,state_revision:5,last_version:versions,display_version:1,author_hidden:task.id==='hidden',platform_limited:task.id==='work-limited',history_open:false};
+  const fixture=task.fixture;
+  const versions=fixture?.latest??(task.id==='display-pagination'?25:task.id==='draft-ahead'?1:2);
+  const state={id:ids.work,draft_id:ids.draft,state_revision:5,last_version:versions,display_version:fixture?.display??1,author_hidden:task.id==='hidden',platform_limited:task.id==='work-limited',history_open:false};
+  const hasAlternate=task.id==='ambiguous'||fixture?.alternate!==undefined;
+  const alternateState={...state,id:ids.other,draft_id:ids.other,author_hidden:fixture?.alternate==='hidden'};
   const version=(n:number)=>({version:n,title:'合成正文不进入模型',platform_limited:n===1&&['display-pagination','display-limited'].includes(task.id),review_status:'pending',published_at:at});
-  const receipt={work_id:ids.work,version:versions,published_at:at,review_status:'pending'};
-  const preview={id:ids.preview,draft_id:ids.draft,source_revision:1,expected_version:versions-1,title:'合成标题',content:'FIXTURE_PRIVATE_BODY',introduction:'FIXTURE_PRIVATE_INTRO',tags:['日常'],created_at:at,expires_at:'2026-11-05T01:00:00Z',published:task.id==='unconfirmed'?undefined:task.id==='pre-review'?{work_id:ids.work,version:0,published_at:null,review_status:'pre_review',submission_id:ids.other,submitted_at:at}:receipt};
+  const receipt={work_id:ids.work,version:fixture?.receipt??versions,published_at:at,review_status:'pending'};
+  const preview={id:ids.preview,draft_id:ids.draft,source_revision:1,expected_version:fixture?.receipt===0?versions:receipt.version-1,title:'合成标题',content:'FIXTURE_PRIVATE_BODY',introduction:'FIXTURE_PRIVATE_INTRO',tags:['日常'],created_at:at,expires_at:'2026-11-05T01:00:00Z',published:task.id==='unconfirmed'?undefined:task.id==='pre-review'||fixture?.receipt===0?{work_id:ids.work,version:0,published_at:null,review_status:'pre_review',submission_id:ids.other,submitted_at:at}:receipt};
   const requested:string[]=[];
   const transport=(async(p:string,o?:Parameters<Transport>[1])=>{
     if(o?.method!=='GET'||o?.body!==undefined)throw Error('fixture_write_forbidden');
@@ -51,17 +56,20 @@ export function environment(task:Case){
       return structuredClone(preview);
     }
     if(p===`/drafts/${ids.draft}`)return {id:ids.draft,revision:2,title:'合成标题',content:'FIXTURE_PRIVATE_BODY',saved_at:at};
-    const alternate=p.startsWith(`/my/works/${ids.other}/versions?`)&&task.id==='ambiguous';
+    const alternate=p.startsWith(`/my/works/${ids.other}/versions?`)&&hasAlternate;
     if(p.startsWith(`/my/works/${ids.work}/versions?`)||alternate){
       const params=new URL(p,'http://fixture.invalid').searchParams;
       const before=Number(params.get('before_version')??0);
       const all=Array.from({length:versions},(_,i)=>versions-i).filter(n=>!before||n<before);
       const page=all.slice(0,20);
-      return {state:alternate?{...state,id:ids.other,draft_id:ids.other}:state,versions:page.map(version),events:[],next_version_before:all.length>page.length?page.at(-1)!:0,next_event_before:0};
+      return {state:alternate?alternateState:state,versions:page.map(version),events:[],next_version_before:all.length>page.length?page.at(-1)!:0,next_event_before:0};
     }
     if(p.startsWith('/my/works?')){
-      const summary={...state,title:'山间来信',latest_title:'山间来信',display_limited:version(state.display_version).platform_limited,comment_count:0,favorite_count:0};
-      return {items:task.id==='ambiguous'?[summary,{...summary,id:ids.other,draft_id:ids.other}]:[summary],next_cursor:''};
+      const title=fixture?.title??'山间来信';
+      const summary={...state,title,latest_title:title,display_limited:version(state.display_version).platform_limited,comment_count:0,favorite_count:0};
+      const query=new URL(p,'http://fixture.invalid').searchParams.get('q')??'';
+      const items=fixture?.title&&!title.includes(query)?[]:hasAlternate?[summary,{...summary,...alternateState}]:[summary];
+      return {items,next_cursor:''};
     }
     throw new ApiError('resource_not_found','',404);
   }) as Transport;

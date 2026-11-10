@@ -18,6 +18,9 @@ node agents/author-support/scripts/suite.ts
 # 开发对照：固定查询；加 --model 才配对运行当前 Agent。
 node agents/author-support/scripts/compare.ts
 node --env-file=.runtime/author-agent/.env agents/author-support/scripts/compare.ts --model
+# 留出对照，每例三次。先仅验证固定查询，确认后再运行真实模型。
+node agents/author-support/scripts/compare.ts --holdout
+node --env-file=.runtime/author-agent/.env agents/author-support/scripts/compare.ts --holdout --model
 # 付费：11个开发任务，真实模型＋受控transport，非真实HTTP/工单。
 node --env-file=.runtime/author-agent/.env agents/author-support/scripts/suite.ts --model --json-mode
 # 可选 --case ambiguous，仅运行指定任务；不因重跑覆盖原run。

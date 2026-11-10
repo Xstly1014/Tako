@@ -4,6 +4,7 @@ import {cases,environment,ids} from '../src/cases.ts';
 import {developmentScenarios,runScenario} from '../src/comparison.ts';
 import {contextFromInput} from '../src/delivery.ts';
 import {runFixedFlow} from '../src/fixed-flow.ts';
+import {holdoutScenarios} from '../src/holdout.ts';
 import {deliver} from '../src/recovery.ts';
 
 test('catalog and timeline agree on display restriction, including a paged display',async()=>{
@@ -53,4 +54,17 @@ test('delivery does not describe a selected work as ambiguous when the proposal 
   assert.deepEqual(result.next_step,{kind:'read_work_state',work_id:ids.work});
   assert.match(result.verdict.explanation,/当前展示版本1/);
   assert.doesNotMatch(result.verdict.explanation,/尚未明确具体作品/);
+});
+
+test('holdout fixtures expose distinct candidate states and never blend mismatched identifiers',async()=>{
+  const selected=holdoutScenarios.find(scenario=>scenario.id==='second-match')!;
+  const trial=await runScenario(selected,runFixedFlow);
+  assert.equal(trial.automatic_passed,true);
+  assert.equal(trial.turns[1].delivery.verdict.access,'author_hidden');
+  assert.deepEqual(trial.turns[1].delivery.next_step,{kind:'read_work_state',work_id:ids.other});
+  const mismatch=holdoutScenarios.find(scenario=>scenario.id==='mismatched-identifiers')!;
+  const conflicted=await runScenario(mismatch,runFixedFlow);
+  assert.equal(conflicted.turns[0].delivery.status,'fallback');
+  assert.ok(conflicted.turns[0].delivery.reasons.includes('work_receipt_mismatch'));
+  assert.equal(conflicted.turns[0].delivery.verdict.publication,'unknown');
 });

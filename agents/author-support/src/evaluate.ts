@@ -2,10 +2,11 @@ import {createHash} from 'node:crypto';
 import {grade,type Verdict,type Evidence} from './grade.ts';
 import {ids,type Case} from './cases.ts';
 
-export const graderVersion='business-evidence-v3';
+export const graderVersion='business-evidence-v4';
 export const digest=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export function evaluate(task:Case,verdict:Verdict,evidence:Evidence[]){
-  const facts=grade(verdict,evidence,ids.work,ids.preview);
+  const work=task.target_work??ids.work;
+  const facts=grade(verdict,evidence,work,ids.preview);
   const failures=[...facts.failures];
   if(verdict.publication!==task.expected.publication)failures.push('publication_goal_not_met');
   // Unknown is the minimum expectation when access is outside task scope;
@@ -15,7 +16,7 @@ export function evaluate(task:Case,verdict:Verdict,evidence:Evidence[]){
   const cited=evidence.filter(x=>verdict.evidence_ids.includes(x.result.evidence_id));
   const data=(tool:string)=>cited.filter(x=>x.tool===tool&&x.result.status==='ok').map(x=>(x.result as Extract<Evidence['result'],{status:'ok'}>).data);
   const receipts=data('read_publication_result').filter(x=>x.preview_id===ids.preview);
-  const states=data('read_work_state').filter(x=>x.work_id===ids.work);
+  const states=data('read_work_state').filter(x=>x.work_id===work);
   const assertions:Record<Case['assertions'][number],()=>boolean>={
     receipt:()=>receipts.length>0,
     state:()=>states.length>0,
