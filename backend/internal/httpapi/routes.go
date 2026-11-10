@@ -91,7 +91,10 @@ func (a API) Register(r *gin.Engine) error {
 		}
 		c.Header("X-Tako-Environment", environment)
 		c.Header("Cache-Control", "no-store")
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
+		imageUpload := c.Request.Method == http.MethodPut && c.FullPath() == "/api"+shortImageRoute
+		if !imageUpload {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
+		}
 		appEntry := strings.HasPrefix(c.Request.URL.Path, "/api/app/auth/")
 		native := c.GetHeader("Authorization") != ""
 		// Native credentials never mix with browser authority. A header is not
@@ -109,6 +112,8 @@ func (a API) Register(r *gin.Engine) error {
 				respondError(c, 403, "origin_rejected")
 				return
 			}
+		}
+		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead && !imageUpload {
 			mediaType, _, parseErr := mime.ParseMediaType(c.GetHeader("Content-Type"))
 			if parseErr != nil || mediaType != "application/json" {
 				respondError(c, 415, "json_required")
@@ -138,6 +143,8 @@ func (a API) Register(r *gin.Engine) error {
 			respondError(c, 400, "invalid_input")
 			return
 		}
+		// This route validates its bounded binary body after authentication.
+		input.Options.ExcludeRequestBody = imageUpload
 		if validationErr = openapi3filter.ValidateRequest(ctx, input); validationErr != nil {
 			var tooLarge *http.MaxBytesError
 			if errors.As(validationErr, &tooLarge) {
@@ -309,6 +316,7 @@ func (a API) Register(r *gin.Engine) error {
 	a.registerAuthorPolicy(protected)
 	a.registerWorkSubmissions(protected)
 	a.registerNovelReading(api)
+	a.registerShortPostImages(protected)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {
