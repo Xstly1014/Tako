@@ -62,6 +62,10 @@ async function main(){
     let state=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+r1.work_id);
     await api.change(r1.work_id,{mutation_id:randomUUID(),expected_state_revision:state.state_revision,action:'switch_display',version:1});
     const older=ok(await tools.invoke('read_work_state',{work_id:r1.work_id}));assert.equal(older.display_version,1);assert.equal(older.last_version,2);checks.push('older_display_is_not_failed_publication');
+    const readerView=await checkPublication(author,{workId:r1.work_id,previewId:p2.id});
+    assert.ok(readerView);
+    assert.deepEqual(await readerView.checkReaderVisibility(),{status:'visible',displayedVersion:1,releasedVersion:2});
+    checks.push('anonymous_reader_sees_selected_older_version');
     state=await author.authorized('/my/works/'+r1.work_id);
     await api.change(r1.work_id,{mutation_id:randomUUID(),expected_state_revision:state.state_revision,action:'hide'});
     assert.equal(ok(await tools.invoke('read_work_state',{work_id:r1.work_id})).author_hidden,true);checks.push('hidden_work_with_confirmed_release');
@@ -174,6 +178,8 @@ async function main(){
     const guarded=await checkPublication(author,{workId:r1.work_id,previewId:p2.id});
     assert.ok(guarded);
     assert.equal(guarded.getDelivery()?.verdict.publication,'confirmed');
+    assert.deepEqual(await guarded.checkReaderVisibility(),{status:'not_visible',releasedVersion:2});
+    checks.push('anonymous_reader_cannot_open_hidden_work');
     const followed=await guarded.followUp();
     assert.ok(followed);
     assert.equal(ok(followed).work_id,r1.work_id);
@@ -196,6 +202,7 @@ async function main(){
     assert.equal(await delayed,null);
     assert.equal(guarded.getDelivery(),null);
     assert.equal(await guarded.followUp(),null);
+    assert.equal(await guarded.checkReaderVisibility(),null);
     checks.push('session_generation_invalidates_pending_and_delivered_diagnostics');
     console.log(`PASS real author tool probe: ${checks.length} checks; no model score or external model call implied`);
   }catch(error){
