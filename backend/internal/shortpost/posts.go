@@ -132,7 +132,7 @@ type PublicPost struct {
 	Novel       *RelatedNovel   `json:"novel"`
 }
 
-const publicPostScope = "s.id=? AND s.first_published_at IS NOT NULL"
+const readablePost = "s.first_published_at IS NOT NULL AND s.author_hidden=FALSE AND s.platform_limited=FALSE"
 
 func (s PostStore) Public(ctx context.Context, id uuid.UUID) (PublicPost, error) {
 	out := PublicPost{ID: id, Version: 1}
@@ -145,7 +145,7 @@ func (s PostStore) Public(ctx context.Context, id uuid.UUID) (PublicPost, error)
 	var book uuid.NullUUID
 	err = tx.QueryRowContext(ctx, `SELECT s.owner_id,s.preview_id,p.title,p.content,p.novel_id,a.nickname,s.first_published_at
  FROM short_posts s JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=s.preview_id
- JOIN accounts a ON a.id=s.owner_id WHERE `+publicPostScope, id[:]).Scan(&owner, &preview, &out.Title, &out.Content, &book, &out.Author, &out.PublishedAt)
+ JOIN accounts a ON a.id=s.owner_id WHERE s.id=? AND `+readablePost, id[:]).Scan(&owner, &preview, &out.Title, &out.Content, &book, &out.Author, &out.PublishedAt)
 	if err != nil {
 		return PublicPost{}, err
 	}
@@ -171,6 +171,6 @@ func (s PostStore) PublicImage(ctx context.Context, post, image uuid.UUID) (stri
 	err := s.DB.QueryRowContext(ctx, `SELECT i.media_type,i.content FROM short_posts s
  JOIN short_post_preview_images p ON p.owner_id=s.owner_id AND p.preview_id=s.preview_id
  JOIN short_post_images i ON i.owner_id=p.owner_id AND i.id=p.image_id
- WHERE `+publicPostScope+" AND i.id=?", post[:], image[:]).Scan(&mediaType, &content)
+ WHERE s.id=? AND `+readablePost+" AND i.id=?", post[:], image[:]).Scan(&mediaType, &content)
 	return mediaType, content, err
 }

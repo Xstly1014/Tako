@@ -11,7 +11,7 @@ import (
 	"writing.local/community/internal/shortpost"
 )
 
-func verifyShortPostSubmission(t *testing.T, db *sql.DB, owner, other, book uuid.UUID, preview, textOnly shortpost.Preview,
+func verifyShortPostSubmission(t *testing.T, db *sql.DB, owner, other, operator, book uuid.UUID, preview, textOnly shortpost.Preview,
 	request func(method string, actor uuid.UUID, path string, in any, want int, code string) *httptest.ResponseRecorder) {
 	t.Helper()
 	setHidden := func(hidden bool) {
@@ -98,6 +98,8 @@ func verifyShortPostSubmission(t *testing.T, db *sql.DB, owner, other, book uuid
 	if !bytes.Equal(pendingRaw, request("PUT", owner, pendingPath, pendingInput, 200, "").Body.Bytes()) {
 		t.Fatal("observation expiry changed the submission receipt")
 	}
+
+	verifyShortPostManagement(t, db, owner, other, operator, published, pending, preview.Images[0].ID, request)
 
 	if _, err := db.Exec("UPDATE short_post_previews SET expires_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE owner_id=? AND id=?", owner[:], textOnly.ID[:]); err != nil {
 		t.Fatal(err)

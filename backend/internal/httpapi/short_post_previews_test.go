@@ -21,17 +21,19 @@ import (
 func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, privateBook uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
-	other := uuid.New()
-	if _, err := db.Exec("INSERT INTO accounts(id,email,nickname) VALUES(?,?,?)", other[:], other.String()+"@example.test", "短帖验证旁观者"); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if _, err := db.Exec("DELETE FROM accounts WHERE id=?", other[:]); err != nil {
-			t.Errorf("other fixture cleanup: %v", err)
+	other, operator := uuid.New(), uuid.New()
+	for _, id := range []uuid.UUID{other, operator} {
+		if _, err := db.Exec("INSERT INTO accounts(id,email,nickname) VALUES(?,?,?)", id[:], id.String()+"@example.test", "短帖验证账号"); err != nil {
+			t.Fatal(err)
 		}
-	})
+		t.Cleanup(func() {
+			if _, err := db.Exec("DELETE FROM accounts WHERE id=?", id[:]); err != nil {
+				t.Errorf("fixture cleanup: %v", err)
+			}
+		})
+	}
 	tokens := map[uuid.UUID]string{}
-	for _, account := range []uuid.UUID{owner, other} {
+	for _, account := range []uuid.UUID{owner, other, operator} {
 		t.Cleanup(func() {
 			for _, query := range []string{"DELETE FROM short_posts WHERE owner_id=?", "DELETE FROM short_post_preview_images WHERE owner_id=?", "DELETE FROM short_post_previews WHERE owner_id=?", "DELETE FROM short_post_images WHERE owner_id=?", "DELETE FROM sessions WHERE account_id=?"} {
 				if _, err := db.Exec(query, account[:]); err != nil {
@@ -44,16 +46,21 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 			t.Fatal(err)
 		}
 	}
+	t.Cleanup(func() {
+		if _, err := db.Exec("DELETE FROM short_post_actions WHERE actor_id IN (?,?)", owner[:], operator[:]); err != nil {
+			t.Errorf("action fixture cleanup: %v", err)
+		}
+	})
 	const origin = "http://localhost:3000"
 	router := gin.New()
-	api := API{DB: db, Identity: &identity.Service{DB: db}, Origin: origin, EnablePublications: true, EnvironmentName: "test"}
+	api := API{DB: db, Identity: &identity.Service{DB: db}, Origin: origin, EnablePublications: true, EnvironmentName: "test", OperatorAccounts: operator.String()}
 	if err := api.Register(router); err != nil {
 		t.Fatal(err)
 	}
 	request := func(method string, actor uuid.UUID, path string, in any, want int, code string) *httptest.ResponseRecorder {
 		t.Helper()
 		var body *bytes.Reader
-		if method == "PUT" {
+		if method == "PUT" || method == "POST" {
 			data, err := json.Marshal(in)
 			if err != nil {
 				t.Fatal(err)
@@ -66,7 +73,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 		if actor != uuid.Nil {
 			req.AddCookie(&http.Cookie{Name: api.sessionCookieName(), Value: tokens[actor]})
 		}
-		if method == "PUT" {
+		if method == "PUT" || method == "POST" {
 			req.Header.Set("Origin", origin)
 			req.Header.Set("Content-Type", "application/json")
 		}
@@ -147,7 +154,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 	call("PUT", other, badID, changed, 409, "short_post_novel_unavailable")
 	changed.NovelID = &privateBook
 	call("PUT", owner, badID, changed, 409, "short_post_novel_unavailable")
-	verifyShortPostSubmission(t, db, owner, other, publicBook, out, textOnly, request)
+	verifyShortPostSubmission(t, db, owner, other, operator, publicBook, out, textOnly, request)
 	if _, err := db.Exec("UPDATE novels SET author_hidden=TRUE WHERE id=? AND owner_id=?", publicBook[:], owner[:]); err != nil {
 		t.Fatal(err)
 	}

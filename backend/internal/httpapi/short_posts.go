@@ -46,6 +46,14 @@ func (a API) registerShortPosts(api, protected *gin.RouterGroup) {
 		}
 		c.JSON(200, out)
 	})
+	api.GET("/short-posts", a.shortPostTestOnly, func(c *gin.Context) {
+		out, err := store.Feed(c.Request.Context(), c.Query("cursor"))
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.JSON(200, out)
+	})
 	posts := api.Group("/short-posts/:id", a.shortPostTestOnly)
 	posts.GET("", func(c *gin.Context) {
 		id, err := uuid.Parse(c.Param("id"))
@@ -79,10 +87,15 @@ func (a API) registerShortPosts(api, protected *gin.RouterGroup) {
 
 func shortPostError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, shortpost.ErrInvalidPreview), errors.Is(err, shortpost.ErrInvalidSubmission):
+	case errors.Is(err, shortpost.ErrInvalidPreview), errors.Is(err, shortpost.ErrInvalidSubmission),
+		errors.Is(err, shortpost.ErrInvalidAction), errors.Is(err, shortpost.ErrInvalidCursor):
 		respondError(c, 400, "invalid_input")
 	case errors.Is(err, shortpost.ErrPreviewIDReused):
 		respondError(c, 409, "mutation_id_reused")
+	case errors.Is(err, shortpost.ErrStateConflict):
+		respondError(c, 409, "work_state_conflict")
+	case errors.Is(err, shortpost.ErrPostRestricted):
+		respondError(c, 409, "work_restricted")
 	case errors.Is(err, shortpost.ErrAlreadySubmitted):
 		respondError(c, 409, "publication_conflict")
 	case errors.Is(err, shortpost.ErrImageUnavailable):
