@@ -63,7 +63,7 @@ func (s PostStore) Revise(ctx context.Context, owner, post, id uuid.UUID, in Rev
 	if err != nil {
 		return SubmissionReceipt{}, err
 	}
-	if revision != in.ExpectedRevision || last == 0 || last >= maxPostRevision {
+	if revision != in.ExpectedRevision || last >= maxPostRevision {
 		return SubmissionReceipt{}, ErrStateConflict
 	}
 	if err = availablePreview(ctx, tx, owner, in.PreviewID); err != nil {
@@ -81,7 +81,7 @@ func (s PostStore) Revise(ctx context.Context, owner, post, id uuid.UUID, in Rev
 	if err != nil {
 		return SubmissionReceipt{}, err
 	}
-	preReview = preReview || replaced > 0
+	preReview = preReview || replaced > 0 || last == 0
 	state := "pending"
 	var version any
 	if !preReview {
@@ -100,7 +100,15 @@ func (s PostStore) Revise(ctx context.Context, owner, post, id uuid.UUID, in Rev
  VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6))`, owner[:], id[:], post[:], in.PreviewID[:], in.ExpectedRevision, preReview, state, version, !preReview); err != nil {
 		return SubmissionReceipt{}, err
 	}
-	if _, err = tx.ExecContext(ctx, "UPDATE short_posts SET state_revision=state_revision+1 WHERE id=?", post[:]); err != nil {
+	if last == 0 {
+		// Keep the original receipt and snapshot. Only its authority to be decided is retired.
+		_, err = tx.ExecContext(ctx, `UPDATE short_posts
+ SET initial_review_archive=COALESCE(initial_review_archive,IF(review_status='rejected','rejected','superseded')),
+ review_status='pending',state_revision=state_revision+1 WHERE id=?`, post[:])
+	} else {
+		_, err = tx.ExecContext(ctx, "UPDATE short_posts SET state_revision=state_revision+1 WHERE id=?", post[:])
+	}
+	if err != nil {
 		return SubmissionReceipt{}, err
 	}
 	out := SubmissionReceipt{ID: id, PostID: post, PreviewID: in.PreviewID, Status: submissionStatus(preReview)}

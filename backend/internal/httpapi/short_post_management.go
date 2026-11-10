@@ -18,6 +18,7 @@ func (a API) registerShortPostManagement(protected *gin.RouterGroup) {
 		c.Next()
 	}
 	ops := protected.Group("/ops/short-posts", a.shortPostTestOnly, operatorOnly)
+	a.registerShortPostAppeals(protected, author, ops, operatorOnly, store)
 	ops.GET("", func(c *gin.Context) {
 		out, err := store.Queue(c.Request.Context(), c.Query("cursor"))
 		if err != nil {

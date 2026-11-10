@@ -134,6 +134,10 @@ func shortPostError(c *gin.Context, err error) {
 		respondError(c, 409, "mutation_id_reused")
 	case errors.Is(err, shortpost.ErrStateConflict):
 		respondError(c, 409, "work_state_conflict")
+	case errors.Is(err, shortpost.ErrAppealPending):
+		respondError(c, 409, "appeal_pending")
+	case errors.Is(err, shortpost.ErrAppealCooldown):
+		respondError(c, 409, "appeal_cooldown")
 	case errors.Is(err, shortpost.ErrPostRestricted):
 		respondError(c, 409, "work_restricted")
 	case errors.Is(err, shortpost.ErrAlreadySubmitted):

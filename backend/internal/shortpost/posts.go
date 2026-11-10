@@ -119,8 +119,9 @@ const readablePost = "s.first_published_at IS NOT NULL AND s.author_hidden=FALSE
 
 type OwnedPostVersion struct {
 	PublicPost
-	PlatformLimited bool   `json:"platform_limited"`
-	ReviewReason    string `json:"review_reason"`
+	PlatformLimited   bool    `json:"platform_limited"`
+	ReviewReason      string  `json:"review_reason"`
+	LimitCaseRevision *uint64 `json:"limit_case_revision"`
 }
 
 func (s PostStore) Public(ctx context.Context, id uuid.UUID, version uint64) (PublicPost, error) {
@@ -166,7 +167,11 @@ func (s PostStore) readVersion(ctx context.Context, id uuid.UUID, version uint64
 		return OwnedPostVersion{}, err
 	}
 	if ownerScope != uuid.Nil {
-		err = tx.QueryRowContext(ctx, "SELECT reason FROM short_post_actions WHERE post_id=? AND target_version=? ORDER BY state_revision DESC LIMIT 1", id[:], out.Version).Scan(&out.ReviewReason)
+		var caseRevision uint64
+		err = tx.QueryRowContext(ctx, "SELECT state_revision,reason FROM short_post_actions WHERE post_id=? AND target_version=? ORDER BY state_revision DESC LIMIT 1", id[:], out.Version).Scan(&caseRevision, &out.ReviewReason)
+		if err == nil && out.PlatformLimited {
+			out.LimitCaseRevision = &caseRevision
+		}
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return OwnedPostVersion{}, err
 		}

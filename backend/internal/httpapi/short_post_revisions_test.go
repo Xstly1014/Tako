@@ -184,4 +184,69 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 	if postReview.PostReviewPending || postReview.Version == nil || *postReview.Version != 4 {
 		t.Fatal("restriction reversal changed publication or post-review history")
 	}
+	verifyShortPostAppeals(t, db, owner, other, operator, post, image, request)
+	verifyFirstShortPostReplacement(t, db, owner, operator, image, request)
+}
+
+func verifyFirstShortPostReplacement(t *testing.T, db *sql.DB, owner, operator, image uuid.UUID,
+	request func(string, uuid.UUID, string, any, int, string) *httptest.ResponseRecorder) {
+	t.Helper()
+	if _, err := db.Exec("UPDATE publication_policies SET observation_until=UTC_TIMESTAMP(6)+INTERVAL 1 HOUR WHERE owner_id=?", owner[:]); err != nil {
+		t.Fatal(err)
+	}
+	initial := createShortPostFixture(t, request, owner)
+	if initial.Status != "pre_review" {
+		t.Fatal("first submission was not pending")
+	}
+	ownerPath := "/api/my/short-posts/" + initial.PostID.String()
+	opsPath := "/api/ops/short-posts/" + initial.PostID.String()
+	publicPath := "/api/short-posts/" + initial.PostID.String()
+	manage := func() shortpost.ManagedPost {
+		return novelResult[shortpost.ManagedPost](t, request("GET", owner, ownerPath, nil, 200, "").Body.Bytes())
+	}
+	if _, err := db.Exec("UPDATE publication_policies SET observation_until=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE owner_id=?", owner[:]); err != nil {
+		t.Fatal(err)
+	}
+	submitReplacement := func(title string) uuid.UUID {
+		preview, id := uuid.New(), uuid.New()
+		request("PUT", owner, "/api/my/short-post-previews/"+preview.String(), shortpost.PreparePreview{Title: title, Content: "合成替换正文", ImageIDs: []uuid.UUID{image}}, 200, "")
+		in := shortpost.RevisePost{SubmitPost: shortpost.SubmitPost{PreviewID: preview, RightsConfirmed: true}, ExpectedRevision: manage().Revision}
+		out := novelResult[shortpost.SubmissionReceipt](t, request("PUT", owner, ownerPath+"/revisions/"+id.String(), in, 200, "").Body.Bytes())
+		if out.Status != "pre_review" || out.PostID != initial.PostID {
+			t.Fatal("replacement escaped first review")
+		}
+		return id
+	}
+	first := submitReplacement("首次替换")
+	latest := submitReplacement("第二次替换")
+	request("GET", uuid.Nil, publicPath, nil, 404, "resource_not_found")
+	current := manage()
+	if current.Title != "第二次替换" || current.LatestSubmissionID == nil || *current.LatestSubmissionID != latest || current.DisplayVersion != 0 {
+		t.Fatal("author management did not show the latest private submission")
+	}
+	original := novelResult[shortpost.ManagedPost](t, request("GET", operator, opsPath, nil, 200, "").Body.Bytes())
+	if original.ReviewStatus != "superseded" {
+		t.Fatal("original first review was not archived")
+	}
+	decide := func(action string, id *uuid.UUID, want int, code string) {
+		in := shortpost.PostAction{MutationID: uuid.New(), ExpectedRevision: manage().Revision, Action: action, RevisionID: id, Reason: "合成审核"}
+		request("POST", operator, opsPath+"/actions", in, want, code)
+	}
+	decide("approve", nil, 409, "work_state_conflict")
+	decide("approve", &first, 409, "work_state_conflict")
+	decide("reject", &latest, 200, "")
+	if got := manage(); got.ReviewStatus != "rejected" || got.Reason != "合成审核" {
+		t.Fatal("author cannot recover the rejection result")
+	}
+	final := submitReplacement("最终首发")
+	decide("approve", &final, 200, "")
+	post := novelResult[shortpost.PublicPost](t, request("GET", uuid.Nil, publicPath, nil, 200, "").Body.Bytes())
+	if post.Version != 1 || post.Title != "最终首发" || len(post.Images) != 1 {
+		t.Fatal("approved replacement was not the only first version")
+	}
+	request("GET", uuid.Nil, publicPath+"/versions/1/images/"+image.String(), nil, 200, "")
+	receipt := novelResult[shortpost.SubmissionReceipt](t, request("GET", owner, "/api/my/short-post-submissions/"+initial.ID.String(), nil, 200, "").Body.Bytes())
+	if receipt != initial {
+		t.Fatal("replacement changed the original receipt")
+	}
 }
