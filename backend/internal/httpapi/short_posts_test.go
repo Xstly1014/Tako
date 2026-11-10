@@ -100,6 +100,7 @@ func verifyShortPostSubmission(t *testing.T, db *sql.DB, owner, other, operator,
 	}
 
 	verifyShortPostManagement(t, db, owner, other, operator, published, pending, preview.Images[0].ID, request)
+	verifyShortPostRevisions(t, db, owner, other, operator, published.PostID, preview.Images[0].ID, request)
 
 	if _, err := db.Exec("UPDATE short_post_previews SET expires_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE owner_id=? AND id=?", owner[:], textOnly.ID[:]); err != nil {
 		t.Fatal(err)

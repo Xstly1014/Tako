@@ -75,39 +75,22 @@ func (s PostStore) Submit(ctx context.Context, owner, id uuid.UUID, in SubmitPos
 	if !errors.Is(err, sql.ErrNoRows) {
 		return SubmissionReceipt{}, err
 	}
-	var consumed bool
-	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM short_posts WHERE owner_id=? AND preview_id=?)", owner[:], in.PreviewID[:]).Scan(&consumed); err != nil {
+	if err = availablePreview(ctx, tx, owner, in.PreviewID); err != nil {
 		return SubmissionReceipt{}, err
-	}
-	if consumed {
-		return SubmissionReceipt{}, ErrAlreadySubmitted
-	}
-	var linked uuid.NullUUID
-	var expired bool
-	err = tx.QueryRowContext(ctx, "SELECT novel_id,expires_at<=UTC_TIMESTAMP(6) FROM short_post_previews WHERE owner_id=? AND id=? FOR UPDATE", owner[:], in.PreviewID[:]).Scan(&linked, &expired)
-	if err != nil {
-		return SubmissionReceipt{}, err
-	}
-	if expired {
-		return SubmissionReceipt{}, ErrPreviewExpired
-	}
-	if linked.Valid {
-		readable, err := novel.IsOwnedPublic(ctx, tx, owner, linked.UUID)
-		if err != nil {
-			return SubmissionReceipt{}, err
-		}
-		if !readable {
-			return SubmissionReceipt{}, ErrNovelUnavailable
-		}
 	}
 	pending, err := novel.UnderObservation(ctx, tx, owner)
 	if err != nil {
 		return SubmissionReceipt{}, err
 	}
 	post := uuid.New()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO short_posts(id,owner_id,preview_id,mutation_id,submitted_at,initial_pre_review,first_published_at)
- VALUES(?,?,?,?,UTC_TIMESTAMP(6),?,IF(?,NULL,UTC_TIMESTAMP(6)))`, post[:], owner[:], in.PreviewID[:], id[:], pending, pending); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO short_posts(id,owner_id,preview_id,mutation_id,submitted_at,initial_pre_review,first_published_at,last_version,display_version)
+ VALUES(?,?,?,?,UTC_TIMESTAMP(6),?,IF(?,NULL,UTC_TIMESTAMP(6)),IF(?,0,1),IF(?,0,1))`, post[:], owner[:], in.PreviewID[:], id[:], pending, pending, pending, pending); err != nil {
 		return SubmissionReceipt{}, err
+	}
+	if !pending {
+		if err = insertFirstVersion(ctx, tx, post); err != nil {
+			return SubmissionReceipt{}, err
+		}
 	}
 	out, err := scanSubmission(tx.QueryRowContext(ctx, submissionSelect, owner[:], id[:]))
 	if err != nil {
@@ -126,7 +109,7 @@ type PublicPost struct {
 	Title       string          `json:"title"`
 	Content     string          `json:"content"`
 	Author      string          `json:"author"`
-	Version     int             `json:"version"`
+	Version     uint64          `json:"version"`
 	PublishedAt time.Time       `json:"published_at"`
 	Images      []ImageMetadata `json:"images"`
 	Novel       *RelatedNovel   `json:"novel"`
@@ -134,8 +117,16 @@ type PublicPost struct {
 
 const readablePost = "s.first_published_at IS NOT NULL AND s.author_hidden=FALSE AND s.platform_limited=FALSE"
 
-func (s PostStore) Public(ctx context.Context, id uuid.UUID) (PublicPost, error) {
-	out := PublicPost{ID: id, Version: 1}
+func (s PostStore) Public(ctx context.Context, id uuid.UUID, version uint64) (PublicPost, error) {
+	return s.readVersion(ctx, id, version, uuid.Nil)
+}
+
+func (s PostStore) OwnerVersion(ctx context.Context, id, owner uuid.UUID, version uint64) (PublicPost, error) {
+	return s.readVersion(ctx, id, version, owner)
+}
+
+func (s PostStore) readVersion(ctx context.Context, id uuid.UUID, version uint64, ownerScope uuid.UUID) (PublicPost, error) {
+	out := PublicPost{ID: id}
 	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return PublicPost{}, err
@@ -143,9 +134,27 @@ func (s PostStore) Public(ctx context.Context, id uuid.UUID) (PublicPost, error)
 	defer tx.Rollback()
 	var owner, preview uuid.UUID
 	var book uuid.NullUUID
-	err = tx.QueryRowContext(ctx, `SELECT s.owner_id,s.preview_id,p.title,p.content,p.novel_id,a.nickname,s.first_published_at
- FROM short_posts s JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=s.preview_id
- JOIN accounts a ON a.id=s.owner_id WHERE s.id=? AND `+readablePost, id[:]).Scan(&owner, &preview, &out.Title, &out.Content, &book, &out.Author, &out.PublishedAt)
+	query := `SELECT s.owner_id,v.preview_id,p.title,p.content,p.novel_id,a.nickname,v.version,v.published_at
+ FROM short_posts s JOIN short_post_versions v ON v.post_id=s.id
+ JOIN short_post_previews p ON p.owner_id=v.owner_id AND p.id=v.preview_id
+ JOIN accounts a ON a.id=s.owner_id WHERE s.id=?`
+	args := []any{id[:]}
+	if ownerScope == uuid.Nil {
+		query += " AND " + readablePost
+	} else {
+		query += " AND s.owner_id=?"
+		args = append(args, ownerScope[:])
+	}
+	if version == 0 {
+		query += " AND v.version=s.display_version"
+	} else {
+		query += " AND v.version=?"
+		args = append(args, version)
+		if ownerScope == uuid.Nil {
+			query += " AND (v.version=s.display_version OR s.history_enabled)"
+		}
+	}
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&owner, &preview, &out.Title, &out.Content, &book, &out.Author, &out.Version, &out.PublishedAt)
 	if err != nil {
 		return PublicPost{}, err
 	}
@@ -165,12 +174,50 @@ func (s PostStore) Public(ctx context.Context, id uuid.UUID) (PublicPost, error)
 	return out, tx.Commit()
 }
 
-func (s PostStore) PublicImage(ctx context.Context, post, image uuid.UUID) (string, []byte, error) {
+func (s PostStore) PublicImage(ctx context.Context, post, image uuid.UUID, version uint64) (string, []byte, error) {
 	var mediaType string
 	var content []byte
 	err := s.DB.QueryRowContext(ctx, `SELECT i.media_type,i.content FROM short_posts s
- JOIN short_post_preview_images p ON p.owner_id=s.owner_id AND p.preview_id=s.preview_id
+ JOIN short_post_versions v ON v.post_id=s.id
+ JOIN short_post_preview_images p ON p.owner_id=v.owner_id AND p.preview_id=v.preview_id
  JOIN short_post_images i ON i.owner_id=p.owner_id AND i.id=p.image_id
- WHERE s.id=? AND `+readablePost+" AND i.id=?", post[:], image[:]).Scan(&mediaType, &content)
+ WHERE s.id=? AND `+readablePost+" AND i.id=? AND v.version=? AND (v.version=s.display_version OR s.history_enabled)", post[:], image[:], version).Scan(&mediaType, &content)
 	return mediaType, content, err
+}
+
+func insertFirstVersion(ctx context.Context, tx *sql.Tx, post uuid.UUID) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO short_post_versions(post_id,owner_id,version,preview_id,published_at)
+ SELECT id,owner_id,1,preview_id,first_published_at FROM short_posts WHERE id=?`, post[:])
+	return err
+}
+
+func availablePreview(ctx context.Context, tx *sql.Tx, owner, preview uuid.UUID) error {
+	var consumed bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM short_posts WHERE owner_id=? AND preview_id=?)
+ OR EXISTS(SELECT 1 FROM short_post_revision_submissions WHERE owner_id=? AND preview_id=?)`,
+		owner[:], preview[:], owner[:], preview[:]).Scan(&consumed); err != nil {
+		return err
+	}
+	if consumed {
+		return ErrAlreadySubmitted
+	}
+	var linked uuid.NullUUID
+	var expired bool
+	err := tx.QueryRowContext(ctx, "SELECT novel_id,expires_at<=UTC_TIMESTAMP(6) FROM short_post_previews WHERE owner_id=? AND id=? FOR UPDATE", owner[:], preview[:]).Scan(&linked, &expired)
+	if err != nil {
+		return err
+	}
+	if expired {
+		return ErrPreviewExpired
+	}
+	if linked.Valid {
+		readable, err := novel.IsOwnedPublic(ctx, tx, owner, linked.UUID)
+		if err != nil {
+			return err
+		}
+		if !readable {
+			return ErrNovelUnavailable
+		}
+	}
+	return nil
 }

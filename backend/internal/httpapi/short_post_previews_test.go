@@ -35,7 +35,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 	tokens := map[uuid.UUID]string{}
 	for _, account := range []uuid.UUID{owner, other, operator} {
 		t.Cleanup(func() {
-			for _, query := range []string{"DELETE FROM short_posts WHERE owner_id=?", "DELETE FROM short_post_preview_images WHERE owner_id=?", "DELETE FROM short_post_previews WHERE owner_id=?", "DELETE FROM short_post_images WHERE owner_id=?", "DELETE FROM sessions WHERE account_id=?"} {
+			for _, query := range []string{"DELETE FROM short_post_revision_submissions WHERE owner_id=?", "DELETE FROM short_post_versions WHERE owner_id=?", "DELETE FROM short_posts WHERE owner_id=?", "DELETE FROM short_post_preview_images WHERE owner_id=?", "DELETE FROM short_post_previews WHERE owner_id=?", "DELETE FROM short_post_images WHERE owner_id=?", "DELETE FROM sessions WHERE account_id=?"} {
 				if _, err := db.Exec(query, account[:]); err != nil {
 					t.Errorf("preview fixture cleanup: %v", err)
 				}

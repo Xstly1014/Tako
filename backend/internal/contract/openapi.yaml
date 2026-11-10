@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.34.0
+  version: 0.35.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,220 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/ops/short-post-revisions:
+    get:
+      operationId: listShortPostRevisionQueue
+      tags: [短内容]
+      summary: 运营浏览当前待先审修订
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 73}
+      responses:
+        '200':
+          description: 待先审修订列表
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostRevisionQueuePage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/revisions/{revisionId}/images/{imageId}:
+    get:
+      operationId: readShortPostRevisionReviewImage
+      tags: [短内容]
+      summary: 运营读取已提交修订的指定图片
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: revisionId
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: imageId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 已提交修订的固定图片
+          content:
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/short-posts/{id}/versions:
+    get:
+      operationId: listShortPostVersions
+      tags: [短内容]
+      summary: 读取公开短帖版本节点
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 读取公开短帖版本节点
+          content:
+            application/json:
+              schema: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/ShortPostVersionNode'}}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/short-posts/{id}/versions/{version}:
+    get:
+      operationId: readShortPostVersion
+      tags: [短内容]
+      summary: 读取指定公开版本
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: version
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 读取指定公开版本
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicShortPost'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/versions/{version}:
+    get:
+      operationId: readMyShortPostVersion
+      tags: [短内容]
+      summary: 读取本人指定正式版本
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: version
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 读取本人指定正式版本
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicShortPost'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/revisions/{revisionId}:
+    put:
+      operationId: reviseShortPost
+      tags: [短内容]
+      summary: 用固定预览修订本人已正式发布的短帖
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: revisionId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preview_id, rights_confirmed, expected_revision]
+              properties:
+                preview_id: {type: string, format: uuid}
+                rights_confirmed: {type: boolean, enum: [true]}
+                expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
+      responses:
+        '200':
+          description: 用固定预览修订本人已正式发布的短帖
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostSubmissionReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      operationId: readMyShortPostRevision
+      tags: [短内容]
+      summary: 读取本人提交的修订快照和状态
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: revisionId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 读取本人提交的修订快照和状态
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostRevisionSnapshot'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/revisions/{revisionId}:
+    get:
+      operationId: readOpsShortPostRevision
+      tags: [短内容]
+      summary: 运营读取已提交的修订快照
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: revisionId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 运营读取已提交的修订快照
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostRevisionSnapshot'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/short-posts:
     get:
       operationId: listShortPosts
@@ -112,7 +326,7 @@ paths:
       operationId: changeMyShortPost
       tags: [短内容]
       summary: 作者处理短帖状态
-      description: 作品存在平台限制时无法恢复公开。 同一账号、原请求 ID 与载荷重试返回原回执。
+      description: 作品存在平台限制时无法恢复公开。show_version 需要正式版本号。 同一账号、原请求 ID 与载荷重试返回原回执。
       parameters:
         - in: path
           name: id
@@ -129,7 +343,8 @@ paths:
               properties:
                 mutation_id: {type: string, format: uuid}
                 expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
-                action: {type: string, enum: [hide, restore]}
+                action: {type: string, enum: [hide, restore, history_open, history_close, show_version]}
+                version: {type: integer, minimum: 1, maximum: 9007199254740991}
                 reason: {type: string, maxLength: 500}
       responses:
         '200':
@@ -171,7 +386,7 @@ paths:
       operationId: changeOpsShortPost
       tags: [短内容]
       summary: 运营处理短帖状态
-      description: 驳回、限制及撤销限制须填写原因。 同一账号、原请求 ID 与载荷重试返回原回执。
+      description: 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。 同一账号、原请求 ID 与载荷重试返回原回执。
       parameters:
         - in: path
           name: id
@@ -189,6 +404,7 @@ paths:
                 mutation_id: {type: string, format: uuid}
                 expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
                 action: {type: string, enum: [approve, reject, limit, revoke_limit]}
+                revision_id: {type: string, format: uuid}
                 reason: {type: string, maxLength: 500}
       responses:
         '200':
@@ -283,14 +499,18 @@ paths:
         '403': {$ref: '#/components/responses/OriginRejected'}
         '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/Unavailable'}
-  /api/short-posts/{id}/versions/1/images/{imageId}:
+  /api/short-posts/{id}/versions/{version}/images/{imageId}:
     get:
       operationId: readPublicShortPostImage
       tags: [短内容]
       security: []
-      summary: 读取已公开短帖 V1 的图片
-      description: 仅 test 环境。每次校验帖子已发布且图片确实属于该版，响应禁止缓存。
+      summary: 读取短帖指定正式版本的图片
+      description: 仅 test 环境。每次校验指定版本可读且图片确实属于该版，响应禁止缓存。
       parameters:
+        - in: path
+          name: version
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
         - in: path
           name: id
           required: true
@@ -6121,6 +6341,51 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ShortPostRevisionQueuePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: {type: string, maxLength: 73}
+        items:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, post_id, title, submitted_at]
+            properties:
+              id: {type: string, format: uuid}
+              post_id: {type: string, format: uuid}
+              title: {type: string, minLength: 1, maxLength: 80}
+              submitted_at: {type: string, format: date-time}
+    ShortPostVersionNode:
+      type: object
+      additionalProperties: false
+      required: [version, published_at, readable]
+      properties:
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        published_at: {type: string, format: date-time}
+        readable: {type: boolean}
+    ShortPostRevisionSnapshot:
+      type: object
+      additionalProperties: false
+      required: [id, preview_id, post_id, status, submitted_at, state, version, title, content, images, review_reason]
+      properties:
+        id: {type: string, format: uuid}
+        preview_id: {type: string, format: uuid}
+        post_id: {type: string, format: uuid}
+        status: {type: string, enum: [published, pre_review]}
+        submitted_at: {type: string, format: date-time}
+        state: {type: string, enum: [pending, published, superseded, rejected]}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
+        title: {type: string, minLength: 1, maxLength: 80}
+        content: {type: string, minLength: 1, maxLength: 2000}
+        images:
+          type: array
+          maxItems: 4
+          items: {$ref: '#/components/schemas/ShortPostImage'}
+        review_reason: {type: string, maxLength: 500}
     ShortPostState:
       type: object
       required: [id, state_revision, review_status, author_hidden, platform_limited, published_at]
@@ -6135,8 +6400,10 @@ components:
       allOf:
         - $ref: '#/components/schemas/ShortPostState'
         - type: object
-          required: [title, content, submitted_at, images, review_reason]
+          required: [title, content, submitted_at, images, review_reason, display_version, history_enabled]
           properties:
+            display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
+            history_enabled: {type: boolean}
             title: {type: string, minLength: 1, maxLength: 80}
             content: {type: string, minLength: 1, maxLength: 2000}
             submitted_at: {type: string, format: date-time}
@@ -6157,12 +6424,13 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, title, excerpt, author, published_at, cover]
+            required: [id, title, excerpt, author, version, published_at, cover]
             properties:
               id: {type: string, format: uuid}
               title: {type: string, minLength: 1, maxLength: 80}
               excerpt: {type: string, maxLength: 120}
               author: {type: string}
+              version: {type: integer, minimum: 1, maximum: 9007199254740991}
               published_at: {type: string, format: date-time}
               cover:
                 type: object
