@@ -204,16 +204,35 @@ async function main(){
       assert.equal(pendingAnswer.followUp.data.state,'pending');
       const denied=await followUp(recovered.next_step!,(p,o)=>other.authorized(p,o));
       assert.equal(denied.status,'error');if(denied.status==='error')assert.equal(denied.error,'resource_unavailable');checks.push('foreign_submission_step_denied');
-      await author.authorized('/my/work-submissions/'+accepted.submission_id+'/withdraw',{method:'POST',body:{mutation_id:randomUUID()}});
+      await author.authorized('/drafts/save',{method:'POST',body:{
+        mutation_id:randomUUID(),draft_id:third.draft_id,base_revision:1,title:prefix+'先审修订',content:body2,
+      }});
+      const replacement=await publisher.prepare({mutation_id:randomUUID(),draft_id:third.draft_id,source_revision:2,introduction:'',tags:['日常'],rights_confirmed:true});
+      const newer=await publisher.publish({mutation_id:randomUUID(),preview_id:replacement.id,expected_version:0});
+      assert.equal(newer.review_status,'pre_review');
+      assert.ok(newer.submission_id);
       pendingSubmissions.splice(pendingSubmissions.indexOf(accepted.submission_id),1);
-      assert.equal(ok(await followUp(recovered.next_step!,transport)).state,'withdrawn');
+      pendingSubmissions.push(newer.submission_id);
+      const superseded=checkCommand('--preview',original.previewId,'--follow-up');
+      assert.equal(superseded.explanation,pendingAnswer.explanation);
+      assert.equal(superseded.followUp.data.submission_id,accepted.submission_id);
+      assert.equal(superseded.followUp.data.state,'superseded');
+      assert.equal(superseded.followUp.data.current_pending_for_work.submission_id,newer.submission_id);
+      assert.equal(superseded.followUp.data.current_pending_for_work.preview_id,replacement.id);
+      const initialSubmission=await author.authorized<{submission:{first_waiting_at:string}}>('/my/work-submissions/'+accepted.submission_id);
+      assert.equal(superseded.followUp.data.current_pending_for_work.first_waiting_at,initialSubmission.submission.first_waiting_at);
+      checks.push('superseded_receipt_keeps_original_and_identifies_current_pending_work');
+      await author.authorized('/my/work-submissions/'+newer.submission_id+'/withdraw',{method:'POST',body:{mutation_id:randomUUID()}});
+      pendingSubmissions.splice(pendingSubmissions.indexOf(newer.submission_id),1);
+      const oldAfterWithdrawal=ok(await followUp(recovered.next_step!,transport));
+      assert.deepEqual(oldAfterWithdrawal.current_pending_for_work,{status:'none_observed'});
       const historical=ok(await tools.invoke('read_publication_result',{preview_id:pending.id}));
-      const withdrawnAnswer=checkCommand('--preview',original.previewId,'--follow-up');
+      const withdrawnAnswer=checkCommand('--preview',replacement.id,'--follow-up');
       assert.equal(withdrawnAnswer.publication,pendingAnswer.publication);
       assert.equal(withdrawnAnswer.explanation,pendingAnswer.explanation);
-      assert.equal(withdrawnAnswer.followUp.data.submission_id,accepted.submission_id);
+      assert.equal(withdrawnAnswer.followUp.data.submission_id,newer.submission_id);
       assert.equal(withdrawnAnswer.followUp.data.state,'withdrawn');
-      checks.push('preview_cli_follows_same_submission_before_and_after_withdrawal');
+      checks.push('preview_cli_follows_withdrawn_submission_without_rewriting_old_receipt');
       assert.equal(historical.published,null);assert.ok(historical.submission);checks.push('current_withdrawn_does_not_rewrite_original_acceptance');
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }

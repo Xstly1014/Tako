@@ -10,11 +10,22 @@ const detail=(state='pending')=>({submission:{id:ids.other,work_id:ids.work,prev
 test('current submission state is read through the existing decoder and metadata projection',async()=>{
   for(const state of ['pending','withdrawn','published','rejected','superseded']){
     let calls=0;
-    const transport=(async(p,o)=>{calls++;assert.equal(p,'/my/work-submissions/'+ids.other);assert.equal(o?.method,'GET');assert.equal(o?.body,undefined);return detail(state)}) as Transport;
+    const transport=(async(p,o)=>{
+      calls++;
+      assert.equal(o?.method,'GET');
+      assert.equal(o?.body,undefined);
+      if(calls===1){assert.equal(p,'/my/work-submissions/'+ids.other);return detail(state)}
+      assert.equal(state,'superseded');
+      assert.equal(p,'/my/work-submissions?work='+ids.work);
+      throw new ApiError('network');
+    }) as Transport;
     const result=await followUp({kind:'read_submission_record',submission_id:ids.other},transport);
-    assert.equal(result.status,'ok');assert.equal(calls,1);
+    assert.equal(result.status,'ok');assert.equal(calls,state==='superseded'?2:1);
     if(result.status==='ok'){assert.equal(result.data.state,state);assert.equal(result.data.meaning,'current_submission_state_not_public_visibility')}
     assert.ok(!JSON.stringify(result).includes('PRIVATE'));assert.ok(!JSON.stringify(result).includes('candidate_version'));
+    if(state==='superseded'&&result.status==='ok'){
+      assert.deepEqual(result.data.current_pending_for_work,{status:'unavailable'});
+    }
   }
 });
 test('injected paths, identities and malformed targets fail before HTTP; local actions send nothing',async()=>{
