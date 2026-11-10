@@ -1,5 +1,6 @@
 import {ApiError} from '../../../mobile/src/api/client.ts';
 import {ReaderError,UUID,work} from '../../../mobile/src/api/reader.ts';
+import {AuthorAppealsApi} from '../../../mobile/src/api/author-appeals.ts';
 import type {Session,Transport} from '../../../mobile/src/auth/session.ts';
 import {runFixedFlow} from './fixed-flow.ts';
 import {followUp} from './follow-up.ts';
@@ -7,15 +8,11 @@ import {createAuthorTools} from './tools.ts';
 import {checkReaderVisibility} from './reader-visibility.ts';
 
 type Identifiers={workId?:string;previewId?:string};
+type DiagnosticSession=Pick<Session,'snapshot'|'authorized'>;
 
-// The consumer owns the session. Keep this handle scoped to its current
-// account and generation, including after an answer has been produced.
-export async function checkPublication(session:Pick<Session,'snapshot'|'authorized'>,ids:Identifiers){
+function bindDiagnosticSession(session:DiagnosticSession){
   const initial=session.snapshot();
   if(initial.phase!=='ready'||initial.busy||!initial.account)return null;
-  if((!ids.workId&&!ids.previewId)||[ids.workId,ids.previewId].some(id=>id!==undefined&&!UUID.test(id))){
-    throw new ApiError('invalid_input');
-  }
   const owner=initial.account.id;
   const isCurrent=()=>{
     const now=session.snapshot();
@@ -23,10 +20,29 @@ export async function checkPublication(session:Pick<Session,'snapshot'|'authoriz
   };
   const read:Transport=async<T>(path:string,options?:Parameters<Transport>[1])=>{
     if(!isCurrent())throw new ApiError('authentication_required','',401);
-    const result=await session.authorized<T>(path,options);
+    const result=await session.authorized<T>(path,{...options,method:'GET'});
     if(!isCurrent())throw new ApiError('authentication_required','',401);
     return result;
   };
+  return {isCurrent,read};
+}
+
+async function readPublicWork(id:string){
+  try{return await work(id)}
+  catch(error){
+    if(error instanceof ReaderError&&error.kind==='unavailable')return null;
+    throw error;
+  }
+}
+
+// Keep each handle scoped to the session that produced it.
+export async function checkPublication(session:DiagnosticSession,ids:Identifiers){
+  const bound=bindDiagnosticSession(session);
+  if(!bound)return null;
+  const {isCurrent,read}=bound;
+  if((!ids.workId&&!ids.previewId)||[ids.workId,ids.previewId].some(id=>id!==undefined&&!UUID.test(id))){
+    throw new ApiError('invalid_input');
+  }
   const input=[ids.workId&&`作品ID ${ids.workId}`,ids.previewId&&`原预览ID ${ids.previewId}`].filter(Boolean).join('，');
   const tools=createAuthorTools(read);
   const {delivery,evidence}=await runFixedFlow(input,tools);
@@ -46,14 +62,37 @@ export async function checkPublication(session:Pick<Session,'snapshot'|'authoriz
     },
     checkReaderVisibility:async()=>{
       if(!isCurrent()||!workId)return null;
-      const result=await checkReaderVisibility(workId,createAuthorTools(read),async id=>{
-        try{return await work(id)}
-        catch(error){
-          if(error instanceof ReaderError&&error.kind==='unavailable')return null;
-          throw error;
-        }
-      });
+      const result=await checkReaderVisibility(workId,createAuthorTools(read),readPublicWork);
       return isCurrent()?{...result,releasedVersion}:null;
     },
   };
+}
+
+export async function checkModerationVisibility(session:DiagnosticSession,caseId:number){
+  const bound=bindDiagnosticSession(session);
+  if(!bound)return null;
+  if(!Number.isSafeInteger(caseId)||caseId<=0)throw new ApiError('invalid_input');
+  const {isCurrent,read}=bound;
+  const appeals=new AuthorAppealsApi(read);
+  try{
+    const before=await appeals.detail(caseId);
+    const visibility=await checkReaderVisibility(before.case.work_id,createAuthorTools(read),readPublicWork);
+    if(!isCurrent())return null;
+    const after=await appeals.detail(caseId);
+    if(!isCurrent())return null;
+    const latest=after.appeals.items[0];
+    const previous=before.appeals.items[0];
+    if(before.case.revision!==after.case.revision||before.case.state!==after.case.state||
+      previous?.id!==latest?.id||previous?.state!==latest?.state){
+      return {status:'changed' as const};
+    }
+    return {
+      status:'checked' as const,
+      moderation:{state:after.case.state,scope:after.case.scope,version:after.case.version,latestAppeal:latest?.state??null},
+      visibility,
+    };
+  }catch(error){
+    if(!isCurrent())return null;
+    return {status:error instanceof ApiError&&error.status===404?'case_unavailable' as const:'unavailable' as const};
+  }
 }

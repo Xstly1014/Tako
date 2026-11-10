@@ -19,7 +19,11 @@ export async function checkReaderVisibility(
   const state=after.data;
   const compared=['state_revision','display_version','author_hidden','work_limited','display_limited'];
   if(compared.some(key=>before.data[key]!==state[key]))return {status:'changed' as const};
-  if(!observed)return {status:'not_visible' as const};
+  if(!observed){
+    const blocker=state.author_hidden===true?'author_hidden':
+      state.work_limited===true?'work_limited':state.display_limited===true?'display_limited':undefined;
+    return {status:'not_visible' as const,...(blocker?{blocker}:{})};
+  }
   if(observed.version!==state.display_version||state.author_hidden||state.work_limited||state.display_limited){
     return {status:'inconsistent' as const};
   }

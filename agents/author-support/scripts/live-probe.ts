@@ -21,7 +21,7 @@ async function main(){
   const {contextFromInput}=await import('../src/delivery.ts');
   const {followUp}=await import('../src/follow-up.ts');
   const {runFixedFlow}=await import('../src/fixed-flow.ts');
-  const {checkPublication}=await import('../src/session-diagnostic.ts');
+  const {checkModerationVisibility,checkPublication}=await import('../src/session-diagnostic.ts');
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
   const directory=path.resolve('.runtime/author-agent/runs',runId);mkdirSync(directory,{recursive:true});
@@ -109,8 +109,8 @@ async function main(){
     phase='core_fixture';
     const raw=await author.authorized<{content:string;revision:number}>('/drafts/'+draft.draft_id);assert.equal(raw.content,body2);assert.equal(raw.revision,2);
     assert.ok(!JSON.stringify([tools.trace(),foreign.trace()]).includes('PRIVATE_PROBE'));checks.push('read_only_and_sanitized_trace');
-    if(process.argv.includes('--pre-review')){
-      phase='pre_review_operator_login';
+    if(process.argv.includes('--pre-review')||process.argv.includes('--moderation-visibility')){
+      phase='operator_login';
       // Existing test operator only, scoped to this run's new synthetic author.
       // Do not print the file, password, token, or change shared policy defaults.
       const local=readFileSync(path.resolve('.runtime/local-test/.env'),'utf8');
@@ -118,6 +118,48 @@ async function main(){
       const password=process.env.TEST_OPERATOR_PASSWORD??line?.slice('TEST_OPERATOR_PASSWORD='.length);
       if(!password)throw Error('test_operator_required');
       await operator.restore();await operator.signIn('login','operator@tako-test.invalid',password);
+    }
+    if(process.argv.includes('--moderation-visibility')){
+      phase='moderation_visibility';
+      const {AuthorAppealsApi}=await import('../../../mobile/src/api/author-appeals.ts');
+      const reviewPath='/ops/reviews/'+sr.work_id+'/versions/1';
+      const {task}=await operator.authorized<{task:{revision:number}}>(reviewPath);
+      await operator.authorized(reviewPath,{method:'POST',body:{
+        mutation_id:randomUUID(),expected_revision:task.revision,decision:'restrict_version',reason:'合成作品展示限制验收',
+      }});
+      const appeals=new AuthorAppealsApi(transport);
+      const target=(await appeals.list()).items.find(item=>item.work_id===sr.work_id);
+      assert.ok(target);
+      const casePath='/my/moderation/'+target.id;
+      await author.authorized(casePath,{method:'POST',body:{
+        mutation_id:randomUUID(),expected_revision:target.revision,decision:'appeal',reason:'合成作品复核验收',
+      }});
+      const pending=await checkModerationVisibility(author,target.id);
+      assert.deepEqual(pending,{
+        status:'checked',moderation:{state:'active',scope:'version',version:1,latestAppeal:'pending'},
+        visibility:{status:'not_visible',blocker:'display_limited'},
+      });
+      assert.deepEqual(await checkModerationVisibility(other,target.id),{status:'case_unavailable'});
+      checks.push('moderation_pending_and_foreign_case_denied');
+      const visibleState=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+sr.work_id);
+      await api.change(sr.work_id,{mutation_id:randomUUID(),expected_state_revision:visibleState.state_revision,action:'hide'});
+      const current=await appeals.detail(target.id);
+      await operator.authorized('/ops/moderation/'+target.id,{method:'POST',body:{
+        mutation_id:randomUUID(),expected_revision:current.case.revision,decision:'revoke',reason:'撤销合成作品的展示限制',
+      }});
+      assert.deepEqual(await checkModerationVisibility(author,target.id),{
+        status:'checked',moderation:{state:'revoked',scope:'version',version:1,latestAppeal:'revoked'},
+        visibility:{status:'not_visible',blocker:'author_hidden'},
+      });
+      checks.push('revoked_moderation_does_not_restore_author_hidden_work');
+      const hiddenState=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+sr.work_id);
+      await api.change(sr.work_id,{mutation_id:randomUUID(),expected_state_revision:hiddenState.state_revision,action:'restore',version:1});
+      const restored=await checkModerationVisibility(author,target.id);
+      assert.equal(restored?.status,'checked');
+      if(restored?.status==='checked')assert.deepEqual(restored.visibility,{status:'visible',displayedVersion:1});
+      checks.push('explicit_author_restore_confirms_reader_visibility');
+    }
+    if(process.argv.includes('--pre-review')){
       policyContext='/ops/works/'+r1.work_id+'/author-policy';
       phase='pre_review_policy_read';
       const policy=await operator.authorized<{policy:{revision:number}}>(policyContext);
@@ -178,7 +220,7 @@ async function main(){
     const guarded=await checkPublication(author,{workId:r1.work_id,previewId:p2.id});
     assert.ok(guarded);
     assert.equal(guarded.getDelivery()?.verdict.publication,'confirmed');
-    assert.deepEqual(await guarded.checkReaderVisibility(),{status:'not_visible',releasedVersion:2});
+    assert.deepEqual(await guarded.checkReaderVisibility(),{status:'not_visible',blocker:'author_hidden',releasedVersion:2});
     checks.push('anonymous_reader_cannot_open_hidden_work');
     const followed=await guarded.followUp();
     assert.ok(followed);
