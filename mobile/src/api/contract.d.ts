@@ -4,6 +4,30 @@
  */
 
 export interface paths {
+  "/api/my/short-post-previews/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 作者生成的非零预览 UUID，按登录账号隔离 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    /** 读取本人固定预览 */
+    get: operations["readMyShortPostPreview"];
+    /**
+     * 创建固定的本人短帖预览
+     * @description 本机 test 验证入口。预览包含固定正文、图片顺序和关联长文 ID，有效 24 小时。重试必须沿用相同 UUID 和内容。每个账号同时最多 32 份有效预览。
+     */
+    put: operations["prepareShortPostPreview"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/short-post-images/{id}": {
     parameters: {
       query?: never;
@@ -3100,6 +3124,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ShortPostImage: {
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      media_type: "image/jpeg" | "image/png";
+      width: number;
+      height: number;
+    };
+    ShortPostPreview: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      content: string;
+      /** Format: uuid */
+      novel_id: string | null;
+      images: components["schemas"]["ShortPostImage"][];
+      /** Format: date-time */
+      expires_at: string;
+    };
     NovelNotice: {
       /** Format: uuid */
       id: string;
@@ -4171,6 +4214,9 @@ export interface components {
         | "image_too_large"
         | "image_upload_busy"
         | "image_quota_reached"
+        | "short_post_image_unavailable"
+        | "short_post_novel_unavailable"
+        | "short_post_preview_quota_reached"
         | "rate_limited"
         | "mail_unavailable"
         | "service_unavailable"
@@ -4623,6 +4669,85 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  readMyShortPostPreview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 作者生成的非零预览 UUID，按登录账号隔离 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已固定的私密预览 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostPreview"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      410: components["responses"]["PreviewExpired"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  prepareShortPostPreview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 作者生成的非零预览 UUID，按登录账号隔离 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          title: string;
+          content: string;
+          image_ids: string[];
+          /** Format: uuid */
+          novel_id?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description 已固定的私密预览 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostPreview"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      /** @description UUID 复用、缺笔名、预览额度耗尽、图片不可用或关联长文不可用 */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   readMyShortPostImage: {
     parameters: {
       query?: never;
@@ -4675,14 +4800,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            media_type: "image/jpeg" | "image/png";
-            width: number;
-            height: number;
-          };
+          "application/json": components["schemas"]["ShortPostImage"];
         };
       };
       400: components["responses"]["BadInput"];

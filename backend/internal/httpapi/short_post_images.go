@@ -18,14 +18,7 @@ const shortImageRoute = "/my/short-post-images/:id"
 func (a API) registerShortPostImages(protected *gin.RouterGroup) {
 	store := shortpost.ImageStore{DB: a.DB}
 	uploadSlots := make(chan struct{}, 2)
-	images := protected.Group(shortImageRoute, func(c *gin.Context) {
-		// Open only in the isolated test environment until publishing and governance are connected.
-		if a.EnvironmentName != "test" || !a.EnablePublications || a.DB == nil {
-			respondError(c, 503, "publication_disabled")
-			return
-		}
-		c.Next()
-	})
+	images := protected.Group(shortImageRoute, a.shortPostTestOnly)
 	images.PUT("", func(c *gin.Context) {
 		owner := c.MustGet("account").(identity.Account)
 		if owner.Nickname == "" {

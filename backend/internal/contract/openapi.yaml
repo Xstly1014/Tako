@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.31.0
+  version: 0.32.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,70 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/short-post-previews/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: 作者生成的非零预览 UUID，按登录账号隔离
+        schema: {type: string, format: uuid}
+    put:
+      operationId: prepareShortPostPreview
+      tags: [短内容]
+      summary: 创建固定的本人短帖预览
+      description: 本机 test 验证入口。预览包含固定正文、图片顺序和关联长文 ID，有效 24 小时。重试必须沿用相同 UUID 和内容。每个账号同时最多 32 份有效预览。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [title, content, image_ids]
+              properties:
+                title: {type: string, minLength: 1, maxLength: 80}
+                content: {type: string, minLength: 1, maxLength: 2000}
+                image_ids:
+                  type: array
+                  maxItems: 4
+                  uniqueItems: true
+                  items: {type: string, format: uuid}
+                novel_id: {type: string, format: uuid, nullable: true}
+      responses:
+        '200':
+          description: 已固定的私密预览
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostPreview'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: UUID 复用、缺笔名、预览额度耗尽、图片不可用或关联长文不可用
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      operationId: readMyShortPostPreview
+      tags: [短内容]
+      summary: 读取本人固定预览
+      responses:
+        '200':
+          description: 已固定的私密预览
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostPreview'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-post-images/{id}:
     parameters:
       - in: path
@@ -43,15 +107,7 @@ paths:
           description: 上传确认，含本人素材 ID、格式和尺寸
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [id, media_type, width, height]
-                properties:
-                  id: {type: string, format: uuid}
-                  media_type: {type: string, enum: [image/jpeg, image/png]}
-                  width: {type: integer, minimum: 1, maximum: 12000000}
-                  height: {type: integer, minimum: 1, maximum: 12000000}
+              schema: {$ref: '#/components/schemas/ShortPostImage'}
         '400': {$ref: '#/components/responses/BadInput'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/OriginRejected'}
@@ -5773,6 +5829,29 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ShortPostImage:
+      type: object
+      additionalProperties: false
+      required: [id, media_type, width, height]
+      properties:
+        id: {type: string, format: uuid}
+        media_type: {type: string, enum: [image/jpeg, image/png]}
+        width: {type: integer, minimum: 1, maximum: 12000000}
+        height: {type: integer, minimum: 1, maximum: 12000000}
+    ShortPostPreview:
+      type: object
+      additionalProperties: false
+      required: [id, title, content, novel_id, images, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 80}
+        content: {type: string, minLength: 1, maxLength: 2000}
+        novel_id: {type: string, format: uuid, nullable: true}
+        images:
+          type: array
+          maxItems: 4
+          items: {$ref: '#/components/schemas/ShortPostImage'}
+        expires_at: {type: string, format: date-time}
     NovelNotice:
       type: object
       additionalProperties: false
@@ -7359,7 +7438,7 @@ components:
       properties:
         error:
           type: string
-          enum: [novel_shelf_conflict, reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, invalid_image, image_type_unsupported, image_too_large, image_upload_busy, image_quota_reached, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [novel_shelf_conflict, reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, invalid_image, image_type_unsupported, image_too_large, image_upload_busy, image_quota_reached, short_post_image_unavailable, short_post_novel_unavailable, short_post_preview_quota_reached, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

@@ -105,6 +105,9 @@ func TestNovelPublicReadingVisibilityAndThousandChapterDirectory(t *testing.T) {
 	}
 	private := newBook("PRIVATE_UNPUBLISHED_SENTINEL")
 	call("/api/novels/"+private.ID.String(), 404)
+	t.Run("ShortPostPreview", func(t *testing.T) {
+		verifyShortPostPreview(t, db, owner, b.ID, private.ID)
+	})
 	ownBooks := map[uuid.UUID]bool{b.ID: true}
 	for n := 0; n < 12; n++ {
 		extra := newBook(fmt.Sprintf("分页合成作品%d", n))
