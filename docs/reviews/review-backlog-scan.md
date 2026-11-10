@@ -30,3 +30,18 @@ node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scr
 首轮立即执行，之后每次结束再等待指定秒数。间隔可选 300 至 3600 秒，默认 300 秒。启动时输出当轮状态，此后只输出变化事件。临时服务故障后按原间隔继续，认证失败、无运营权限、限频或会话退出失败时停止，供负责人处理。收到退出信号后取消等待及在途队列读取，丢弃本次中断的观测，仍尝试退出会话。持久化事件可通过 `--events` 查询。
 
 本地真实 HTTP/MySQL 验证了前台启动。另用受控计时连续跑两次真实扫描并发出退出信号，确认无重复输出、退出监听已清理。沿用三项定向测试检查积压状态、故障和恢复。当前调度为手动启动的本地进程。接入目标环境的托管进程、通知投递和负责人处置仍是开放前的 P1。退出条件是对齐通知渠道和负责人，在目标环境对已超时、扫描失败和恢复完成投递和处置演练。 [审核时效规则](../increment-b-review.md) · [开放门槛](../handoff/07-primary-takeover.md)
+
+## 本地值班确认
+
+```powershell
+node --no-warnings agents/author-support/scripts/review-backlog.ts --pending
+# 根据返回的 nextAfter 继续翻页，例如：
+node --no-warnings agents/author-support/scripts/review-backlog.ts --pending 20
+# 在既有运营队列核对后，以返回的实际事件编号确认已查阅：
+node --no-warnings agents/author-support/scripts/review-backlog.ts --ack 1 shift-a
+node --no-warnings agents/author-support/scripts/review-backlog.ts --events
+```
+
+待确认按事件编号升序分页。值班人员按事件类型去原队列核对积压，或检查扫描故障及后续恢复。确认记录保留首个值班代号与时间，重复确认返回原记录。值班代号是本地登记字段，审核权限仍由运营接口判定。确认只关闭本地事件的待确认状态，审核和复核结果仍由原运营流程处理。
+
+使用真实本地 HTTP/MySQL 扫描和独立 SQLite 演练目录完成生成事件、待确认、确认、重复确认和重新查询。扫描观测到 211 项后审逾期，待确认从 1 条变为 0 条，重复确认保留首次记录。类型及两项跟踪定向测试通过。目标环境的认证审计、通知渠道和实际值班人仍待安排。

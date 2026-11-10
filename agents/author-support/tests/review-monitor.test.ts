@@ -33,3 +33,24 @@ test('deduplicates alerts and preserves the last complete backlog through failur
     assert.equal(monitor.recentEvents().length,5);
   }finally{monitor.close()}
 });
+
+test('pending events paginate and repeat acknowledgments preserve the first operator',()=>{
+  const monitor=new ReviewMonitor(':memory:');
+  try{
+    for(let id=1;id<=21;id++)monitor.record(complete(id,[id]));
+    const first=monitor.pendingEvents();
+    assert.equal(first.events.length,20);
+    assert.equal(first.nextAfter,20);
+    assert.deepEqual(monitor.pendingEvents(20).events.map(event=>event.id),[21]);
+    const receipt=monitor.acknowledge(1,'shift-a');
+    assert.equal(receipt.alreadyAcknowledged,false);
+    assert.deepEqual(monitor.acknowledge(1,'shift-b'),{...receipt,alreadyAcknowledged:true});
+    assert.equal(monitor.pendingEvents().events[0].id,2);
+    assert.equal(monitor.recentEvents().at(-1)?.id,2);
+    const final=monitor.acknowledge(21,'shift-a');
+    assert.deepEqual(monitor.recentEvents()[0].acknowledgment,{
+      operatorLabel:final.operatorLabel,acknowledgedAt:final.acknowledgedAt,
+    });
+    assert.throws(()=>monitor.acknowledge(22,'shift-a'),/review_event_not_found/);
+  }finally{monitor.close()}
+});

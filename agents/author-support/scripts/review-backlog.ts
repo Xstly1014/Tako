@@ -7,11 +7,15 @@ const localApi='http://127.0.0.1:3300/api';
 
 async function main(){
   const args=process.argv.slice(2);
-  const [mode,interval]=args;
+  const [mode,value,operatorLabel]=args;
   if(mode==='--watch'){
-    if(args.length>2||(interval!==undefined&&(!/^\d+$/.test(interval)||Number(interval)<300||Number(interval)>3600))){
+    if(args.length>2||(value!==undefined&&(!/^\d+$/.test(value)||Number(value)<300||Number(value)>3600))){
       throw Error('invalid_cli');
     }
+  }else if(mode==='--pending'){
+    if(args.length>2||(value!==undefined&&!validId(value)))throw Error('invalid_cli');
+  }else if(mode==='--ack'){
+    if(args.length!==3||!validId(value))throw Error('invalid_cli');
   }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
     throw Error('invalid_cli');
   }
@@ -21,9 +25,15 @@ async function main(){
   const monitor=new ReviewMonitor(path.join(directory,'review-backlog.sqlite'));
   try{
     if(mode==='--events')console.log(JSON.stringify(monitor.recentEvents(),null,2));
-    else if(mode==='--watch')await watch(monitor,Number(interval??300));
+    else if(mode==='--pending')console.log(JSON.stringify(monitor.pendingEvents(Number(value??0)),null,2));
+    else if(mode==='--ack')console.log(JSON.stringify(monitor.acknowledge(Number(value),operatorLabel),null,2));
+    else if(mode==='--watch')await watch(monitor,Number(value??300));
     else printScan(await runScan(monitor));
   }finally{monitor.close()}
+}
+
+function validId(raw:string){
+  return /^[1-9]\d*$/.test(raw)&&Number.isSafeInteger(Number(raw));
 }
 
 async function watch(monitor:ReviewMonitor,seconds:number){
@@ -95,7 +105,8 @@ function printScan({report,tracking,cleanupFailed}:Awaited<ReturnType<typeof run
 }
 
 main().catch(error=>{
-  const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required'].includes(error.message)
+  const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
+    'invalid_acknowledgment','review_event_not_found'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;

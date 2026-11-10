@@ -1,4 +1,4 @@
-import {DatabaseSync} from 'node:sqlite';
+import {DatabaseSync,type SQLOutputValue} from 'node:sqlite';
 import type {scanReviewBacklog} from './review-backlog.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
@@ -27,6 +27,10 @@ export class ReviewMonitor {
       );
       CREATE TABLE IF NOT EXISTS monitor_events(
         id INTEGER PRIMARY KEY, observed_at TEXT NOT NULL, event TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS monitor_acknowledgments(
+        event_id INTEGER PRIMARY KEY REFERENCES monitor_events(id),
+        operator_label TEXT NOT NULL, acknowledged_at TEXT NOT NULL
       );
     `);
   }
@@ -75,9 +79,43 @@ export class ReviewMonitor {
   }
 
   recentEvents(){
-    return this.db.prepare('SELECT id,observed_at,event FROM monitor_events ORDER BY id DESC LIMIT 20').all()
-      .map(row=>({id:Number(row.id),observedAt:String(row.observed_at),...JSON.parse(String(row.event)) as Event}));
+    return this.db.prepare(`
+      SELECT e.*,a.operator_label,a.acknowledged_at
+      FROM monitor_events e LEFT JOIN monitor_acknowledgments a ON a.event_id=e.id
+      ORDER BY e.id DESC LIMIT 20
+    `).all().map(eventRow);
+  }
+
+  pendingEvents(after=0){
+    const rows=this.db.prepare(`
+      SELECT e.* FROM monitor_events e
+      WHERE e.id>? AND NOT EXISTS (SELECT 1 FROM monitor_acknowledgments a WHERE a.event_id=e.id)
+      ORDER BY e.id LIMIT 21
+    `).all(after);
+    const events=rows.slice(0,20).map(eventRow);
+    return {events,nextAfter:rows.length>20?events[19].id:null};
+  }
+
+  acknowledge(id:number,operatorLabel:string){
+    if(!Number.isSafeInteger(id)||id<=0||!/^[a-zA-Z0-9_-]{1,32}$/.test(operatorLabel)){
+      throw Error('invalid_acknowledgment');
+    }
+    const updated=this.db.prepare(`
+      INSERT INTO monitor_acknowledgments(event_id,operator_label,acknowledged_at)
+      SELECT id,?,? FROM monitor_events WHERE id=?
+      ON CONFLICT(event_id) DO NOTHING
+    `).run(operatorLabel,new Date().toISOString(),id);
+    const row=this.db.prepare('SELECT operator_label,acknowledged_at FROM monitor_acknowledgments WHERE event_id=?').get(id);
+    if(!row)throw Error('review_event_not_found');
+    return {id,operatorLabel:String(row.operator_label),acknowledgedAt:String(row.acknowledged_at),alreadyAcknowledged:updated.changes===0};
   }
 
   close(){this.db.close()}
+}
+
+function eventRow(row:Record<string,SQLOutputValue>){
+  return {
+    id:Number(row.id),observedAt:String(row.observed_at),...JSON.parse(String(row.event)) as Event,
+    acknowledgment:row.acknowledged_at?{operatorLabel:String(row.operator_label),acknowledgedAt:String(row.acknowledged_at)}:null,
+  };
 }
