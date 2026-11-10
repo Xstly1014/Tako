@@ -13,6 +13,8 @@ node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scr
 node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --preview <原预览UUID>
 # 显式读取答复给出的下一步。先审场景读取同一提交的当前状态。
 node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --preview <原预览UUID> --follow-up
+# 忘记原预览时，可从本人先审提交列表找 previewId。可按 --work 筛选或用 --cursor 继续。
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --submissions
 node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/check-author.ts --case <处置编号>
 node agents/author-support/scripts/live-probe.ts
 # 付费，先将密钥写入忽略文件；不要放命令行参数或提交。

@@ -2,6 +2,7 @@ import {ApiError} from '../../../mobile/src/api/client.ts';
 import {ReaderError,UUID,work} from '../../../mobile/src/api/reader.ts';
 import {AuthorAppealsApi} from '../../../mobile/src/api/author-appeals.ts';
 import type {Session,Transport} from '../../../mobile/src/auth/session.ts';
+import {WorkSubmissionsApi} from '../../../mobile/src/publication/submissions.ts';
 import {runFixedFlow} from './fixed-flow.ts';
 import {followUp} from './follow-up.ts';
 import {createAuthorTools} from './tools.ts';
@@ -94,5 +95,24 @@ export async function checkModerationVisibility(session:DiagnosticSession,caseId
   }catch(error){
     if(!isCurrent())return null;
     return {status:error instanceof ApiError&&error.status===404?'case_unavailable' as const:'unavailable' as const};
+  }
+}
+
+export async function listPublicationSubmissions(session:DiagnosticSession,workId?:string,cursor=''){
+  const bound=bindDiagnosticSession(session);
+  if(!bound)return null;
+  try{
+    const page=await new WorkSubmissionsApi(bound.read).list(workId?.toLowerCase(),cursor);
+    if(!bound.isCurrent())return null;
+    return {
+      status:'listed' as const,nextCursor:page.next_cursor,
+      submissions:page.items.map(item=>({
+        submissionId:item.id,workId:item.work_id,previewId:item.preview_id,
+        state:item.state,acceptedAt:item.accepted_at,decidedAt:item.decided_at,
+      })),
+    };
+  }catch(error){
+    if(!bound.isCurrent())return null;
+    return {status:error instanceof ApiError&&error.status===400?'invalid_cursor' as const:'unavailable' as const};
   }
 }

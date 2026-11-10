@@ -186,13 +186,18 @@ async function main(){
       const current=ok(await followUp(recovered.next_step!,transport));assert.equal(current.state,'pending');
       assert.equal(current.meaning,'current_submission_state_not_public_visibility');
       assert.equal('content' in current,false);assert.equal('reason' in current,false);checks.push('offered_submission_step_reads_current_record_only');
-      const checkCommand=()=>{
+      const checkCommand=(...args:string[])=>{
         const output=execFileSync(process.execPath,[
-          '--no-warnings',fileURLToPath(new URL('./check-author.ts',import.meta.url)),'--preview',pending.id,'--follow-up',
+          '--no-warnings',fileURLToPath(new URL('./check-author.ts',import.meta.url)),...args,
         ],{encoding:'utf8',timeout:30000,env:{...process.env,TEST_AUTHOR_EMAIL:authorEmail,TEST_AUTHOR_PASSWORD:authorPassword}});
         return JSON.parse(output);
       };
-      const pendingAnswer=checkCommand();
+      const listed=checkCommand('--submissions');
+      assert.equal(listed.status,'listed');
+      const original=listed.submissions.find((item:{submissionId:string})=>item.submissionId===accepted.submission_id);
+      assert.equal(original?.previewId,pending.id);
+      assert.equal(original?.state,'pending');
+      const pendingAnswer=checkCommand('--preview',original.previewId,'--follow-up');
       assert.equal(pendingAnswer.publication,'unconfirmed');
       assert.match(pendingAnswer.explanation,/历史先审受理/);
       assert.equal(pendingAnswer.followUp.data.submission_id,accepted.submission_id);
@@ -203,7 +208,7 @@ async function main(){
       pendingSubmissions.splice(pendingSubmissions.indexOf(accepted.submission_id),1);
       assert.equal(ok(await followUp(recovered.next_step!,transport)).state,'withdrawn');
       const historical=ok(await tools.invoke('read_publication_result',{preview_id:pending.id}));
-      const withdrawnAnswer=checkCommand();
+      const withdrawnAnswer=checkCommand('--preview',original.previewId,'--follow-up');
       assert.equal(withdrawnAnswer.publication,pendingAnswer.publication);
       assert.equal(withdrawnAnswer.explanation,pendingAnswer.explanation);
       assert.equal(withdrawnAnswer.followUp.data.submission_id,accepted.submission_id);
