@@ -1,4 +1,5 @@
 import {parseArgs} from 'node:util';
+import {submissionAnswer} from '../src/submission-answer.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -68,6 +69,7 @@ async function main(){
       followed?.status==='error'?{status:'error',error:followed.error,guidance:followed.guidance}:null;
     console.log(JSON.stringify({
       status:delivery.verification,publication:delivery.verdict.publication,access:delivery.verdict.access,
+      answer:submissionAnswer(delivery,followed),
       explanation:delivery.verdict.explanation,nextStep:delivery.next_step??null,visibility,
       ...(followRequested?{followUp}:{}),
     },null,2));

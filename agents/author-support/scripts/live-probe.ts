@@ -24,6 +24,7 @@ async function main(){
   const {followUp}=await import('../src/follow-up.ts');
   const {runFixedFlow}=await import('../src/fixed-flow.ts');
   const {checkModerationVisibility,checkPublication}=await import('../src/session-diagnostic.ts');
+  const {submissionAnswer}=await import('../src/submission-answer.ts');
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
   const authorEmail=prefix+'@example.test',authorPassword=randomUUID();
@@ -202,6 +203,7 @@ async function main(){
       assert.match(pendingAnswer.explanation,/历史先审受理/);
       assert.equal(pendingAnswer.followUp.data.submission_id,accepted.submission_id);
       assert.equal(pendingAnswer.followUp.data.state,'pending');
+      assert.match(pendingAnswer.answer,/当前仍在等待审核/);
       const denied=await followUp(recovered.next_step!,(p,o)=>other.authorized(p,o));
       assert.equal(denied.status,'error');if(denied.status==='error')assert.equal(denied.error,'resource_unavailable');checks.push('foreign_submission_step_denied');
       await author.authorized('/drafts/save',{method:'POST',body:{
@@ -217,6 +219,7 @@ async function main(){
       assert.equal(superseded.explanation,pendingAnswer.explanation);
       assert.equal(superseded.followUp.data.submission_id,accepted.submission_id);
       assert.equal(superseded.followUp.data.state,'superseded');
+      assert.match(superseded.answer,/已被替换.*有当前待审记录/);
       assert.equal(superseded.followUp.data.current_pending_for_work.submission_id,newer.submission_id);
       assert.equal(superseded.followUp.data.current_pending_for_work.preview_id,replacement.id);
       const initialSubmission=await author.authorized<{submission:{first_waiting_at:string}}>('/my/work-submissions/'+accepted.submission_id);
@@ -232,6 +235,7 @@ async function main(){
       assert.equal(withdrawnAnswer.explanation,pendingAnswer.explanation);
       assert.equal(withdrawnAnswer.followUp.data.submission_id,newer.submission_id);
       assert.equal(withdrawnAnswer.followUp.data.state,'withdrawn');
+      assert.match(withdrawnAnswer.answer,/已撤回/);
       checks.push('preview_cli_follows_withdrawn_submission_without_rewriting_old_receipt');
       assert.equal(historical.published,null);assert.ok(historical.submission);checks.push('current_withdrawn_does_not_rewrite_original_acceptance');
       phase='pre_review_terminal_decisions';
@@ -260,6 +264,7 @@ async function main(){
       assert.ok(rejectedResult);
       const rejectedData=ok(rejectedResult);
       assert.equal(rejectedData.state,'rejected');
+      assert.match(submissionAnswer(rejectedCheck.getDelivery()!,rejectedResult),/已驳回/);
       assert.equal('published_version' in rejectedData,false);
       assert.equal('reader_visibility' in rejectedData,false);
       checks.push('rejected_submission_preserves_acceptance_and_does_not_claim_a_release');
@@ -271,6 +276,7 @@ async function main(){
       assert.equal(approvedAnswer.followUp.data.state,'published');
       assert.equal(approvedAnswer.followUp.data.published_version,1);
       assert.deepEqual(approvedAnswer.followUp.data.reader_visibility,{status:'visible',displayedVersion:1});
+      assert.match(approvedAnswer.answer,/已通过并发行 V1.*看到的是 V1/);
       const approvedWork=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+approved.receipt.work_id);
       await api.change(approved.receipt.work_id,{mutation_id:randomUUID(),expected_state_revision:approvedWork.state_revision,action:'hide'});
       const approvedCheck=await checkPublication(author,{previewId:approved.previewId});
@@ -280,6 +286,7 @@ async function main(){
       const hiddenData=ok(hiddenResult);
       assert.equal(hiddenData.published_version,1);
       assert.deepEqual(hiddenData.reader_visibility,{status:'not_visible',blocker:'author_hidden'});
+      assert.match(submissionAnswer(approvedCheck.getDelivery()!,hiddenResult),/已通过并发行 V1.*作者隐藏仍然生效/);
       checks.push('approved_submission_confirms_version_separately_from_reader_visibility');
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }
