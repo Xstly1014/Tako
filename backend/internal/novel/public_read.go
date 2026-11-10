@@ -54,6 +54,14 @@ const readableNovel = `n.author_hidden=FALSE AND n.platform_limited=FALSE AND EX
 const publicNovelColumns = `p.novel_id,p.title,p.introduction,p.tags,a.nickname,(n.completed_at IS NOT NULL),(SELECT COUNT(*) FROM novel_chapters cc JOIN chapter_versions cv ON cv.chapter_id=cc.id AND cv.version=cc.display_version WHERE cc.novel_id=n.id AND cc.last_version>0),p.first_published_at,(SELECT MAX(fv.published_at) FROM chapter_versions fv WHERE fv.novel_id=n.id AND fv.version=1)`
 const publicNovelJoin = ` FROM novels n JOIN novel_publications p ON p.novel_id=n.id AND p.owner_id=n.owner_id JOIN accounts a ON a.id=n.owner_id WHERE `
 
+// IsOwnedPublic checks whether the book belongs to the author and passes the
+// same public visibility predicate as directory and discovery requests.
+func IsOwnedPublic(ctx context.Context, tx *sql.Tx, owner, book uuid.UUID) (bool, error) {
+	var readable bool
+	err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1"+publicNovelJoin+"n.id=? AND n.owner_id=? AND "+readableNovel+")", book[:], owner[:]).Scan(&readable)
+	return readable, err
+}
+
 func scanPublicNovel(row interface{ Scan(...any) error }) (PublicNovel, error) {
 	var out PublicNovel
 	var id, tags []byte

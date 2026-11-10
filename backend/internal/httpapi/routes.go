@@ -317,6 +317,7 @@ func (a API) Register(r *gin.Engine) error {
 	a.registerWorkSubmissions(protected)
 	a.registerNovelReading(api)
 	a.registerShortPostImages(protected)
+	a.registerShortPostPreviews(protected)
 	return nil
 }
 func (a API) cookie(c *gin.Context, token string, maxAge int) {
