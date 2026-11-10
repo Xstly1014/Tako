@@ -1,23 +1,66 @@
 import {mkdirSync} from 'node:fs';
 import path from 'node:path';
+import {setTimeout as wait} from 'node:timers/promises';
 import {ReviewMonitor,type Observation} from '../src/review-monitor.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
 async function main(){
   const args=process.argv.slice(2);
-  if(args.length>1||args.some(arg=>!['--track','--events'].includes(arg)))throw Error('invalid_cli');
-  if(args.length===0)return runScan();
+  const [mode,interval]=args;
+  if(mode==='--watch'){
+    if(args.length>2||(interval!==undefined&&(!/^\d+$/.test(interval)||Number(interval)<300||Number(interval)>3600))){
+      throw Error('invalid_cli');
+    }
+  }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
+    throw Error('invalid_cli');
+  }
+  if(!mode)return printScan(await runScan());
   const directory=path.resolve('.runtime/author-agent');
   mkdirSync(directory,{recursive:true});
   const monitor=new ReviewMonitor(path.join(directory,'review-backlog.sqlite'));
   try{
-    if(args[0]==='--events')console.log(JSON.stringify(monitor.recentEvents(),null,2));
-    else await runScan(monitor);
+    if(mode==='--events')console.log(JSON.stringify(monitor.recentEvents(),null,2));
+    else if(mode==='--watch')await watch(monitor,Number(interval??300));
+    else printScan(await runScan(monitor));
   }finally{monitor.close()}
 }
 
-async function runScan(monitor?:ReviewMonitor){
+async function watch(monitor:ReviewMonitor,seconds:number){
+  const stop=new AbortController();
+  const shutdown=()=>stop.abort();
+  process.on('SIGINT',shutdown);
+  process.on('SIGTERM',shutdown);
+  try{
+    let first=true;
+    while(!stop.signal.aborted){
+      const scan=await runScan(monitor,stop.signal);
+      if(scan.cleanupFailed){
+        console.error('operator_logout_failed');
+        process.exitCode=1;
+        return;
+      }
+      if(stop.signal.aborted)break;
+      const {report,tracking}=scan;
+      const accessBlocked=report.status==='incomplete'&&[401,403,429].includes(report.httpStatus??0);
+      if(first||tracking?.events.length||accessBlocked){
+        console.log(JSON.stringify({status:report.status,scannedAt:report.scannedAt,totalOverdue:report.totalOverdue,tracking}));
+      }
+      if(accessBlocked){
+        process.exitCode=1;
+        return;
+      }
+      first=false;
+      try{await wait(seconds*1000,undefined,{signal:stop.signal})}
+      catch(error){if(!stop.signal.aborted)throw error}
+    }
+  }finally{
+    process.off('SIGINT',shutdown);
+    process.off('SIGTERM',shutdown);
+  }
+}
+
+async function runScan(monitor?:ReviewMonitor,signal?:AbortSignal){
   if(process.env.EXPO_PUBLIC_API_URL&&process.env.EXPO_PUBLIC_API_URL!==localApi)throw Error('local_api_required');
   process.env.EXPO_PUBLIC_API_URL=localApi;
   const password=process.env.TEST_OPERATOR_PASSWORD;
@@ -35,14 +78,18 @@ async function runScan(monitor?:ReviewMonitor){
   let cleanupFailed=false;
   try{
     await session.signIn('login','operator@tako-test.invalid',password);
-    report=await scanReviewBacklog((path,options)=>session.authorized(path,options),started);
+    report=await scanReviewBacklog((path,options)=>session.authorized(path,{...options,signal}),started);
   }catch(error){
     report={status:'incomplete',scannedAt:new Date(started).toISOString(),queues:[],failedQueue:'session',
       error:'operator_session_failed',httpStatus:error instanceof ApiError?error.status:null,totalOverdue:null};
   }finally{
     if(session.snapshot().phase==='ready')await session.logout().catch(()=>{cleanupFailed=true});
   }
-  const tracking=monitor?.record(report);
+  const tracking=signal?.aborted?undefined:monitor?.record(report);
+  return {report,tracking,cleanupFailed};
+}
+
+function printScan({report,tracking,cleanupFailed}:Awaited<ReturnType<typeof runScan>>){
   console.log(JSON.stringify({...report,...(tracking?{tracking}:{}),...(cleanupFailed?{cleanupFailed}: {})},null,2));
   if(report.status==='incomplete'||tracking?.accepted===false||cleanupFailed)process.exitCode=1;
 }
