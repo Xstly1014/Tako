@@ -59,6 +59,11 @@ export async function checkPublication(session:DiagnosticSession,ids:Identifiers
     followUp:async()=>{
       if(!isCurrent()||!delivery.next_step)return null;
       const result=await followUp(delivery.next_step,read);
+      if(isCurrent()&&delivery.next_step.kind==='read_submission_record'&&result.status==='ok'&&
+        result.data.state==='published'&&typeof result.data.work_id==='string'){
+        const visibility=await checkReaderVisibility(result.data.work_id,createAuthorTools(read),readPublicWork);
+        return isCurrent()?{...result,data:{...result.data,reader_visibility:visibility}}:null;
+      }
       return isCurrent()?result:null;
     },
     checkReaderVisibility:async()=>{

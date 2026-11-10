@@ -234,6 +234,53 @@ async function main(){
       assert.equal(withdrawnAnswer.followUp.data.state,'withdrawn');
       checks.push('preview_cli_follows_withdrawn_submission_without_rewriting_old_receipt');
       assert.equal(historical.published,null);assert.ok(historical.submission);checks.push('current_withdrawn_does_not_rewrite_original_acceptance');
+      phase='pre_review_terminal_decisions';
+      async function submitRevision(revision:number){
+        await author.authorized('/drafts/save',{method:'POST',body:{
+          mutation_id:randomUUID(),draft_id:third.draft_id,base_revision:revision-1,title:prefix+'先审修订'+revision,content:body2,
+        }});
+        const preview=await publisher.prepare({mutation_id:randomUUID(),draft_id:third.draft_id,source_revision:revision,introduction:'',tags:['日常'],rights_confirmed:true});
+        const receipt=await publisher.publish({mutation_id:randomUUID(),preview_id:preview.id,expected_version:0});
+        assert.equal(receipt.review_status,'pre_review');
+        pendingSubmissions.push(receipt.submission_id);
+        return {previewId:preview.id,receipt};
+      }
+      async function review(submissionId:string,decision:'approve'|'reject'){
+        await operator.authorized('/ops/work-submissions/'+submissionId+'/review',{method:'POST',body:{
+          mutation_id:randomUUID(),decision,reason:'合成作品终态验收',
+        }});
+        pendingSubmissions.splice(pendingSubmissions.indexOf(submissionId),1);
+      }
+      const rejected=await submitRevision(3);
+      await review(rejected.receipt.submission_id,'reject');
+      const rejectedCheck=await checkPublication(author,{previewId:rejected.previewId});
+      assert.ok(rejectedCheck);
+      assert.match(rejectedCheck.getDelivery()?.verdict.explanation??'',/历史先审受理/);
+      const rejectedResult=await rejectedCheck.followUp();
+      assert.ok(rejectedResult);
+      const rejectedData=ok(rejectedResult);
+      assert.equal(rejectedData.state,'rejected');
+      assert.equal('published_version' in rejectedData,false);
+      assert.equal('reader_visibility' in rejectedData,false);
+      checks.push('rejected_submission_preserves_acceptance_and_does_not_claim_a_release');
+      const approved=await submitRevision(4);
+      works.push(approved.receipt.work_id);
+      await review(approved.receipt.submission_id,'approve');
+      const approvedAnswer=checkCommand('--preview',approved.previewId,'--follow-up');
+      assert.match(approvedAnswer.explanation,/历史先审受理/);
+      assert.equal(approvedAnswer.followUp.data.state,'published');
+      assert.equal(approvedAnswer.followUp.data.published_version,1);
+      assert.deepEqual(approvedAnswer.followUp.data.reader_visibility,{status:'visible',displayedVersion:1});
+      const approvedWork=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+approved.receipt.work_id);
+      await api.change(approved.receipt.work_id,{mutation_id:randomUUID(),expected_state_revision:approvedWork.state_revision,action:'hide'});
+      const approvedCheck=await checkPublication(author,{previewId:approved.previewId});
+      assert.ok(approvedCheck);
+      const hiddenResult=await approvedCheck.followUp();
+      assert.ok(hiddenResult);
+      const hiddenData=ok(hiddenResult);
+      assert.equal(hiddenData.published_version,1);
+      assert.deepEqual(hiddenData.reader_visibility,{status:'not_visible',blocker:'author_hidden'});
+      checks.push('approved_submission_confirms_version_separately_from_reader_visibility');
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }
     setupComplete=true;report.checks=checks;report.tool_trace=tools.trace();report.foreign_trace=foreign.trace();

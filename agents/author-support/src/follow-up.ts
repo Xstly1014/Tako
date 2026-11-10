@@ -49,6 +49,7 @@ export async function followUp(step:NextStep,authorized:Transport):Promise<ToolR
         submission_id:s.id,work_id:s.work_id,state:s.state,accepted_at:s.accepted_at,decided_at:s.decided_at,
         meaning:'current_submission_state_not_public_visibility',
         ...(pending?{current_pending_for_work:pending}:{}),
+        ...(s.state==='published'?{published_version:s.candidate_version}:{}),
       }};
     }
     if(['provide_identifiers','contact_support','reauthenticate'].includes(step.kind))return {evidence_id,observed_at:new Date().toISOString(),status:'ok',data:{action_required:step.kind,no_request_sent:true}};

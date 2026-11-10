@@ -21,7 +21,11 @@ test('current submission state is read through the existing decoder and metadata
     }) as Transport;
     const result=await followUp({kind:'read_submission_record',submission_id:ids.other},transport);
     assert.equal(result.status,'ok');assert.equal(calls,state==='superseded'?2:1);
-    if(result.status==='ok'){assert.equal(result.data.state,state);assert.equal(result.data.meaning,'current_submission_state_not_public_visibility')}
+    if(result.status==='ok'){
+      assert.equal(result.data.state,state);
+      assert.equal(result.data.meaning,'current_submission_state_not_public_visibility');
+      assert.equal(result.data.published_version,state==='published'?2:undefined);
+    }
     assert.ok(!JSON.stringify(result).includes('PRIVATE'));assert.ok(!JSON.stringify(result).includes('candidate_version'));
     if(state==='superseded'&&result.status==='ok'){
       assert.deepEqual(result.data.current_pending_for_work,{status:'unavailable'});
