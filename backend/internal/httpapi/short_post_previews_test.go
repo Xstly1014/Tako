@@ -33,7 +33,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 	tokens := map[uuid.UUID]string{}
 	for _, account := range []uuid.UUID{owner, other} {
 		t.Cleanup(func() {
-			for _, query := range []string{"DELETE FROM short_post_preview_images WHERE owner_id=?", "DELETE FROM short_post_previews WHERE owner_id=?", "DELETE FROM short_post_images WHERE owner_id=?", "DELETE FROM sessions WHERE account_id=?"} {
+			for _, query := range []string{"DELETE FROM short_posts WHERE owner_id=?", "DELETE FROM short_post_preview_images WHERE owner_id=?", "DELETE FROM short_post_previews WHERE owner_id=?", "DELETE FROM short_post_images WHERE owner_id=?", "DELETE FROM sessions WHERE account_id=?"} {
 				if _, err := db.Exec(query, account[:]); err != nil {
 					t.Errorf("preview fixture cleanup: %v", err)
 				}
@@ -50,7 +50,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 	if err := api.Register(router); err != nil {
 		t.Fatal(err)
 	}
-	call := func(method string, actor, id uuid.UUID, in shortpost.PreparePreview, want int, code string) []byte {
+	request := func(method string, actor uuid.UUID, path string, in any, want int, code string) *httptest.ResponseRecorder {
 		t.Helper()
 		var body *bytes.Reader
 		if method == "PUT" {
@@ -62,7 +62,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 		} else {
 			body = bytes.NewReader(nil)
 		}
-		req := httptest.NewRequest(method, "/api/my/short-post-previews/"+id.String(), body)
+		req := httptest.NewRequest(method, path, body)
 		if actor != uuid.Nil {
 			req.AddCookie(&http.Cookie{Name: api.sessionCookieName(), Value: tokens[actor]})
 		}
@@ -84,7 +84,11 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 				t.Fatalf("unexpected error code %q want %q", got.Error, code)
 			}
 		}
-		return bytes.Clone(out.Body.Bytes())
+		return out
+	}
+	call := func(method string, actor, id uuid.UUID, in shortpost.PreparePreview, want int, code string) []byte {
+		t.Helper()
+		return bytes.Clone(request(method, actor, "/api/my/short-post-previews/"+id.String(), in, want, code).Body.Bytes())
 	}
 	var sample bytes.Buffer
 	if err := png.Encode(&sample, image.NewRGBA(image.Rect(0, 0, 3, 2))); err != nil {
@@ -143,6 +147,7 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 	call("PUT", other, badID, changed, 409, "short_post_novel_unavailable")
 	changed.NovelID = &privateBook
 	call("PUT", owner, badID, changed, 409, "short_post_novel_unavailable")
+	verifyShortPostSubmission(t, db, owner, other, publicBook, out, textOnly, request)
 	if _, err := db.Exec("UPDATE novels SET author_hidden=TRUE WHERE id=? AND owner_id=?", publicBook[:], owner[:]); err != nil {
 		t.Fatal(err)
 	}

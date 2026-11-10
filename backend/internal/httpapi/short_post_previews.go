@@ -1,9 +1,6 @@
 package httpapi
 
 import (
-	"database/sql"
-	"errors"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"writing.local/community/internal/identity"
@@ -50,24 +47,9 @@ func (a API) registerShortPostPreviews(protected *gin.RouterGroup) {
 }
 
 func sendShortPostPreview(c *gin.Context, out shortpost.Preview, err error) {
-	switch {
-	case err == nil:
-		c.JSON(200, out)
-	case errors.Is(err, shortpost.ErrInvalidPreview):
-		respondError(c, 400, "invalid_input")
-	case errors.Is(err, shortpost.ErrPreviewIDReused):
-		respondError(c, 409, "mutation_id_reused")
-	case errors.Is(err, shortpost.ErrImageUnavailable):
-		respondError(c, 409, "short_post_image_unavailable")
-	case errors.Is(err, shortpost.ErrNovelUnavailable):
-		respondError(c, 409, "short_post_novel_unavailable")
-	case errors.Is(err, shortpost.ErrPreviewQuota):
-		respondError(c, 409, "short_post_preview_quota_reached")
-	case errors.Is(err, shortpost.ErrPreviewExpired):
-		respondError(c, 410, "preview_expired")
-	case errors.Is(err, sql.ErrNoRows):
-		respondError(c, 404, "resource_not_found")
-	default:
-		respondError(c, 503, "service_unavailable")
+	if err != nil {
+		shortPostError(c, err)
+		return
 	}
+	c.JSON(200, out)
 }

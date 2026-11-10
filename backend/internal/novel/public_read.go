@@ -62,6 +62,14 @@ func IsOwnedPublic(ctx context.Context, tx *sql.Tx, owner, book uuid.UUID) (bool
 	return readable, err
 }
 
+// OwnedPublicTitle returns only the current public title. Missing or unreadable
+// books use sql.ErrNoRows so a caller can omit the entire association.
+func OwnedPublicTitle(ctx context.Context, tx *sql.Tx, owner, book uuid.UUID) (string, error) {
+	var title string
+	err := tx.QueryRowContext(ctx, "SELECT p.title"+publicNovelJoin+readableNovel+" AND n.id=? AND n.owner_id=?", book[:], owner[:]).Scan(&title)
+	return title, err
+}
+
 func scanPublicNovel(row interface{ Scan(...any) error }) (PublicNovel, error) {
 	var out PublicNovel
 	var id, tags []byte

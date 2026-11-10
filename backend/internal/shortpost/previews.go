@@ -178,19 +178,25 @@ func loadPreview(ctx context.Context, tx *sql.Tx, owner, id uuid.UUID) (Preview,
 	if book.Valid {
 		out.NovelID = &book.UUID
 	}
+	out.Images, err = previewImages(ctx, tx, owner, id)
+	return out, err
+}
+
+func previewImages(ctx context.Context, tx *sql.Tx, owner, id uuid.UUID) ([]ImageMetadata, error) {
+	images := []ImageMetadata{}
 	rows, err := tx.QueryContext(ctx, `SELECT i.id,i.media_type,i.width,i.height
  FROM short_post_preview_images p JOIN short_post_images i ON i.owner_id=p.owner_id AND i.id=p.image_id
  WHERE p.owner_id=? AND p.preview_id=? ORDER BY p.position`, owner[:], id[:])
 	if err != nil {
-		return Preview{}, err
+		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var item ImageMetadata
 		if err := rows.Scan(&item.ID, &item.MediaType, &item.Width, &item.Height); err != nil {
-			return Preview{}, err
+			return nil, err
 		}
-		out.Images = append(out.Images, item)
+		images = append(images, item)
 	}
-	return out, rows.Err()
+	return images, rows.Err()
 }
