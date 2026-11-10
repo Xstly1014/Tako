@@ -147,9 +147,9 @@ export default function Account() {
           </Pressable>
         ) : (
           <View key={generation}>
-            <Pressable onPress={() => unavailable("我的书架")} style={s.row}>
+            <Pressable accessibilityRole="button" accessibilityLabel="我的书架" onPress={() => router.push("/shelf")} style={s.row}>
               <Text style={s.rowTitle}>我的书架</Text>
-              <Text style={s.meta}>尚未接入手机端</Text>
+              <Text style={s.meta}>长文作品与追更选择</Text>
             </Pressable>
             <Pressable onPress={() => unavailable("阅读偏好")} style={s.row}>
               <Text style={s.rowTitle}>阅读偏好</Text>

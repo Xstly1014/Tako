@@ -5,3 +5,8 @@ export const FlatList=forwardRef(function List({data,renderItem,keyExtractor,Lis
  useImperativeHandle(ref,()=>({scrollToIndex({index}){window.readLive.restoredIndex=index},scrollToOffset(){}}),[]);
  return <div style={{overflow:'auto',padding:24}}>{ListHeaderComponent}{data.length?data.map((item,index)=><div key={keyExtractor(item,index)}>{onViewableItemsChanged?<button aria-label={'模拟稳定阅读段落 '+index} onClick={()=>{onScrollBeginDrag?.();onViewableItemsChanged({viewableItems:[{item,index,isViewable:true}],changed:[]})}}>模拟稳定阅读</button>:null}{renderItem({item,index})}</div>):ListEmptyComponent}{ListFooterComponent}</div>;
 });
+
+export {KeyboardAvoidingView,Platform,Alert} from "../mobile-comments-ui/native.jsx";
+
+// DOM test adapter. Native keyboard behavior is verified on device.
+export const Keyboard = { dismiss() {} };

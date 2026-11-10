@@ -62,7 +62,10 @@ export const isWork = (value: unknown): value is PublicWork =>
   Number.isSafeInteger(value.version) &&
   Number(value.version) > 0;
 
-export function mergeWorks(existing: WorkCard[], incoming: WorkCard[]) {
+export function mergeWorks<T extends { id: string }>(
+  existing: T[],
+  incoming: T[],
+) {
   const seen = new Set(existing.map((item) => item.id));
   return [
     ...existing,

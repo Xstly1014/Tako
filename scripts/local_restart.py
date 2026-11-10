@@ -81,7 +81,7 @@ def verify_maintenance():
         raise RuntimeError("maintenance_heartbeat_unhealthy")
 
 
-def start(rebuild=False):
+def start(rebuild=False, offline=False):
     values = preflight()
     for name in CACHES:
         if not exists("volume", name):
@@ -92,8 +92,11 @@ def start(rebuild=False):
             run(["docker", "build", "-f", folder + "/Dockerfile", "-t", image, folder])
     run(compose("up", "-d", "--wait", "--wait-timeout", "180", "mysql"), 210)
     verify_database(values)
-    run(compose("run", "--rm", "tools", "go", "run",
-                "github.com/pressly/goose/v3/cmd/goose@v3.26.0", "-dir", "migrations", "up"))
+    migration = (["-e", "GOPROXY=off", "tools", "go", "-C",
+                  "/go/pkg/mod/github.com/pressly/goose/v3@v3.26.0", "run", "-mod=readonly",
+                  "./cmd/goose", "-dir", "/src/migrations", "up"] if offline else
+                 ["tools", "go", "run", "github.com/pressly/goose/v3/cmd/goose@v3.26.0", "-dir", "migrations", "up"])
+    run(compose("run", "--rm", *migration))
     run(compose("up", "-d", "api", "web", "gateway", "maintenance"), 180)
     for attempt in range(30):
         try:
@@ -112,9 +115,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("check", "start"))
     parser.add_argument("--rebuild", action="store_true", help="Rebuild API/Web from current source")
+    parser.add_argument("--offline", action="store_true", help="Use pinned existing Go cache only; missing dependencies fail")
     args = parser.parse_args()
     if args.action == "start":
-        start(args.rebuild)
+        start(args.rebuild, args.offline)
     else:
         values = preflight()
         verify_database(values)

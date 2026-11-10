@@ -1,4 +1,4 @@
-# Reuse the real local-test MySQL/API configuration without building the Web UI.
+# Reuse real local-test MySQL/API configuration; lifecycle tests also start the checkout Web image.
 # This override is only for isolated CI/test environments, not deployment.
 services:
   api:

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.24.0
+  version: 0.30.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,202 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/novel-notices:
+    get:
+      operationId: listMyNovelNotices
+      tags: [长文]
+      summary: 本人站内新章消息
+      description: 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人动态安全站内消息或幂等已读结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelNoticePage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-notices/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelNotice
+      tags: [长文]
+      summary: 本人站内新章消息
+      description: 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人动态安全站内消息或幂等已读结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelNoticeDetail'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-notices/{id}/read:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: readMyNovelNotice
+      tags: [长文]
+      summary: 本人站内新章消息
+      description: 只取当前会话账号，跨号或未知ID统一404；PUBLICATION_ENABLED默认关闭。同书本次可读且未覆盖的真正首发章汇总一条，消息覆盖集合生成后不追加。列表12条按生成时间和ID倒序，详情50条按固定章号。普通/隐藏期新章均可汇总；未覆盖且不可读的洞保留至同代恢复可读，关闭/重开不继承旧代积压。仅存安全引用；book是当前公开资料或null，readable_chapters只计当前可读的覆盖章；整书不可读时book=null、计数0、详情空，不泄露旧标题/正文/处置原因。书可读但更新章不可读时详情保留章号与空标题占位。关闭追更或移出不删除已有消息。逐条已读单调且幂等，重复请求保留首次read_at，不修改续读位置、不代表读完；不发邮件/系统推送，不提供全部已读或删除。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, properties: {}}
+      responses:
+        '200':
+          description: 本人动态安全站内消息或幂等已读结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelNoticeRead'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-shelf:
+    get:
+      operationId: listMyNovelShelf
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-shelf/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelShelf
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: changeMyNovelShelf
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NovelShelfWrite'}
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/novel-shelf/{id}/requests/{mutation}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: mutation
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getMyNovelShelfReceipt
+      tags: [长文]
+      summary: 本人书架与追更关系
+      description: 会话归属；没有关系返回空状态，不透露书或他人关系是否存在。join原子加入并开启，follow仅重新开启，unfollow仅关追更，remove同时退架关追更且保留续读。join/follow要求当前公开且至少一章可读，不可读时已有关系只能unfollow/remove。base_revision防旧界面覆盖；不符合当前状态或CAS冲突为novel_shelf_conflict。重新开启是新代次，以同书锁内已提交首发水位为边界，不追溯普通历史章；只返回本人代次，不泄漏内部水位。相同mutation载荷重放原结果，改目标/操作/载荷拒绝；原回执与当前状态分开。书架列表12条按加入时间及ID倒序；关追更不重排，再加入移到前面；失效锚点400须刷新。不可读条目保留relation，book恒null，无旧标题/处置原因。站内新章消息由维护任务按本代资格异步汇总，不代表已读或系统推送。
+      responses:
+        '200':
+          description: 本人关系、安全分页或不可变原受理回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NovelShelfReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/novel-reading/{id}:
     parameters:
       - in: path
@@ -584,8 +780,35 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 当前可读正式内容或安全目录占位
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicNovelPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/novels/search:
+    get:
+      operationId: searchPublicNovels
+      tags: [长文]
+      security: []
+      summary: 搜索当前公开长文
+      description: 只匹配当前公开书名、正式简介与作者笔名。按首次正式发布时间倒序分页，游标绑定归一关键词。
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 64}
         - in: query
           name: cursor
           schema: {type: string, maxLength: 512}
@@ -612,7 +835,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       responses:
         '200':
           description: 当前可读正式内容或安全目录占位
@@ -636,7 +859,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       parameters:
         - in: query
           name: cursor
@@ -668,7 +891,7 @@ paths:
       tags: [长文]
       security: []
       summary: 公开长文发现、正式目录与单章阅读
-      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。没有旧版公开入口、书架、续读或章评论。
+      description: 游客可读，PUBLICATION_ENABLED默认关闭。书须已正式发布、未隐藏/受限且至少一章当前可读。只取正式资料和当前正式正文，不返回草稿/首次待审或处置原因。目录50条按预约号升序，已正式但不可读章节只给稳定ID/序号/不可读及空标题；首次未通过的章不出现。列表12条按首次正式时间排序，资料修订/隐藏恢复不顶新。实时分页晚过审的早号需刷新首屏；每个新请求重新判权，已加载正文不被强换版。不提供旧版正文入口；书架、续读和章评论使用各自独立接口。
       responses:
         '200':
           description: 当前可读正式内容或安全目录占位
@@ -4418,11 +4641,1149 @@ paths:
         }
       }
     }
+  /api/my/novels/{id}/completion-checks:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: prepareNovelCompletion
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrepareNovelCompletion'
+  /api/my/novels/{id}/completion-checks/{check}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: check
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getNovelCompletionCheck
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelCompletionCheck'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+  /api/my/novels/{id}/completion:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: confirmNovelCompletion
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmNovelCompletion'
+  /api/my/novels/{id}/rectification-previews/{preview}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: preview
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getMyRectificationPreview
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelRectificationPreview'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+  /api/my/novels/{id}/rectifications/{grant}/previews:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: grant
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: prepareMyRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrepareNovelRectification'
+  /api/my/novels/{id}/rectifications/{grant}/submission:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: grant
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: submitMyRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitNovelRectification'
+  /api/my/novels/{id}/rectifications/{grant}/withdraw:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: grant
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: withdrawMyRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovelRectificationAction'
+  /api/my/novels/{id}/lifecycle-requests/{mutation}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: mutation
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getMyNovelLifecycleReceipt
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+  /api/my/novels/{id}/rectifications:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: listMyNovelRectifications
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelRectificationPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      parameters:
+      - in: query
+        name: before
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+  /api/my/novels/{id}/rectifications/{grant}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: grant
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getMyNovelRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelRectificationDetail'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+  /api/ops/novels/{id}/lifecycle-requests/{mutation}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: mutation
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getOperatorNovelLifecycleReceipt
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+  /api/ops/novels/{id}/rectifications:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: listOperatorNovelRectifications
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelRectificationPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      parameters:
+      - in: query
+        name: before
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+    post:
+      operationId: grantNovelRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantNovelRectification'
+  /api/ops/novels/{id}/rectifications/{grant}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: grant
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getOperatorNovelRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelRectificationDetail'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+  /api/ops/novels/{id}/rectifications/{grant}/actions/{action}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: grant
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - in: path
+      name: action
+      required: true
+      schema:
+        type: string
+        enum:
+        - approve
+        - reject
+        - cancel
+    post:
+      operationId: resolveNovelRectification
+      tags:
+      - 长文
+      summary: 完结核对与指定章整改
+      description: PUBLICATION_ENABLED控制；本人按会话归属，ops仅运营白名单。核对24小时有效；确认重验公开/待审指纹，零正式章或普通pending拒绝。完结不可逆，不消费私稿。整改绑定完结书指定章/基准版/未撤销处置修订，每章一个有效授权，一次固定提交。预览24小时，提交后不替换，驳回/撤回需新授权。通过仅更新指定章，不生成新章事件、不顶更新；默认保留处置，revoke_case仅显式撤销关联条，其他限制/作者隐藏不变。原回执不表示现状，未知先GET原命令。运营只读已提交候选，不读未提交私稿。
+      responses:
+        '200':
+          description: 固定核对、明确候选或原操作回执
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NovelLifecycleReceipt'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '410':
+          $ref: '#/components/responses/PreviewExpired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovelRectificationAction'
+  /api/ops/novels/{id}/chapters:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listOperatorFormalChapters
+      tags: [长文]
+      summary: 运营选择已正式章的分页目录
+      description: 运营白名单；仅正式章元信息，含隐藏受限章，不含私稿、未提交正文和未正式章。按正式章号递增分页，after不改变章号。
+      parameters:
+        - {in: query, name: after, schema: {type: integer, minimum: 0, maximum: 9007199254740991}}
+      responses:
+        '200':
+          description: 正式章目录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OperatorFormalChapterPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/Limited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/novels/{id}/chapters/{chapter}/comments:
+    parameters:
+    - in: path
+      name: chapter
+      required: true
+      schema: {type: string, format: uuid}
+    - &chapterpath002
+      name: id
+      in: path
+      required: true
+      schema: &chapterpath001
+        type: string
+        format: uuid
+    get:
+      operationId: chapterListWorkComments
+      summary: listWorkComments
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security: []
+      parameters:
+      - &chapterpath003
+        name: cursor
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      - name: root
+        in: query
+        schema: *chapterpath001
+    post:
+      operationId: chapterPublishComment
+      summary: publishComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChapterCommentCreate'
+  /api/chapter-comments/{id}/actions:
+    parameters:
+    - *chapterpath002
+    post:
+      operationId: chapterDeleteComment
+      summary: deleteComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChapterCommentAction'
+  /api/my/chapter-comments:
+    get:
+      operationId: chapterMyCommentsAndReasons
+      summary: myCommentsAndReasons
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - *chapterpath003
+  /api/ops/chapter-comments:
+    get:
+      operationId: chapterReviewComments
+      summary: reviewComments
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - *chapterpath003
+  /api/ops/chapter-comments/{id}/actions:
+    parameters:
+    - *chapterpath002
+    post:
+      operationId: chapterModerateComment
+      summary: moderateComment
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentResult'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChapterCommentAction'
+  /api/my/novels/{id}/chapter-comments:
+    get:
+      operationId: chapterListAuthorNovelComments
+      summary: myCommentsAndReasons
+      responses:
+        '200':
+          description: 成功；不包含评论版本归属
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterCommentPage'
+        '400':
+          $ref: '#/components/responses/BadInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/NotJSON'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - *chapterpath003
 components:
   securitySchemes:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    NovelNotice:
+      type: object
+      additionalProperties: false
+      required: [id, novel_id, created_at, read_at, book, readable_chapters]
+      properties:
+        id: {type: string, format: uuid}
+        novel_id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+        read_at: {type: string, format: date-time, nullable: true}
+        readable_chapters: {type: integer, minimum: 0, maximum: 9007199254740991}
+        book:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicNovel'}
+            - {type: object, nullable: true, enum: [null]}
+    NovelNoticePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, maxItems: 12, items: {$ref: '#/components/schemas/NovelNotice'}}
+        next_cursor: {type: string}
+    NovelNoticeDetail:
+      type: object
+      additionalProperties: false
+      required: [notice, items, next_cursor]
+      properties:
+        notice: {$ref: '#/components/schemas/NovelNotice'}
+        items: {type: array, maxItems: 50, items: {$ref: '#/components/schemas/NovelDirectoryChapter'}}
+        next_cursor: {type: string}
+    NovelNoticeRead:
+      type: object
+      additionalProperties: false
+      required: [id, read_at]
+      properties:
+        id: {type: string, format: uuid}
+        read_at: {type: string, format: date-time}
+    NovelShelfState:
+      type: object
+      additionalProperties: false
+      required: [novel_id, in_shelf, following, revision, generation, added_at, updated_at]
+      properties:
+        novel_id: {type: string, format: uuid}
+        in_shelf: {type: boolean}
+        following: {type: boolean}
+        revision: {type: integer, minimum: 0, maximum: 9007199254740991}
+        generation: {type: integer, minimum: 0, maximum: 9007199254740991}
+        added_at: {type: string, format: date-time, nullable: true}
+        updated_at: {type: string, format: date-time, nullable: true}
+    NovelShelfWrite:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, base_revision, operation]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        base_revision: {type: integer, minimum: 0, maximum: 9007199254740990}
+        operation: {type: string, enum: [join, follow, unfollow, remove]}
+    NovelShelfReceipt:
+      type: object
+      additionalProperties: false
+      required: [mutation_id, operation, state, accepted_at]
+      properties:
+        mutation_id: {type: string, format: uuid}
+        operation: {type: string, enum: [join, follow, unfollow, remove]}
+        state: {$ref: '#/components/schemas/NovelShelfState'}
+        accepted_at: {type: string, format: date-time}
+    NovelShelfItem:
+      type: object
+      additionalProperties: false
+      required: [relation, book]
+      properties:
+        relation: {$ref: '#/components/schemas/NovelShelfState'}
+        book:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicNovel'}
+            - {type: object, nullable: true, enum: [null]}
+    NovelShelfPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, maxItems: 12, items: {$ref: '#/components/schemas/NovelShelfItem'}}
+        next_cursor: {type: string}
     ReadingLocator:
       type: object
       additionalProperties: false
@@ -4608,6 +5969,7 @@ components:
       additionalProperties: false
       required: [novel_id, chapter_id, ordinal, title, content, version, published_at]
       properties:
+        comment_context: {type: string, maxLength: 512, description: 临时章评论判权上下文，不是永久读权或评论版本归属}
         novel_id: {type: string, format: uuid}
         chapter_id: {type: string, format: uuid}
         ordinal: {type: integer, minimum: 1, maximum: 9007199254740991}
@@ -5926,7 +7288,7 @@ components:
       properties:
         error:
           type: string
-          enum: [reading_position_conflict, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [novel_shelf_conflict, reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object
@@ -5982,6 +7344,598 @@ components:
         draft_id: {type: string, format: uuid}
         revision: {type: integer, minimum: 1, maximum: 9007199254740991}
         saved_at: {type: string, format: date-time, description: 幂等重放返回原确认时间，不能据此覆盖更高修订。旧数据迁移使用保存请求原记录时间。}
+    NovelLifecycleReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - operation
+      - novel_id
+      - target_id
+      - state
+      - revision
+      - version
+      - accepted_at
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum:
+          - completion_check
+          - complete
+          - rectification_grant
+          - rectification_prepare
+          - rectification_submit
+          - rectification_cancel
+          - rectification_withdraw
+          - rectification_approve
+          - rectification_reject
+        novel_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - prepared
+          - completed
+          - available
+          - submitted
+          - approved
+          - rejected
+          - cancelled
+          - withdrawn
+        revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        version:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        accepted_at:
+          type: string
+          format: date-time
+    NovelCompletionCheck:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - novel_id
+      - state_revision
+      - formal_chapters
+      - last_formal_chapter
+      - last_formal_ordinal
+      - last_reserved_ordinal
+      - hidden_chapters
+      - restricted_chapters
+      - pending_chapters
+      - unpublished_drafts
+      - author_hidden
+      - platform_limited
+      - completed
+      - eligible
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        novel_id:
+          type: string
+          format: uuid
+        state_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        formal_chapters:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        last_formal_chapter:
+          type: string
+          format: uuid
+          nullable: true
+        last_formal_ordinal:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        last_reserved_ordinal:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        hidden_chapters:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        restricted_chapters:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        pending_chapters:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        unpublished_drafts:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        author_hidden:
+          type: boolean
+        platform_limited:
+          type: boolean
+        completed:
+          type: boolean
+        eligible:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+    PrepareNovelCompletion:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+    ConfirmNovelCompletion:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - check_id
+      - irreversible_confirmed
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+        check_id:
+          type: string
+          format: uuid
+        irreversible_confirmed:
+          type: boolean
+          enum:
+          - true
+    GrantNovelRectification:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - chapter_id
+      - base_version
+      - case_id
+      - case_revision
+      - reason
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+        chapter_id:
+          type: string
+          format: uuid
+        base_version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        case_id:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        case_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    PrepareNovelRectification:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_revision
+      - draft_id
+      - source_revision
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+        expected_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        draft_id:
+          type: string
+          format: uuid
+        source_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+    SubmitNovelRectification:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_revision
+      - preview_id
+      - rights_confirmed
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+        expected_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        preview_id:
+          type: string
+          format: uuid
+        rights_confirmed:
+          type: boolean
+          enum:
+          - true
+    NovelRectificationAction:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_revision
+      - reason
+      properties:
+        mutation_id:
+          type: string
+          format: uuid
+        expected_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        revoke_case:
+          type: boolean
+          default: false
+    NovelRectification:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - novel_id
+      - chapter_id
+      - case_id
+      - case_revision
+      - base_version
+      - revision
+      - state
+      - reason
+      - decision_reason
+      - preview_id
+      - created_at
+      - submitted_at
+      - decided_at
+      - published_version
+      - revoked_case
+      - target_current
+      properties:
+        id:
+          type: string
+          format: uuid
+        novel_id:
+          type: string
+          format: uuid
+        chapter_id:
+          type: string
+          format: uuid
+        case_id:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        case_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        base_version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        state:
+          type: string
+          enum:
+          - available
+          - submitted
+          - approved
+          - rejected
+          - cancelled
+          - withdrawn
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        decision_reason:
+          type: string
+        preview_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        published_version:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        revoked_case:
+          type: boolean
+        target_current:
+          type: boolean
+    NovelRectificationPreview:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - grant_id
+      - novel_id
+      - chapter_id
+      - base_version
+      - grant_revision
+      - draft_id
+      - source_revision
+      - title
+      - content
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        grant_id:
+          type: string
+          format: uuid
+        novel_id:
+          type: string
+          format: uuid
+        chapter_id:
+          type: string
+          format: uuid
+        base_version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        grant_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        draft_id:
+          type: string
+          format: uuid
+        source_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        content:
+          type: string
+          minLength: 1
+          maxLength: 1048576
+        expires_at:
+          type: string
+          format: date-time
+    NovelRectificationDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - grant
+      - submitted
+      - source
+      properties:
+        grant:
+          $ref: '#/components/schemas/NovelRectification'
+        submitted:
+          allOf:
+          - $ref: '#/components/schemas/NovelRectificationPreview'
+          nullable: true
+        source:
+          nullable: true
+          allOf: [{$ref: '#/components/schemas/RectificationSource'}]
+    NovelRectificationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/NovelRectification'
+        next:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+
+    RectificationSource:
+      type: object
+      additionalProperties: false
+      required: [draft_id, title, revision]
+      properties:
+        draft_id: {type: string, format: uuid}
+        title: {type: string, maxLength: 200}
+        revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+    OperatorFormalChapter:
+      type: object
+      additionalProperties: false
+      required: [chapter_id, ordinal, title, version, state_revision]
+      properties:
+        chapter_id: {type: string, format: uuid}
+        ordinal: {type: integer, minimum: 1, maximum: 9007199254740991}
+        title: {type: string, minLength: 1, maxLength: 200}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+    OperatorFormalChapterPage:
+      type: object
+      additionalProperties: false
+      required: [items, next]
+      properties:
+        items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OperatorFormalChapter'}}
+        next: {type: integer, minimum: 0, maximum: 9007199254740991}
+    ChapterComment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - chapter_id
+      - novel_id
+      - author_id
+      - nickname
+      - root_id
+      - reply_to
+      - reply_name
+      - content
+      - sequence
+      - revision
+      - replies
+      - can_delete
+      - created_at
+      - deleted
+      - blocked
+      - reason
+      properties:
+        id: &chapterid001
+          type: string
+          format: uuid
+        chapter_id: *chapterid001
+        novel_id: *chapterid001
+        author_id: *chapterid001
+        nickname:
+          type: string
+        root_id:
+          type: string
+          format: uuid
+          nullable: true
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+        reply_name:
+          type: string
+        content:
+          type: string
+        sequence: &chapterid002
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        revision: *chapterid002
+        replies: *chapterid002
+        can_delete:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted:
+          type: boolean
+        blocked:
+          type: boolean
+        reason:
+          type: string
+    ChapterCommentPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ChapterComment'
+        next: *id002
+    ChapterCommentResult:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - revision
+      - state
+      properties:
+        id: *id001
+        revision: *id002
+        state:
+          type: string
+          enum:
+          - published
+          - deleted
+          - blocked
+    ChapterCommentCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_account_id
+      - content
+      - context
+      properties:
+        mutation_id: *id001
+        expected_account_id: *id001
+        content:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        context:
+          type: string
+          minLength: 1
+          maxLength: 512
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+    ChapterCommentAction:
+      type: object
+      additionalProperties: false
+      required:
+      - mutation_id
+      - expected_account_id
+      - expected_revision
+      - action
+      - reason
+      properties:
+        mutation_id: *id001
+        expected_account_id: *id001
+        expected_revision:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        action:
+          type: string
+          enum:
+          - delete
+          - block
+          - unblock
+        reason:
+          type: string
+          maxLength: 500
   responses:
     PreviewExpired:
       description: 未提交预览已过期，重新准备；不会删除草稿或已提交版本

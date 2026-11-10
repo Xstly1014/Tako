@@ -1,9 +1,9 @@
 import { mergeWorks, ReaderError, type WorkCard } from "../api/reader.ts";
-import { searchQuery, searchWorks, type SearchPage } from "../api/search.ts";
-export type SearchState = {
+import { searchQuery, searchWorks } from "../api/search.ts";
+export type SearchState<T = WorkCard> = {
   input: string;
   query: string;
-  items: WorkCard[];
+  items: T[];
   cursor: string;
   searchId: number;
   loading: boolean;
@@ -12,7 +12,7 @@ export type SearchState = {
   moreError: unknown;
   inputError: string;
 };
-const initial = (): SearchState => ({
+const initial = <T>(): SearchState<T> => ({
   input: "",
   query: "",
   items: [],
@@ -24,13 +24,18 @@ const initial = (): SearchState => ({
   moreError: null,
   inputError: "",
 });
-export class SearchFlow {
-  private state = initial();
+export type SearchLoader<T> = (
+  query: string,
+  cursor: string,
+  signal: AbortSignal,
+) => Promise<{ items: T[]; next_cursor: string }>;
+export class PagedSearch<T extends { id: string }> {
+  private state = initial<T>();
   private epoch = 0;
   private active: AbortController | null = null;
   private listeners = new Set<() => void>();
-  private load: typeof searchWorks;
-  constructor(load: typeof searchWorks = searchWorks) {
+  private load: SearchLoader<T>;
+  constructor(load: SearchLoader<T>) {
     this.load = load;
   }
   snapshot = () => this.state;
@@ -40,7 +45,7 @@ export class SearchFlow {
       this.listeners.delete(fn);
     };
   };
-  private update(patch: Partial<SearchState>) {
+  private update(patch: Partial<SearchState<T>>) {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((fn) => fn());
   }
@@ -55,7 +60,7 @@ export class SearchFlow {
     this.epoch++;
     this.active?.abort();
     this.active = null;
-    this.update({ ...initial(), searchId: this.epoch });
+    this.update({ ...initial<T>(), searchId: this.epoch });
   }
   dispose() {
     this.epoch++;
@@ -120,11 +125,7 @@ export class SearchFlow {
     this.active = controller;
     this.update({ moreLoading: true, moreError: null });
     try {
-      const page: SearchPage = await this.load(
-        query,
-        cursor,
-        controller.signal,
-      );
+      const page = await this.load(query, cursor, controller.signal);
       if (epoch !== this.epoch) return;
       if (page.next_cursor === cursor) throw new ReaderError("contract");
       this.update({
@@ -139,5 +140,11 @@ export class SearchFlow {
         this.update({ moreLoading: false });
       }
     }
+  }
+}
+
+export class SearchFlow extends PagedSearch<WorkCard> {
+  constructor(load: typeof searchWorks = searchWorks) {
+    super(load);
   }
 }

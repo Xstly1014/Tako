@@ -1,3 +1,5 @@
+import { NovelLifecycleApi } from "./lifecycle-api";
+import { useLifecycleManagement } from "./useLifecycleManagement";
 import { AuthorPolicyApi, type AuthorPolicyPage } from "./author-policy-api";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -47,6 +49,7 @@ import {
 import { nativeNovelManagementJournal } from "./native";
 import {
   NovelOperations,
+  isLifecycleCommand,
   type NovelCommand,
   type NovelManagementRecord,
 } from "./management-requests";
@@ -80,6 +83,8 @@ type Row = {
 function explain(e: unknown) {
   if (e instanceof ApiError) {
     const codes: Record<string, string> = {
+      invalid_input:
+        "所选内容不符合发布要求，请核对标题、正文和授权后重新准备。",
       resource_not_found:
         "记录暂不存在或当前账号不可访问。未知操作请保留原记录并稍后重查。",
       novel_state_conflict: "状态已变化，本次未受理。请确认拒绝记录后刷新。",
@@ -176,10 +181,12 @@ function Management({
       );
     };
     const management = new NovelManagementApi(transport),
-      publication = new ChapterPublicationApi(transport);
+      publication = new ChapterPublicationApi(transport),
+      lifecycle = new NovelLifecycleApi(transport);
     return {
       management,
       publication,
+      lifecycle,
       books: new NovelsApi(transport),
       catalog: new NovelChapterCatalogApi(transport),
       governance: new NovelGovernanceApi(transport),
@@ -191,6 +198,7 @@ function Management({
         publication,
         current,
         Crypto.randomUUID,
+        lifecycle,
       ),
     };
   });
@@ -521,11 +529,16 @@ function Management({
     if (next === "metadata" && !metaLoaded) void run(() => loadMetadata());
     if (next === "cases" && !casesLoaded) void run(() => loadCases());
   }
-  function confirmCommand(label: string, command: NovelCommand) {
+  function confirmCommand(
+    label: string,
+    command: NovelCommand,
+    message?: string,
+  ) {
     if (record || busy) return;
     Alert.alert(
       label,
-      "请核对当前对象。本次操作不会修改私稿，也不会解除其他平台限制。",
+      message ??
+        "请核对当前对象。本次操作不会修改私稿，也不会解除其他平台限制。",
       [
         { text: "取消", style: "cancel" },
         {
@@ -539,6 +552,23 @@ function Management({
     );
   }
   async function clearOperation() {
+    const original = tools.ops.snapshot();
+    if (
+      original?.command.book === book &&
+      original.result?.operation === "complete" &&
+      original.outcome === "completed"
+    ) {
+      const receipt = original.result;
+      setState((old) =>
+        old
+          ? {
+              ...old,
+              completed: true,
+              state_revision: Math.max(old.state_revision, receipt.revision),
+            }
+          : old,
+      );
+    }
     await tools.ops.clear();
     guard();
     setNotice("原操作已确认；若状态尚未刷新，可重试读取。");
@@ -655,7 +685,27 @@ function Management({
     }
   }
   const blocked = busy || !!record || !!recovery;
+  const lifecycle = useLifecycleManagement({
+    book,
+    api: tools.lifecycle,
+    state,
+    record: record ?? null,
+    busy,
+    blocked,
+    current: tools.current,
+    confirm: confirmCommand,
+  });
+  useEffect(() => {
+    if (record?.command.book === book && isLifecycleCommand(record.command)) {
+      const timer = setTimeout(() => setMode("metadata"), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [record, book]);
   const back = () => {
+    if (mode === "metadata" && lifecycle.open) {
+      lifecycle.close();
+      return;
+    }
     if (mode === "chapters" && selected) {
       setSelected(undefined);
       setChapter(undefined);
@@ -701,9 +751,17 @@ function Management({
         {record.command.kind === "visibility"
           ? (record.command.input.action === "hide" ? "隐藏" : "恢复") +
             (record.command.chapter ? "章节" : "整书")
-          : record.command.kind === "metadata"
-            ? "发布书籍资料"
-            : "撤回待审提交"}
+          : isLifecycleCommand(record.command)
+            ? {
+                "completion-check": "准备完结核对",
+                complete: "确认不可逆完结",
+                "rectification-prepare": "准备固定整改预览",
+                "rectification-submit": "提交固定整改",
+                "rectification-withdraw": "撤回本次整改",
+              }[record.command.kind]
+            : record.command.kind === "metadata"
+              ? "发布书籍资料"
+              : "撤回待审提交"}
       </Text>
       {record.outcome || record.rejection ? (
         <Action
@@ -747,6 +805,11 @@ function Management({
         }));
     }
   }
+  if (mode === "metadata" && lifecycle.open && lifecycle.body)
+    rows = readingChunks(lifecycle.body).map((text, i) => ({
+      key: "rect-body-" + i,
+      text,
+    }));
   const header = (
     <View>
       {recovery ? (
@@ -829,7 +892,8 @@ function Management({
           )}
         </View>
       ) : null}
-      {mode === "metadata" ? (
+      {mode === "metadata" ? lifecycle.header : null}
+      {mode === "metadata" && !lifecycle.open ? (
         <View style={s.section}>
           <Text style={s.title}>当前正式资料</Text>
           {state?.formal ? (
@@ -1385,6 +1449,14 @@ function Management({
           </Text>
         </Pressable>
         <Text style={s.title}>正式管理</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({ pathname: "/novel-comments", params: { book } })
+          }
+        >
+          <Text style={s.link}>管理章评论</Text>
+        </Pressable>
       </View>
       <View style={s.book}>
         <Text style={s.bookTitle} numberOfLines={2}>
@@ -1497,7 +1569,11 @@ function Management({
               </Text>
             )
           }
-          ListFooterComponent={footer}
+          ListFooterComponent={
+            mode === "metadata" && lifecycle.open
+              ? (lifecycle.footer ?? undefined)
+              : footer
+          }
         />
       )}
     </SafeAreaView>

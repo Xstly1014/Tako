@@ -1,6 +1,7 @@
 import type { components } from "../api/contract";
 import type { Transport } from "../auth/session.ts";
 import { request, ApiError } from "../api/client.ts";
+import { searchQuery } from "../api/search.ts";
 import { validMetadata } from "../api/novels.ts";
 import { date, id, integer, text } from "../drafts/model.ts";
 export type PublicNovel = components["schemas"]["PublicNovel"];
@@ -35,9 +36,22 @@ export class NovelReadingApi {
     this.transport = transport;
   }
   async list(token = "", signal?: AbortSignal) {
+    return this.page("/novels", token, signal);
+  }
+  async search(query: string, token = "", signal?: AbortSignal) {
+    const q = searchQuery(query);
+    if (q === null) throw new ApiError("invalid_input");
+    return this.page(
+      "/novels/search?q=" + encodeURIComponent(q),
+      token,
+      signal,
+    );
+  }
+  private async page(path: string, token: string, signal?: AbortSignal) {
     if (!cursor(token)) throw new ApiError("invalid_input");
+    const separator = path.includes("?") ? "&" : "?";
     const page = await this.transport<PublicNovelPage>(
-      "/novels" + (token ? "?cursor=" + encodeURIComponent(token) : ""),
+      path + (token ? separator + "cursor=" + encodeURIComponent(token) : ""),
       { signal },
     );
     if (

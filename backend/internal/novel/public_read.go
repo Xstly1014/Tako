@@ -2,12 +2,17 @@ package novel
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 type PublicNovel struct {
@@ -68,11 +73,30 @@ func scanPublicNovel(row interface{ Scan(...any) error }) (PublicNovel, error) {
 }
 
 type novelPublicCursor struct {
-	ID   uuid.UUID
-	Time time.Time
+	ID        uuid.UUID
+	Time      time.Time
+	QueryHash string `json:",omitempty"`
 }
 
 func (s Store) PublicNovels(ctx context.Context, token string) (PublicNovelPage, error) {
+	return s.publicNovelPage(ctx, token, "")
+}
+
+// SearchPublicNovels shares the channel visibility and stable publication ordering.
+func (s Store) SearchPublicNovels(ctx context.Context, query, token string) (PublicNovelPage, error) {
+	if !utf8.ValidString(query) || strings.IndexFunc(query, unicode.IsControl) >= 0 {
+		return PublicNovelPage{}, ErrInvalid
+	}
+	query = strings.ToLower(strings.TrimSpace(query))
+	if count := utf8.RuneCountInString(query); count < 1 || count > 64 {
+		return PublicNovelPage{}, ErrInvalid
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	return s.publicNovelPage(ctx, token, query)
+}
+
+func (s Store) publicNovelPage(ctx context.Context, token, query string) (PublicNovelPage, error) {
 	out := PublicNovelPage{Items: []PublicNovel{}}
 	if len(token) > 512 {
 		return out, ErrInvalid
@@ -84,10 +108,18 @@ func (s Store) PublicNovels(ctx context.Context, token string) (PublicNovelPage,
 	defer tx.Rollback()
 	q := "SELECT " + publicNovelColumns + publicNovelJoin + readableNovel
 	args := []any{}
+	var queryHash string
+	if query != "" {
+		digest := sha256.Sum256([]byte(query))
+		queryHash = hex.EncodeToString(digest[:])
+		pattern := "%" + strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(query) + "%"
+		q += " AND (LOWER(p.title) LIKE ? ESCAPE '!' OR LOWER(p.introduction) LIKE ? ESCAPE '!' OR LOWER(a.nickname) LIKE ? ESCAPE '!')"
+		args = append(args, pattern, pattern, pattern)
+	}
 	if token != "" {
 		raw, e := base64.RawURLEncoding.DecodeString(token)
 		var c novelPublicCursor
-		if e != nil || json.Unmarshal(raw, &c) != nil || c.ID == uuid.Nil || c.Time.IsZero() {
+		if e != nil || json.Unmarshal(raw, &c) != nil || c.ID == uuid.Nil || c.Time.IsZero() || c.QueryHash != queryHash {
 			return out, ErrInvalid
 		}
 		// The anchor can have become hidden since the previous page. Its immutable
@@ -122,7 +154,7 @@ func (s Store) PublicNovels(ctx context.Context, token string) (PublicNovelPage,
 	if len(out.Items) > 12 {
 		out.Items = out.Items[:12]
 		last := out.Items[11]
-		raw, _ := json.Marshal(novelPublicCursor{last.ID, last.FirstPublishedAt})
+		raw, _ := json.Marshal(novelPublicCursor{ID: last.ID, Time: last.FirstPublishedAt, QueryHash: queryHash})
 		out.NextCursor = base64.RawURLEncoding.EncodeToString(raw)
 	}
 	return out, tx.Commit()

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { checkedRectification, checkedRectificationPreview } from '../../lib/novel-operations'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { request as transportRequest, APIError } from '../../lib/api'
@@ -58,6 +59,165 @@ const busy = ref(false),
 const pending = ref<NovelOperation | null>(null),
   confirmed = ref(false),
   canRetry = ref(false)
+const rectificationCase = ref<NovelSchema<'NovelCaseDetail'> | null>(null)
+const rectifications = ref<NovelSchema<'NovelRectification'>[]>([]),
+  rectNext = ref(0),
+  rectLoaded = ref(false),
+  rectificationSelected = ref<NovelSchema<'NovelRectificationDetail'> | null>(null),
+  formalChapters = ref<NovelSchema<'OperatorFormalChapter'>[]>([]),
+  chapterNext = ref(0),
+  rectChapter = ref(''),
+  revokeRectificationCase = ref(false)
+const rectStatus = (state: string) =>
+  ({
+    available: '可准备整改',
+    submitted: '等待人工审核',
+    approved: '已通过',
+    rejected: '已驳回',
+    cancelled: '已取消',
+    withdrawn: '已撤回',
+  })[state] ?? '需重新核对'
+function resetRectification() {
+  rectificationCase.value = null
+  rectifications.value = []
+  rectNext.value = 0
+  rectLoaded.value = false
+  rectificationSelected.value = null
+  formalChapters.value = []
+  chapterNext.value = 0
+  rectChapter.value = ''
+  revokeRectificationCase.value = false
+}
+async function readRectifications(more = false) {
+  if (!selected.value || busy.value || pending.value || proposed.value) return
+  const row = selected.value,
+    gen = generation
+  busy.value = true
+  message.value = ''
+  try {
+    await verify()
+    const p = await request<NovelSchema<'NovelRectificationPage'>>(
+      `/ops/novels/${row.book}/rectifications${more ? '?before=' + rectNext.value : ''}`,
+    )
+    if (
+      !p ||
+      !Array.isArray(p.items) ||
+      p.items.length > 20 ||
+      !Number.isSafeInteger(p.next) ||
+      p.next < 0
+    )
+      throw Error('invalid_receipt')
+    p.items.forEach((v) => checkedRectification(v, row.book))
+    await verify()
+    if (gen !== generation || selected.value?.id !== row.id) return
+    rectifications.value = more
+      ? [
+          ...rectifications.value,
+          ...p.items.filter((v) => !rectifications.value.some((x) => x.id === v.id)),
+        ]
+      : p.items
+    rectNext.value = p.next
+    rectLoaded.value = true
+  } catch (e) {
+    if (gen === generation) message.value = describe(e)
+  } finally {
+    if (gen === generation) busy.value = false
+  }
+}
+async function chooseRectification(id: string) {
+  if (!selected.value || busy.value || pending.value || proposed.value) return
+  if (reason.value.trim() && !window.confirm('处理原因尚未提交，确认选择整改记录？')) return
+  const row = selected.value,
+    gen = generation
+  busy.value = true
+  message.value = ''
+  try {
+    await verify()
+    const d = await request<NovelSchema<'NovelRectificationDetail'>>(
+      `/ops/novels/${row.book}/rectifications/${id}`,
+    )
+    checkedRectification(d.grant, row.book, id)
+    if (d.source !== null || (d.grant.preview_id === null) !== (d.submitted === null))
+      throw Error('invalid_receipt')
+    if (d.submitted)
+      checkedRectificationPreview(d.submitted, row.book, d.grant.preview_id!, d.grant)
+    const associated = await request<NovelSchema<'NovelCaseDetail'>>(
+      `/ops/novels/${row.book}/moderation/${d.grant.case_id}`,
+    )
+    if (associated.case.id !== d.grant.case_id || associated.case.novel_id !== row.book)
+      throw Error('invalid_receipt')
+    await verify()
+    if (gen !== generation || selected.value?.id !== row.id) return
+    rectificationSelected.value = d
+    rectificationCase.value = associated
+    reason.value = ''
+    revokeRectificationCase.value = false
+    decision.value =
+      d.grant.state === 'submitted'
+        ? d.grant.target_current
+          ? 'rect-approve'
+          : 'rect-reject'
+        : 'rect-cancel'
+  } catch (e) {
+    if (gen === generation) message.value = describe(e)
+  } finally {
+    if (gen === generation) busy.value = false
+  }
+}
+async function readFormalChapters(more = false) {
+  if (!selected.value || busy.value || pending.value || proposed.value) return
+  const row = selected.value,
+    gen = generation,
+    after = more ? chapterNext.value : 0
+  busy.value = true
+  message.value = ''
+  try {
+    await verify()
+    const p = await request<NovelSchema<'OperatorFormalChapterPage'>>(
+      `/ops/novels/${row.book}/chapters?after=${after}`,
+    )
+    if (
+      !p ||
+      !Array.isArray(p.items) ||
+      p.items.length > 20 ||
+      !Number.isSafeInteger(p.next) ||
+      p.next < 0
+    )
+      throw Error('invalid_receipt')
+    let last = after
+    for (const c of p.items) {
+      if (
+        !/^[0-9a-f-]{36}$/i.test(c.chapter_id) ||
+        !Number.isSafeInteger(c.ordinal) ||
+        c.ordinal <= last ||
+        !Number.isSafeInteger(c.version) ||
+        c.version < 1 ||
+        typeof c.title !== 'string'
+      )
+        throw Error('invalid_receipt')
+      last = c.ordinal
+    }
+    if (p.next !== 0 && (p.next !== last || p.items.length !== 20)) throw Error('invalid_receipt')
+    await verify()
+    if (gen !== generation || selected.value?.id !== row.id) return
+    formalChapters.value = more
+      ? [
+          ...formalChapters.value,
+          ...p.items.filter(
+            (v) => !formalChapters.value.some((x) => x.chapter_id === v.chapter_id),
+          ),
+        ]
+      : p.items
+    chapterNext.value = p.next
+  } catch (e) {
+    if (gen === generation) message.value = describe(e)
+  } finally {
+    if (gen === generation) busy.value = false
+  }
+}
+const rectificationChapter = computed(() =>
+  formalChapters.value.find((v) => v.chapter_id === rectChapter.value),
+)
 let owner = '',
   generation = 0,
   journal: NovelOperationJournal | null = null,
@@ -94,6 +254,7 @@ function invalidate() {
   ready.value = false
   rows.value = []
   authorPolicy.value = null
+  resetRectification()
   selected.value = null
   detail.value = null
   reason.value = ''
@@ -222,6 +383,7 @@ async function changeMode(value: Mode) {
   if (reason.value.trim() && !window.confirm('处理原因尚未提交，确认切换？')) return
   mode.value = value
   authorPolicy.value = null
+  resetRectification()
   selected.value = null
   detail.value = null
   reason.value = ''
@@ -305,6 +467,7 @@ async function choose(row: Row) {
   const gen = generation
   busy.value = true
   authorPolicy.value = null
+  resetRectification()
   selected.value = row
   detail.value = null
   reason.value = ''
@@ -329,12 +492,31 @@ const actions = computed(() => {
   const row = selected.value,
     d = detail.value
   if (!row || !d) return []
-  if (d.caseDetail)
-    return d.caseDetail.case.state !== 'active'
-      ? []
-      : currentAppeal.value
-        ? ['uphold', 'revoke']
-        : ['revoke']
+  if (rectificationSelected.value) {
+    const g = rectificationSelected.value.grant
+    return g.state === 'submitted'
+      ? g.target_current
+        ? ['rect-approve', 'rect-reject', 'rect-cancel']
+        : ['rect-reject', 'rect-cancel']
+      : g.state === 'available'
+        ? ['rect-cancel']
+        : []
+  }
+  if (d.caseDetail) {
+    if (d.caseDetail.case.state !== 'active') return []
+    const normal = currentAppeal.value ? ['uphold', 'revoke'] : ['revoke']
+    return [
+      ...normal,
+      ...(d.bookState?.completed &&
+      rectificationChapter.value &&
+      (!['chapter', 'version'].includes(d.caseDetail.case.scope) ||
+        d.caseDetail.case.target_id === rectificationChapter.value.chapter_id) &&
+      (d.caseDetail.case.scope !== 'version' ||
+        d.caseDetail.case.version === rectificationChapter.value.version)
+        ? ['rect-grant']
+        : []),
+    ]
+  }
   if (row.mode === 'chapters') return d.source?.submission.current ? ['approve', 'reject'] : []
   if (row.mode === 'metadata') return d.metadata?.current ? ['approve', 'reject'] : []
   if (row.mode === 'metadata-post')
@@ -342,6 +524,10 @@ const actions = computed(() => {
   return ['approve', 'limit_version', 'limit_chapter', 'limit_book']
 })
 const labels: Record<string, string> = {
+  'rect-grant': '授权所选正式章一次整改',
+  'rect-approve': '通过这份固定整改',
+  'rect-reject': '驳回这次整改',
+  'rect-cancel': '取消本次授权或候选',
   approve: '审核通过 / 完成后审',
   reject: '驳回本次提交',
   limit_version: '限制这份章节版本',
@@ -349,6 +535,15 @@ const labels: Record<string, string> = {
   limit_book: '限制整书',
   uphold: '维持处置，进入24小时冷静期',
   revoke: '仅撤销这项限制',
+}
+function leaveRectification() {
+  if (busy.value || pending.value || proposed.value) return
+  if (reason.value.trim() && !window.confirm('处理原因尚未提交，确认返回处置原文？')) return
+  rectificationSelected.value = null
+  rectificationCase.value = null
+  decision.value = 'revoke'
+  revokeRectificationCase.value = false
+  reason.value = ''
 }
 function actionLabel(action: string) {
   return action === 'approve'
@@ -374,7 +569,34 @@ function propose() {
     version: d.version,
     body: { mutation_id: crypto.randomUUID() },
   }
-  if (a.startsWith('limit_')) {
+  if (a === 'rect-grant') {
+    const c = rectificationChapter.value,
+      item = d.caseDetail?.case
+    if (!c || !item) return
+    command.kind = 'rect-grant'
+    command.target = c.chapter_id
+    command.version = c.version
+    command.body = {
+      ...command.body,
+      chapter_id: c.chapter_id,
+      base_version: c.version,
+      case_id: item.id,
+      case_revision: item.revision,
+      reason: reason.value,
+    }
+  } else if (a.startsWith('rect-')) {
+    const g = rectificationSelected.value?.grant
+    if (!g) return
+    command.kind = a as 'rect-approve' | 'rect-reject' | 'rect-cancel'
+    command.target = g.id
+    command.version = g.base_version
+    command.body = {
+      ...command.body,
+      expected_revision: g.revision,
+      reason: reason.value,
+      revoke_case: a === 'rect-approve' && revokeRectificationCase.value,
+    }
+  } else if (a.startsWith('limit_')) {
     const scope = a.slice(6),
       state = scope === 'book' ? d.bookState : d.chapterState
     if (!state) {
@@ -477,6 +699,7 @@ async function finish() {
   canRetry.value = false
   proposed.value = null
   authorPolicy.value = null
+  resetRectification()
   selected.value = null
   detail.value = null
   reason.value = ''
@@ -529,6 +752,7 @@ async function perform(retry = false) {
         journal!.clear(pending.value.body.mutation_id)
         pending.value = null
         authorPolicy.value = null
+        resetRectification()
         selected.value = null
         detail.value = null
       } catch {
@@ -721,7 +945,7 @@ onBeforeRouteLeave(
               {{ busy ? '正在读取内容…' : '选择一条记录查看固定内容与当前状态。' }}
             </p>
             <template v-else
-              ><h2>{{ detail.title }}</h2>
+              ><h2>{{ rectificationSelected?.submitted?.title ?? detail.title }}</h2>
               <p class="muted">
                 {{ selected?.note }}<span v-if="detail.bookState?.author_hidden"> · 整书已隐藏</span
                 ><span v-if="detail.bookState?.platform_limited"> · 整书受限</span>
@@ -790,9 +1014,16 @@ onBeforeRouteLeave(
                   </button>
                 </template>
               </details>
-              <details>
+              <details :open="!!rectificationSelected?.submitted">
                 <summary>查看固定内容</summary>
-                <div class="fixed-text">{{ detail.body || '无简介。' }}</div>
+                <div class="fixed-text">
+                  {{
+                    rectificationSelected
+                      ? (rectificationSelected.submitted?.content ??
+                        '尚未提交整改正文，运营不能查看工作稿。')
+                      : detail.body || '无简介。'
+                  }}
+                </div>
                 <p v-if="detail.metadata" class="muted">{{ detail.metadata.tags.join(' / ') }}</p>
               </details>
               <section v-if="detail.caseDetail" class="case-history">
@@ -823,6 +1054,119 @@ onBeforeRouteLeave(
                   更早的复核记录
                 </button>
               </section>
+              <section
+                v-if="detail.caseDetail && detail.bookState?.completed"
+                class="case-history rectification-section"
+              >
+                <h3>指定章节整改</h3>
+                <p class="muted">
+                  只处理授权指定章，完结状态不变。运营看不到未提交工作稿；新章提醒与其他限制不联动。
+                </p>
+                <button :disabled="busy || !!pending || !!proposed" @click="readRectifications()">
+                  读取本书整改记录
+                </button>
+                <p v-if="rectLoaded && !rectifications.length" class="muted">暂无整改授权。</p>
+                <button
+                  v-for="g in rectifications"
+                  :key="g.id"
+                  class="queue-row"
+                  :disabled="busy || !!pending || !!proposed"
+                  @click="chooseRectification(g.id)"
+                >
+                  <span>{{ g.reason }}</span
+                  ><small>{{ rectStatus(g.state) }}</small>
+                </button>
+                <button
+                  v-if="rectNext"
+                  :disabled="busy || !!pending || !!proposed"
+                  @click="readRectifications(true)"
+                >
+                  更早的整改记录
+                </button>
+                <template v-if="rectificationSelected">
+                  <h3>{{ rectStatus(rectificationSelected.grant.state) }}</h3>
+                  <p v-if="rectificationCase" class="muted">
+                    关联{{
+                      rectificationCase.case.scope === 'book'
+                        ? '整书限制'
+                        : rectificationCase.case.scope === 'chapter'
+                          ? '整章限制'
+                          : '版本限制'
+                    }}：{{ rectificationCase.case.reason }}
+                  </p>
+                  <p>{{ rectificationSelected.grant.reason }}</p>
+                  <p v-if="rectificationSelected.grant.decision_reason" class="muted">
+                    处理说明：{{ rectificationSelected.grant.decision_reason }}
+                  </p>
+                  <p
+                    v-if="
+                      !rectificationSelected.grant.target_current &&
+                      ['available', 'submitted'].includes(rectificationSelected.grant.state)
+                    "
+                    class="muted"
+                  >
+                    关联处置或正式版本已变化；请取消旧授权后重新核对，不能直接通过。
+                  </p>
+                  <label
+                    v-if="
+                      rectificationSelected.grant.state === 'submitted' &&
+                      decision === 'rect-approve'
+                    "
+                    ><input
+                      type="checkbox"
+                      v-model="revokeRectificationCase"
+                      :disabled="busy || !!pending || !!proposed"
+                    />
+                    同时撤销这次整改关联的那一条处置</label
+                  >
+                  <p class="muted">默认保留关联处置，作者隐藏与其他独立限制始终保留。</p>
+                  <button
+                    :disabled="busy || !!pending || !!proposed"
+                    @click="chooseRectification(rectificationSelected.grant.id)"
+                  >
+                    重新读取这条整改
+                  </button>
+                  <button :disabled="busy || !!pending || !!proposed" @click="leaveRectification">
+                    返回处置原文
+                  </button>
+                </template>
+                <template v-else-if="detail.caseDetail.case.state === 'active'">
+                  <button :disabled="busy || !!pending || !!proposed" @click="readFormalChapters()">
+                    读取可选正式章
+                  </button>
+                  <label v-if="formalChapters.length"
+                    >整改目标<select
+                      v-model="rectChapter"
+                      :disabled="busy || !!pending || !!proposed"
+                    >
+                      <option value="">选择正式章</option>
+                      <option
+                        v-for="c in formalChapters"
+                        :key="c.chapter_id"
+                        :value="c.chapter_id"
+                        :disabled="
+                          (detail.caseDetail.case.scope !== 'book' &&
+                            detail.caseDetail.case.target_id !== c.chapter_id) ||
+                          (detail.caseDetail.case.scope === 'version' &&
+                            detail.caseDetail.case.version !== c.version)
+                        "
+                      >
+                        第{{ c.ordinal }}章 · {{ c.title }}
+                      </option>
+                    </select></label
+                  >
+                  <button
+                    v-if="chapterNext"
+                    :disabled="busy || !!pending || !!proposed"
+                    @click="readFormalChapters(true)"
+                  >
+                    后续正式章
+                  </button>
+                  <p class="muted">
+                    选择后，在下方处理方式中选“授权所选正式章一次整改”。仅当前最新正式版可授权。
+                  </p>
+                </template>
+              </section>
               <form
                 v-if="actions.length && !pending && !proposed"
                 class="decision-form"
@@ -847,6 +1191,15 @@ onBeforeRouteLeave(
                     proposed.command.kind === 'policy'
                       ? '本次作用于作者账号，影响之后的中篇与长文提交；既有待审继续人工审核，既有公开内容不自动隐藏。'
                       : '仅处理当前选定对象。隐藏、其他层级限制与工作稿保持独立。'
+                  }}
+                </p>
+                <p v-if="proposed.command.kind.startsWith('rect-')" class="muted">
+                  {{
+                    proposed.command.kind === 'rect-grant'
+                      ? '指定章只能提交一次固定整改；此操作不改正式正文。'
+                      : proposed.command.body.revoke_case
+                        ? '仅同时撤销本次整改关联的处置；作者隐藏和其他限制保留。'
+                        : '保留关联处置、作者隐藏与其他独立限制。'
                   }}
                 </p>
                 <p v-if="proposed.command.body.reason">原因：{{ proposed.command.body.reason }}</p>
@@ -1058,5 +1411,41 @@ summary {
     max-height: 320px;
     overflow: auto;
   }
+}
+.rectification-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.rectification-section h3,
+.rectification-section p {
+  margin: 0;
+}
+.rectification-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rectification-section label:has(input[type='checkbox']) {
+  flex-direction: row;
+  align-items: flex-start;
+}
+.rectification-section button {
+  justify-self: start;
+  max-width: 100%;
+}
+.rectification-section .queue-row {
+  width: 100%;
+}
+.rectification-section select {
+  width: 100%;
+  max-width: 400px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: inherit;
 }
 </style>

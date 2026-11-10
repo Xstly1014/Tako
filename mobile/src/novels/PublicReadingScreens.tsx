@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
+  Alert,
   FlatList,
   AppState,
   Pressable,
@@ -7,8 +8,14 @@ import {
   Text,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, usePreventRemove } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSession } from "../auth/context";
+import { ApiError, request } from "../api/client";
+import { CommentsPanel } from "../components/CommentsPanel";
+import { chapterPanelApi } from "./comment-panel-api";
+import { SearchView } from "../search/SearchScreen";
+import { ShelfControls } from "./ShelfUi";
 import { Action, Brand, Status } from "../components/Ui";
 import { BottomNavigation } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
@@ -159,6 +166,64 @@ function Footer({
     </View>
   );
 }
+function PublicNovelRow({
+  item,
+  onPress,
+}: {
+  item: PublicNovel;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={"打开作品 " + item.title}
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && s.pressed]}
+    >
+      <Text style={s.title} numberOfLines={2}>
+        {item.title}
+      </Text>
+      <Text style={s.meta}>
+        {item.author} · {item.completed ? "已完结" : "连载中"} ·{" "}
+        {item.chapter_count} 章
+      </Text>
+      {item.introduction ? (
+        <Text style={s.intro} numberOfLines={3}>
+          {item.introduction}
+        </Text>
+      ) : null}
+      <Text style={s.meta}>{item.tags.join(" · ")}</Text>
+    </Pressable>
+  );
+}
+const loadNovelSearch = (query: string, cursor: string, signal: AbortSignal) =>
+  api.search(query, cursor, signal);
+export function NovelSearchScreen() {
+  return (
+    <SearchView
+      load={loadNovelSearch}
+      scope="长文"
+      backLabel="返回长文频道"
+      onBack={() => router.dismissTo("/novel-community")}
+      describeError={(error) =>
+        error instanceof ApiError && error.code === "invalid_input"
+          ? "关键词或分页已失效，请重新搜索。"
+          : "搜索服务暂不可用，请重试。"
+      }
+      renderResult={(item) => (
+        <PublicNovelRow
+          item={item}
+          onPress={() =>
+            router.push({
+              pathname: "/novel/[id]",
+              params: { id: item.id, from: "search" },
+            })
+          }
+        />
+      )}
+    />
+  );
+}
 export function NovelCommunityScreen() {
   const load = useCallback(
     (cursor: string, signal: AbortSignal) => api.list(cursor, signal),
@@ -172,6 +237,7 @@ export function NovelCommunityScreen() {
         back="中篇"
         onBack={() => router.dismissTo("/community")}
       />
+      <Action label="搜索长文" onPress={() => router.push("/novel-search")} />
       {!page ? (
         <Status
           loading={busy}
@@ -189,31 +255,15 @@ export function NovelCommunityScreen() {
           initialNumToRender={8}
           windowSize={7}
           renderItem={({ item }) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={"打开作品 " + item.title}
+            <PublicNovelRow
+              item={item}
               onPress={() =>
                 router.push({
                   pathname: "/novel/[id]",
                   params: { id: item.id },
                 })
               }
-              style={({ pressed }) => [s.row, pressed && s.pressed]}
-            >
-              <Text style={s.title} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <Text style={s.meta}>
-                {item.author} · {item.completed ? "已完结" : "连载中"} ·{" "}
-                {item.chapter_count} 章
-              </Text>
-              {item.introduction ? (
-                <Text style={s.intro} numberOfLines={3}>
-                  {item.introduction}
-                </Text>
-              ) : null}
-              <Text style={s.meta}>{item.tags.join(" · ")}</Text>
-            </Pressable>
+            />
           )}
           ListEmptyComponent={
             <Status
@@ -237,11 +287,37 @@ export function NovelCommunityScreen() {
   );
 }
 export function NovelDirectoryScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    from?: string;
+    notice?: string;
+  }>();
   const book = typeof params.id === "string" ? params.id : "";
-  return <DirectoryContent key={book} book={book} />;
+  return (
+    <DirectoryContent
+      key={book}
+      book={book}
+      fromSearch={params.from === "search"}
+      fromShelf={params.from === "shelf"}
+      fromNotice={
+        params.from === "notice" && id(params.notice)
+          ? params.notice
+          : undefined
+      }
+    />
+  );
 }
-function DirectoryContent({ book }: { book: string }) {
+function DirectoryContent({
+  book,
+  fromShelf,
+  fromSearch,
+  fromNotice,
+}: {
+  book: string;
+  fromShelf: boolean;
+  fromSearch: boolean;
+  fromNotice?: string;
+}) {
   const sync = useReadingPosition(book);
   const { localError } = useReadingLifecycle(sync);
   const valid = id(book);
@@ -261,8 +337,29 @@ function DirectoryContent({ book }: { book: string }) {
     <SafeAreaView style={s.screen}>
       <Header
         title="章节目录"
-        back="长文频道"
-        onBack={() => router.dismissTo("/novel-community")}
+        back={
+          fromNotice
+            ? "消息详情"
+            : fromShelf
+              ? "我的书架"
+              : fromSearch
+                ? "搜索结果"
+                : "长文频道"
+        }
+        onBack={() =>
+          fromNotice
+            ? router.dismissTo({
+                pathname: "/notice/[id]",
+                params: { id: fromNotice },
+              })
+            : router.dismissTo(
+                fromShelf
+                  ? "/shelf"
+                  : fromSearch
+                    ? "/novel-search"
+                    : "/novel-community",
+              )
+        }
       />
       {!valid || !page ? (
         <Status
@@ -293,13 +390,25 @@ function DirectoryContent({ book }: { book: string }) {
                 {details.introduction ? (
                   <Text style={s.intro}>{details.introduction}</Text>
                 ) : null}
+                <ShelfControls book={book} readable={!error} />
                 <ReadingPositionControls
                   sync={sync}
                   error={localError}
                   onResume={(p) =>
                     router.push({
                       pathname: "/novel-chapter",
-                      params: { book, chapter: p.chapter_id, resume: "1" },
+                      params: {
+                        book,
+                        chapter: p.chapter_id,
+                        resume: "1",
+                        ...(fromNotice
+                          ? { from: "notice", notice: fromNotice }
+                          : fromShelf
+                            ? { from: "shelf" }
+                            : fromSearch
+                              ? { from: "search" }
+                              : {}),
+                      },
                     })
                   }
                 />
@@ -320,7 +429,17 @@ function DirectoryContent({ book }: { book: string }) {
               onPress={() =>
                 router.push({
                   pathname: "/novel-chapter",
-                  params: { book, chapter: item.id },
+                  params: {
+                    book,
+                    chapter: item.id,
+                    ...(fromNotice
+                      ? { from: "notice", notice: fromNotice }
+                      : fromShelf
+                        ? { from: "shelf" }
+                        : fromSearch
+                          ? { from: "search" }
+                          : {}),
+                  },
                 })
               }
               style={({ pressed }) => [s.chapterRow, pressed && s.pressed]}
@@ -355,6 +474,8 @@ export function NovelChapterScreen() {
     book: string;
     chapter: string;
     resume?: string;
+    from?: string;
+    notice?: string;
   }>();
   const book = typeof params.book === "string" ? params.book : "",
     chapter = typeof params.chapter === "string" ? params.chapter : "";
@@ -364,6 +485,13 @@ export function NovelChapterScreen() {
       book={book}
       chapter={chapter}
       resume={params.resume === "1"}
+      fromSearch={params.from === "search"}
+      fromShelf={params.from === "shelf"}
+      fromNotice={
+        params.from === "notice" && id(params.notice)
+          ? params.notice
+          : undefined
+      }
     />
   );
 }
@@ -371,11 +499,49 @@ function ChapterContent({
   book,
   chapter,
   resume,
+  fromShelf,
+  fromSearch,
+  fromNotice,
 }: {
   book: string;
   chapter: string;
   resume: boolean;
+  fromShelf: boolean;
+  fromSearch: boolean;
+  fromNotice?: string;
 }) {
+  const { session } = useSession();
+  const [comments, setComments] = useState(false),
+    [commentDirty, setCommentDirty] = useState(false);
+  const commentsApi = useMemo(
+    () =>
+      chapterPanelApi(
+        (path, options) =>
+          options?.method || session.snapshot().phase === "ready"
+            ? session.authorized(path, options)
+            : request(path, options),
+        book,
+        chapter,
+      ),
+    [session, book, chapter],
+  );
+  usePreventRemove(commentDirty, ({ repeat }) =>
+    Alert.alert(
+      "离开阅读页？",
+      "未发表文字将丢弃；离开不会取消服务端已经收到的请求。",
+      [
+        { text: "继续编辑", style: "cancel" },
+        {
+          text: "丢弃并离开",
+          style: "destructive",
+          onPress: () => {
+            setCommentDirty(false);
+            repeat();
+          },
+        },
+      ],
+    ),
+  );
   const sync = useReadingPosition(book),
     state = useReadingState(sync);
   const { localError, operation, focused } = useReadingLifecycle(sync);
@@ -487,7 +653,18 @@ function ChapterContent({
       if (p.chapter_id !== chapter) {
         router.replace({
           pathname: "/novel-chapter",
-          params: { book, chapter: p.chapter_id, resume: "1" },
+          params: {
+            book,
+            chapter: p.chapter_id,
+            resume: "1",
+            ...(fromNotice
+              ? { from: "notice", notice: fromNotice }
+              : fromShelf
+                ? { from: "shelf" }
+                : fromSearch
+                  ? { from: "search" }
+                  : {}),
+          },
         });
         return;
       }
@@ -517,7 +694,7 @@ function ChapterContent({
         setResumeNotice("位置暂未定位，可继续阅读或再次点击续读。");
       }
     },
-    [book, chapter, value, sync],
+    [book, chapter, value, sync, fromShelf, fromSearch, fromNotice],
   );
   useEffect(() => {
     if (
@@ -593,14 +770,28 @@ function ChapterContent({
     <SafeAreaView style={s.screen}>
       <Header
         title="长文阅读"
-        back={id(book) ? "章节目录" : "长文频道"}
+        back={fromNotice ? "消息详情" : id(book) ? "章节目录" : "长文频道"}
         onBack={() =>
-          id(book)
+          fromNotice
             ? router.dismissTo({
-                pathname: "/novel/[id]",
-                params: { id: book },
+                pathname: "/notice/[id]",
+                params: { id: fromNotice },
               })
-            : router.dismissTo("/novel-community")
+            : id(book)
+              ? router.dismissTo({
+                  pathname: "/novel/[id]",
+                  params: {
+                    id: book,
+                    ...(fromNotice
+                      ? { from: "notice", notice: fromNotice }
+                      : fromShelf
+                        ? { from: "shelf" }
+                        : fromSearch
+                          ? { from: "search" }
+                          : {}),
+                  },
+                })
+              : router.dismissTo("/novel-community")
         }
       />
       {!value ? (
@@ -681,11 +872,28 @@ function ChapterContent({
             <View style={s.footer}>
               <Text style={s.meta}>本章结束</Text>
               <Action
+                label="本章讨论"
+                disabled={!value.value.comment_context}
+                onPress={() => setComments(true)}
+              />
+              {!value.value.comment_context ? (
+                <Text style={s.meta}>当前服务暂未开放章讨论。</Text>
+              ) : null}
+              <Action
                 label="返回目录"
                 onPress={() =>
                   router.dismissTo({
                     pathname: "/novel/[id]",
-                    params: { id: book },
+                    params: {
+                      id: book,
+                      ...(fromNotice
+                        ? { from: "notice", notice: fromNotice }
+                        : fromShelf
+                          ? { from: "shelf" }
+                          : fromSearch
+                            ? { from: "search" }
+                            : {}),
+                    },
                   })
                 }
               />
@@ -693,6 +901,16 @@ function ChapterContent({
           }
         />
       )}
+      {value?.value.comment_context ? (
+        <CommentsPanel
+          workId={chapter}
+          context={value.value.comment_context}
+          api={commentsApi}
+          visible={comments}
+          onClose={() => setComments(false)}
+          onDirtyChange={setCommentDirty}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

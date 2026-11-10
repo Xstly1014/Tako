@@ -2,6 +2,8 @@
 
 当前以独立Android App为开发重心，Web共享同一Go API。README是产品介绍，本目录保留工程入口、业务规格与按提交绑定的验证证据。
 
+先读[统一项目状态](project-status.md)，需要查找文件时用[完整文档目录](catalog.md)。目录组织与归档约定见[文档维护规则](maintenance.md)。
+
 ## 当前入口
 
 | 需求 | 文档 |
@@ -15,7 +17,7 @@
 
 ## 业务与设计
 
-- [长文系列](novels/README.md)：规则、ADR、分期及失败验收，当前主开发N2方向。
+- [长文系列](novels/README.md)：规则、ADR、分期及失败验收，当前N5讨论链路已接，下一包为长文元数据搜索。
 - [中篇修订发行](mobile-author-revision-stage-spec.md)与[作品工作台](mobile-author-catalog-stage-spec.md)：具体交付以对应分支/复盘为准。
 - [App原型](prototypes/mobile-app-v1/README.md)：用户当前认可的视觉方向；示例数据不代表业务已实现。
 - [视觉系统](visual-system-v2.md)与[页面布局规则](design/layout-rules-v4.md)：注明日期和适用范围，原型不能替代运行页面。

@@ -37,6 +37,13 @@ func (a API) registerNovelReading(api *gin.RouterGroup) {
 		out, e := s.PublicNovels(c.Request.Context(), c.Query("cursor"))
 		send(c, out, e)
 	})
+	api.GET("/novels/search", func(c *gin.Context) {
+		if !enabled(c) {
+			return
+		}
+		out, e := s.SearchPublicNovels(c.Request.Context(), c.Query("q"), c.Query("cursor"))
+		send(c, out, e)
+	})
 	api.GET("/novels/:id", func(c *gin.Context) {
 		if !enabled(c) {
 			return
@@ -72,6 +79,13 @@ func (a API) registerNovelReading(api *gin.RouterGroup) {
 			return
 		}
 		out, e := s.PublicChapter(c.Request.Context(), id, chapter)
-		send(c, out, e)
+		if e != nil {
+			novelError(c, e)
+			return
+		}
+		c.JSON(200, struct {
+			novel.PublicNovelChapter
+			CommentContext string `json:"comment_context"`
+		}{out, a.signChapterCommentContext(id, chapter, out.Version)})
 	})
 }
