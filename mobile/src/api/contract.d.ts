@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+  "/api/my/short-post-submissions/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 同一次首发使用作者生成的非零 UUID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    /** 读取本人原提交回执 */
+    get: operations["readMyShortPostSubmission"];
+    /**
+     * 确认固定短帖预览
+     * @description 仅 test 环境。按提交时的作者观察期分流，普通作者首发公开，观察期作者进入先审。预览仅可提交一次，原回执不会随审核状态改变。
+     */
+    put: operations["submitShortPost"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/short-posts/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 读取已公开短帖
+     * @description 仅 test 环境。关联书名来自当前公开长文，暂不可读时整个关联字段为空。
+     */
+    get: operations["readPublicShortPost"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/short-posts/{id}/versions/1/images/{imageId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 读取已公开短帖 V1 的图片
+     * @description 仅 test 环境。每次校验帖子已发布且图片确实属于该版，响应禁止缓存。
+     */
+    get: operations["readPublicShortPostImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/short-post-previews/{id}": {
     parameters: {
       query?: never;
@@ -3124,6 +3188,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ShortPostSubmissionReceipt: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      preview_id: string;
+      /** Format: uuid */
+      post_id: string;
+      /** @enum {string} */
+      status: "published" | "pre_review";
+      /** Format: date-time */
+      submitted_at: string;
+    };
+    PublicShortPost: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      content: string;
+      author: string;
+      version: number;
+      /** Format: date-time */
+      published_at: string;
+      images: components["schemas"]["ShortPostImage"][];
+      novel: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+      } | null;
+    };
     ShortPostImage: {
       /** Format: uuid */
       id: string;
@@ -4669,6 +4761,137 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  readMyShortPostSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 同一次首发使用作者生成的非零 UUID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定首发回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostSubmissionReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  submitShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 同一次首发使用作者生成的非零 UUID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          preview_id: string;
+          /** @enum {boolean} */
+          rights_confirmed: true;
+        };
+      };
+    };
+    responses: {
+      /** @description 原请求的首发回执 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostSubmissionReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      /** @description 关联长文暂不可读、预览已使用、请求标识复用或缺笔名 */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readPublicShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 当前正式图文和关联 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicShortPost"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readPublicShortPostImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        imageId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已发布的规范化图片 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/jpeg": string;
+          "image/png": string;
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   readMyShortPostPreview: {
     parameters: {
       query?: never;

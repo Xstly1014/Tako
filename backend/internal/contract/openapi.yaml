@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.32.0
+  version: 0.33.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,113 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/short-post-submissions/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: 同一次首发使用作者生成的非零 UUID
+        schema: {type: string, format: uuid}
+    put:
+      operationId: submitShortPost
+      tags: [短内容]
+      summary: 确认固定短帖预览
+      description: 仅 test 环境。按提交时的作者观察期分流，普通作者首发公开，观察期作者进入先审。预览仅可提交一次，原回执不会随审核状态改变。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preview_id, rights_confirmed]
+              properties:
+                preview_id: {type: string, format: uuid}
+                rights_confirmed: {type: boolean, enum: [true]}
+      responses:
+        '200':
+          description: 原请求的首发回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostSubmissionReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: 关联长文暂不可读、预览已使用、请求标识复用或缺笔名
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '410': {$ref: '#/components/responses/PreviewExpired'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      operationId: readMyShortPostSubmission
+      tags: [短内容]
+      summary: 读取本人原提交回执
+      responses:
+        '200':
+          description: 固定首发回执
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostSubmissionReceipt'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/short-posts/{id}:
+    get:
+      operationId: readPublicShortPost
+      tags: [短内容]
+      security: []
+      summary: 读取已公开短帖
+      description: 仅 test 环境。关联书名来自当前公开长文，暂不可读时整个关联字段为空。
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 当前正式图文和关联
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicShortPost'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/short-posts/{id}/versions/1/images/{imageId}:
+    get:
+      operationId: readPublicShortPostImage
+      tags: [短内容]
+      security: []
+      summary: 读取已公开短帖 V1 的图片
+      description: 仅 test 环境。每次校验帖子已发布且图片确实属于该版，响应禁止缓存。
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: imageId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 已发布的规范化图片
+          content:
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-post-previews/{id}:
     parameters:
       - in: path
@@ -5829,6 +5936,39 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ShortPostSubmissionReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, preview_id, post_id, status, submitted_at]
+      properties:
+        id: {type: string, format: uuid}
+        preview_id: {type: string, format: uuid}
+        post_id: {type: string, format: uuid}
+        status: {type: string, enum: [published, pre_review]}
+        submitted_at: {type: string, format: date-time}
+    PublicShortPost:
+      type: object
+      additionalProperties: false
+      required: [id, title, content, author, version, published_at, images, novel]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 80}
+        content: {type: string, minLength: 1, maxLength: 2000}
+        author: {type: string}
+        version: {type: integer, minimum: 1}
+        published_at: {type: string, format: date-time}
+        images:
+          type: array
+          maxItems: 4
+          items: {$ref: '#/components/schemas/ShortPostImage'}
+        novel:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, title]
+          properties:
+            id: {type: string, format: uuid}
+            title: {type: string}
     ShortPostImage:
       type: object
       additionalProperties: false

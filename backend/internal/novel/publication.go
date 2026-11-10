@@ -158,7 +158,9 @@ func savePublicationReceipt(ctx context.Context, tx *sql.Tx, actor uuid.UUID, ha
 	_, err = tx.ExecContext(ctx, "INSERT INTO novel_publication_requests(owner_id,mutation_id,novel_id,operation,payload_hash,result) VALUES(?,?,?,?,?,?)", actor[:], r.MutationID[:], r.NovelID[:], r.Operation, hash[:], raw)
 	return err
 }
-func observation(ctx context.Context, tx *sql.Tx, owner uuid.UUID) (bool, error) {
+
+// UnderObservation reads the publication policy while the caller holds the author account lock.
+func UnderObservation(ctx context.Context, tx *sql.Tx, owner uuid.UUID) (bool, error) {
 	var until sql.NullTime
 	err := tx.QueryRowContext(ctx, "SELECT observation_until FROM publication_policies WHERE owner_id=?", owner[:]).Scan(&until)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -252,7 +254,7 @@ func (s Store) PrepareChapter(ctx context.Context, owner, book uuid.UUID, in Pre
 	if err != nil {
 		return zero, err
 	}
-	p.ReviewRequired, err = observation(ctx, tx, owner)
+	p.ReviewRequired, err = UnderObservation(ctx, tx, owner)
 	p.ReviewRequired = p.ReviewRequired || len(c.pending) != 0
 	if err != nil {
 		return zero, err
@@ -389,7 +391,7 @@ func (s Store) SubmitChapter(ctx context.Context, owner, book uuid.UUID, in Subm
 			return zero, err
 		}
 	}
-	pending, err := observation(ctx, tx, owner)
+	pending, err := UnderObservation(ctx, tx, owner)
 	pending = pending || len(c.pending) != 0
 	if err != nil {
 		return zero, err
