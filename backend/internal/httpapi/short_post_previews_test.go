@@ -47,6 +47,9 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 		}
 	}
 	t.Cleanup(func() {
+		if _, err := db.Exec("DELETE FROM short_post_appeals WHERE owner_id=?", owner[:]); err != nil {
+			t.Errorf("appeal fixture cleanup: %v", err)
+		}
 		if _, err := db.Exec("DELETE FROM short_post_actions WHERE actor_id IN (?,?)", owner[:], operator[:]); err != nil {
 			t.Errorf("action fixture cleanup: %v", err)
 		}

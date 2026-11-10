@@ -43,7 +43,7 @@ func (s PostStore) Queue(ctx context.Context, cursor string) (PostPage[QueueItem
 	}
 	rows, err := s.DB.QueryContext(ctx, `SELECT s.id,p.title,s.submitted_at,s.initial_pre_review FROM short_posts s
  JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=s.preview_id
- WHERE s.review_status='pending'`+clause+" ORDER BY s.submitted_at DESC,s.id DESC LIMIT 13", args...)
+ WHERE s.review_status='pending' AND s.initial_review_archive IS NULL`+clause+" ORDER BY s.submitted_at DESC,s.id DESC LIMIT 13", args...)
 	if err != nil {
 		return out, err
 	}

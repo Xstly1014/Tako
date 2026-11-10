@@ -27,6 +27,7 @@ type PostAction struct {
 	Reason           string     `json:"reason,omitempty"`
 	Version          uint64     `json:"version,omitempty"`
 	RevisionID       *uuid.UUID `json:"revision_id,omitempty"`
+	AppealID         *uuid.UUID `json:"appeal_id,omitempty"`
 }
 
 type PostState struct {
@@ -40,13 +41,15 @@ type PostState struct {
 
 type ManagedPost struct {
 	PostState
-	Title          string          `json:"title"`
-	Content        string          `json:"content"`
-	SubmittedAt    time.Time       `json:"submitted_at"`
-	Images         []ImageMetadata `json:"images"`
-	DisplayVersion uint64          `json:"display_version"`
-	HistoryEnabled bool            `json:"history_enabled"`
-	Reason         string          `json:"review_reason"`
+	Title              string          `json:"title"`
+	Content            string          `json:"content"`
+	SubmittedAt        time.Time       `json:"submitted_at"`
+	Images             []ImageMetadata `json:"images"`
+	DisplayVersion     uint64          `json:"display_version"`
+	HistoryEnabled     bool            `json:"history_enabled"`
+	LatestSubmissionID *uuid.UUID      `json:"latest_submission_id"`
+	LimitCaseRevision  *uint64         `json:"limit_case_revision"`
+	Reason             string          `json:"review_reason"`
 }
 
 func (s PostStore) Manage(ctx context.Context, post, owner uuid.UUID) (ManagedPost, error) {
@@ -58,20 +61,31 @@ func (s PostStore) Manage(ctx context.Context, post, owner uuid.UUID) (ManagedPo
 	}
 	defer tx.Rollback()
 	var ownerID, preview uuid.UUID
-	query := `SELECT s.owner_id,p.id,s.state_revision,s.review_status,s.author_hidden,s.platform_limited,
- s.first_published_at,s.submitted_at,p.title,p.content,s.display_version,s.history_enabled,
- COALESCE((SELECT reason FROM short_post_actions WHERE post_id=s.id AND target_revision_id IS NULL AND target_version IS NULL AND action IN ('approve','reject','limit','revoke_limit')
+	var latest uuid.NullUUID
+	ownerView := owner != uuid.Nil
+	query := `SELECT s.owner_id,p.id,s.state_revision,
+ IF(?,s.review_status,COALESCE(s.initial_review_archive,s.review_status)),s.author_hidden,s.platform_limited,
+ s.first_published_at,s.submitted_at,p.title,p.content,s.display_version,s.history_enabled,r.id,
+ IF(s.platform_limited,(SELECT MAX(state_revision) FROM short_post_actions WHERE post_id=s.id AND action='limit'),NULL),
+ COALESCE(IF(s.display_version=0,r.reason,NULL),(SELECT reason FROM short_post_actions WHERE post_id=s.id
+ AND target_revision_id IS NULL AND target_version IS NULL AND action IN ('approve','reject','limit','revoke_limit','appeal_revoke')
  ORDER BY state_revision DESC LIMIT 1),'')
  FROM short_posts s
  LEFT JOIN short_post_versions v ON v.post_id=s.id AND v.version=s.display_version AND ?
- JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=COALESCE(v.preview_id,s.preview_id) WHERE s.id=?`
-	args := []any{owner != uuid.Nil, post[:]}
-	if owner != uuid.Nil {
+ LEFT JOIN short_post_revision_submissions r ON r.post_id=s.id AND r.owner_id=s.owner_id AND r.id=(
+ SELECT sr.id FROM short_post_revision_submissions sr WHERE sr.post_id=s.id ORDER BY sr.expected_revision DESC LIMIT 1) AND ?
+ JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=COALESCE(v.preview_id,IF(s.display_version=0,r.preview_id,NULL),s.preview_id)
+ WHERE s.id=?`
+	args := []any{ownerView, ownerView, ownerView, post[:]}
+	if ownerView {
 		query += " AND s.owner_id=?"
 		args = append(args, owner[:])
 	}
-	err = tx.QueryRowContext(ctx, query, args...).Scan(&ownerID, &preview, &out.Revision, &out.ReviewStatus,
-		&out.AuthorHidden, &out.PlatformLimited, &out.PublishedAt, &out.SubmittedAt, &out.Title, &out.Content, &out.DisplayVersion, &out.HistoryEnabled, &out.Reason)
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&ownerID, &preview, &out.Revision, &out.ReviewStatus, &out.AuthorHidden,
+		&out.PlatformLimited, &out.PublishedAt, &out.SubmittedAt, &out.Title, &out.Content, &out.DisplayVersion, &out.HistoryEnabled, &latest, &out.LimitCaseRevision, &out.Reason)
+	if latest.Valid {
+		out.LatestSubmissionID = &latest.UUID
+	}
 	if err != nil {
 		return out, err
 	}
@@ -97,9 +111,11 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 	in.Reason = strings.TrimSpace(in.Reason)
 	ownerAction := in.Action == "hide" || in.Action == "restore" || in.Action == "history_open" || in.Action == "history_close" || in.Action == "show_version"
 	versionLimit := in.Action == "limit_version" || in.Action == "revoke_version_limit"
-	operatorAction := in.Action == "approve" || in.Action == "reject" || in.Action == "limit" || in.Action == "revoke_limit" || versionLimit
+	appealAction := in.Action == "appeal_uphold" || in.Action == "appeal_revoke"
+	operatorAction := in.Action == "approve" || in.Action == "reject" || in.Action == "limit" || in.Action == "revoke_limit" || versionLimit || appealAction
 	if actor == uuid.Nil || post == uuid.Nil || in.MutationID == uuid.Nil || in.ExpectedRevision == 0 || in.ExpectedRevision >= maxRevision ||
 		(operator && !operatorAction) || (!operator && !ownerAction) ||
+		appealAction != (in.AppealID != nil) || (in.AppealID != nil && *in.AppealID == uuid.Nil) ||
 		(in.Action == "show_version" || versionLimit) != (in.Version > 0) || in.Version > maxRevision ||
 		(in.RevisionID != nil && (!operator || *in.RevisionID == uuid.Nil || (in.Action != "approve" && in.Action != "reject"))) ||
 		!utf8.ValidString(in.Reason) || utf8.RuneCountInString(in.Reason) > 500 || (!operator && in.Reason != "") ||
@@ -138,32 +154,41 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 	}
 	var lastVersion, displayVersion uint64
 	var history bool
-	query := `SELECT state_revision,review_status,author_hidden,platform_limited,first_published_at,last_version,display_version,history_enabled
+	var archive sql.NullString
+	query := `SELECT state_revision,review_status,author_hidden,platform_limited,first_published_at,last_version,display_version,history_enabled,initial_review_archive
  FROM short_posts WHERE id=?`
 	args := []any{post[:]}
 	if !operator {
 		query += " AND owner_id=?"
 		args = append(args, actor[:])
 	}
-	err = tx.QueryRowContext(ctx, query+" FOR UPDATE", args...).Scan(&out.Revision, &out.ReviewStatus, &out.AuthorHidden, &out.PlatformLimited, &out.PublishedAt, &lastVersion, &displayVersion, &history)
+	err = tx.QueryRowContext(ctx, query+" FOR UPDATE", args...).Scan(&out.Revision, &out.ReviewStatus, &out.AuthorHidden, &out.PlatformLimited, &out.PublishedAt, &lastVersion, &displayVersion, &history, &archive)
 	if err != nil {
 		return PostState{}, err
 	}
 	if out.Revision != in.ExpectedRevision {
 		return PostState{}, ErrStateConflict
 	}
+	var appealVersion *uint64
 	switch {
+	case appealAction:
+		appealVersion, err = decideAppeal(ctx, tx, &out, *in.AppealID, in.Action == "appeal_revoke", in.Reason)
+		if err != nil {
+			return PostState{}, err
+		}
 	case versionLimit:
 		if err = changeVersionLimit(ctx, tx, post, in.Version, in.Action == "limit_version"); err != nil {
 			return PostState{}, err
+		}
+		if in.Action == "revoke_version_limit" {
+			if err = closeAppealsOnRevocation(ctx, tx, post, &in.Version, in.Reason); err != nil {
+				return PostState{}, err
+			}
 		}
 		if in.Version == 1 && in.Action == "limit_version" {
 			out.ReviewStatus = "reviewed"
 		}
 	case in.RevisionID != nil:
-		if lastVersion == 0 {
-			return PostState{}, ErrStateConflict
-		}
 		priorLast := lastVersion
 		lastVersion, err = decideRevision(ctx, tx, post, *in.RevisionID, lastVersion, in.Action == "approve", in.Reason)
 		if err != nil {
@@ -171,6 +196,17 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 		}
 		if lastVersion != priorLast {
 			displayVersion = lastVersion
+		}
+		if priorLast == 0 {
+			out.ReviewStatus = "rejected"
+			if lastVersion == 1 {
+				var published time.Time
+				if err = tx.QueryRowContext(ctx, "SELECT published_at FROM short_post_versions WHERE post_id=? AND version=1", post[:]).Scan(&published); err != nil {
+					return PostState{}, err
+				}
+				out.PublishedAt = &published
+				out.ReviewStatus = "reviewed"
+			}
 		}
 	case in.Action == "history_open" || in.Action == "history_close":
 		open := in.Action == "history_open"
@@ -194,8 +230,16 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 		}
 		displayVersion = in.Version
 	default:
+		if archive.Valid && (in.Action == "approve" || in.Action == "reject") {
+			return PostState{}, ErrStateConflict
+		}
 		if err = applyPostAction(ctx, tx, &out, in.Action); err != nil {
 			return PostState{}, err
+		}
+		if in.Action == "revoke_limit" {
+			if err = closeAppealsOnRevocation(ctx, tx, post, nil, in.Reason); err != nil {
+				return PostState{}, err
+			}
 		}
 		if in.Action == "restore" {
 			err = tx.QueryRowContext(ctx, "SELECT version FROM short_post_versions WHERE post_id=? AND platform_limited=FALSE ORDER BY version DESC LIMIT 1 FOR UPDATE", post[:]).Scan(&displayVersion)
@@ -225,15 +269,21 @@ func (s PostStore) ChangeState(ctx context.Context, actor, post uuid.UUID, opera
 	if err != nil {
 		return PostState{}, err
 	}
-	var targetRevision, targetVersion any
+	var targetRevision, targetVersion, targetAppeal any
+	if appealAction {
+		targetAppeal = (*in.AppealID)[:]
+	}
+	if in.Action == "appeal_revoke" && appealVersion != nil {
+		targetVersion = *appealVersion
+	}
 	if versionLimit {
 		targetVersion = in.Version
 	}
 	if in.RevisionID != nil {
 		targetRevision = (*in.RevisionID)[:]
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO short_post_actions(actor_id,mutation_id,post_id,state_revision,action,reason,payload_hash,receipt,target_revision_id,target_version)
- VALUES(?,?,?,?,?,?,?,?,?,?)`, actor[:], in.MutationID[:], post[:], out.Revision, in.Action, in.Reason, digest[:], receipt, targetRevision, targetVersion); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO short_post_actions(actor_id,mutation_id,post_id,state_revision,action,reason,payload_hash,receipt,target_revision_id,target_version,target_appeal_id)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?)`, actor[:], in.MutationID[:], post[:], out.Revision, in.Action, in.Reason, digest[:], receipt, targetRevision, targetVersion, targetAppeal); err != nil {
 		return PostState{}, err
 	}
 	return out, tx.Commit()

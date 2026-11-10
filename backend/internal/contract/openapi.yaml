@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.36.0
+  version: 0.37.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,137 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/short-posts/{id}/appeals:
+    get:
+      operationId: listMyShortPostAppeals
+      tags: [短内容]
+      summary: 查看本人短帖复核记录
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 查看本人短帖复核记录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostAppealPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/appeals/{appealId}:
+    put:
+      operationId: fileShortPostAppeal
+      tags: [短内容]
+      summary: 为本人的有效处置提交复核
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: appealId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [case_revision, reason]
+              properties:
+                case_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '200':
+          description: 为本人的有效处置提交复核
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostAppeal'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      operationId: readMyShortPostAppeal
+      tags: [短内容]
+      summary: 读取本人短帖复核申请
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: appealId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 读取本人短帖复核申请
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostAppeal'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/appeals/{appealId}:
+    get:
+      operationId: readOpsShortPostAppeal
+      tags: [短内容]
+      summary: 运营读取短帖复核申请
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: path
+          name: appealId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 运营读取短帖复核申请
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostAppeal'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-post-appeals:
+    get:
+      operationId: listOpsShortPostAppeals
+      tags: [短内容]
+      summary: 运营读取待处理短帖复核队列
+      parameters:
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 运营读取待处理短帖复核队列
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostAppealPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/ops/short-post-revisions:
     get:
       operationId: listShortPostRevisionQueue
@@ -147,7 +278,7 @@ paths:
     put:
       operationId: reviseShortPost
       tags: [短内容]
-      summary: 用固定预览修订本人已正式发布的短帖
+      summary: 用固定预览修订本人短帖或替换首次待审稿
       parameters:
         - in: path
           name: id
@@ -171,7 +302,7 @@ paths:
                 expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
       responses:
         '200':
-          description: 用固定预览修订本人已正式发布的短帖
+          description: 用固定预览修订本人短帖或替换首次待审稿
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ShortPostSubmissionReceipt'}
@@ -386,7 +517,7 @@ paths:
       operationId: changeOpsShortPost
       tags: [短内容]
       summary: 运营处理短帖状态
-      description: 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。限制或撤销指定正式版本时填写 version。 同一账号、原请求 ID 与载荷重试返回原回执。
+      description: 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。限制或撤销指定正式版本时填写 version。复核决定填写 appeal_id。 同一账号、原请求 ID 与载荷重试返回原回执。
       parameters:
         - in: path
           name: id
@@ -403,8 +534,9 @@ paths:
               properties:
                 mutation_id: {type: string, format: uuid}
                 expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
-                action: {type: string, enum: [approve, reject, limit, revoke_limit, limit_version, revoke_version_limit]}
+                action: {type: string, enum: [approve, reject, limit, revoke_limit, limit_version, revoke_version_limit, appeal_uphold, appeal_revoke]}
                 version: {type: integer, minimum: 1, maximum: 9007199254740991}
+                appeal_id: {type: string, format: uuid}
                 revision_id: {type: string, format: uuid}
                 reason: {type: string, maxLength: 500}
       responses:
@@ -6342,6 +6474,30 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    ShortPostAppeal:
+      type: object
+      additionalProperties: false
+      required: [id, post_id, case_revision, version, state, reason, decision_reason, submitted_at, decided_at]
+      properties:
+        id: {type: string, format: uuid}
+        post_id: {type: string, format: uuid}
+        case_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
+        state: {type: string, enum: [pending, upheld, revoked]}
+        reason: {type: string, minLength: 1, maxLength: 500}
+        decision_reason: {type: string, maxLength: 500}
+        submitted_at: {type: string, format: date-time}
+        decided_at: {type: string, format: date-time, nullable: true}
+    ShortPostAppealPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_before]
+      properties:
+        next_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+        items:
+          type: array
+          maxItems: 12
+          items: {$ref: '#/components/schemas/ShortPostAppeal'}
     ShortPostRevisionQueuePage:
       type: object
       additionalProperties: false
@@ -6396,7 +6552,7 @@ components:
       properties:
         id: {type: string, format: uuid}
         state_revision: {type: integer, minimum: 1, maximum: 9007199254740991}
-        review_status: {type: string, enum: [pending, reviewed, rejected]}
+        review_status: {type: string, enum: [pending, reviewed, rejected, superseded]}
         author_hidden: {type: boolean}
         platform_limited: {type: boolean}
         published_at: {type: string, format: date-time, nullable: true}
@@ -6404,8 +6560,9 @@ components:
       allOf:
         - $ref: '#/components/schemas/ShortPostState'
         - type: object
-          required: [title, content, submitted_at, images, review_reason, display_version, history_enabled]
+          required: [title, content, submitted_at, images, review_reason, display_version, history_enabled, latest_submission_id, limit_case_revision]
           properties:
+            latest_submission_id: {type: string, format: uuid, nullable: true}
             display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
             history_enabled: {type: boolean}
             title: {type: string, minLength: 1, maxLength: 80}
@@ -6415,6 +6572,7 @@ components:
               type: array
               maxItems: 4
               items: {$ref: '#/components/schemas/ShortPostImage'}
+            limit_case_revision: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
             review_reason: {type: string, maxLength: 500}
     ShortPostFeedPage:
       type: object
@@ -6495,9 +6653,10 @@ components:
     OwnedShortPostVersion:
       type: object
       additionalProperties: false
-      required: [id, title, content, author, version, published_at, images, novel, platform_limited, review_reason]
+      required: [id, title, content, author, version, published_at, images, novel, platform_limited, review_reason, limit_case_revision]
       properties:
         platform_limited: {type: boolean}
+        limit_case_revision: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
         review_reason: {type: string, maxLength: 500}
         id: {type: string, format: uuid}
         title: {type: string, minLength: 1, maxLength: 80}

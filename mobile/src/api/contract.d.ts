@@ -4,6 +4,75 @@
  */
 
 export interface paths {
+  "/api/my/short-posts/{id}/appeals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查看本人短帖复核记录 */
+    get: operations["listMyShortPostAppeals"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}/appeals/{appealId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 读取本人短帖复核申请 */
+    get: operations["readMyShortPostAppeal"];
+    /** 为本人的有效处置提交复核 */
+    put: operations["fileShortPostAppeal"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}/appeals/{appealId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营读取短帖复核申请 */
+    get: operations["readOpsShortPostAppeal"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-post-appeals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营读取待处理短帖复核队列 */
+    get: operations["listOpsShortPostAppeals"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ops/short-post-revisions": {
     parameters: {
       query?: never;
@@ -98,7 +167,7 @@ export interface paths {
     };
     /** 读取本人提交的修订快照和状态 */
     get: operations["readMyShortPostRevision"];
-    /** 用固定预览修订本人已正式发布的短帖 */
+    /** 用固定预览修订本人短帖或替换首次待审稿 */
     put: operations["reviseShortPost"];
     post?: never;
     delete?: never;
@@ -246,7 +315,7 @@ export interface paths {
     put?: never;
     /**
      * 运营处理短帖状态
-     * @description 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。限制或撤销指定正式版本时填写 version。 同一账号、原请求 ID 与载荷重试返回原回执。
+     * @description 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。限制或撤销指定正式版本时填写 version。复核决定填写 appeal_id。 同一账号、原请求 ID 与载荷重试返回原回执。
      */
     post: operations["changeOpsShortPost"];
     delete?: never;
@@ -3439,6 +3508,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ShortPostAppeal: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      post_id: string;
+      case_revision: number;
+      version: number | null;
+      /** @enum {string} */
+      state: "pending" | "upheld" | "revoked";
+      reason: string;
+      decision_reason: string;
+      /** Format: date-time */
+      submitted_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+    };
+    ShortPostAppealPage: {
+      next_before: number;
+      items: components["schemas"]["ShortPostAppeal"][];
+    };
     ShortPostRevisionQueuePage: {
       next_cursor: string;
       items: {
@@ -3484,13 +3573,15 @@ export interface components {
       id: string;
       state_revision: number;
       /** @enum {string} */
-      review_status: "pending" | "reviewed" | "rejected";
+      review_status: "pending" | "reviewed" | "rejected" | "superseded";
       author_hidden: boolean;
       platform_limited: boolean;
       /** Format: date-time */
       published_at: string | null;
     };
     ShortPostManaged: components["schemas"]["ShortPostState"] & {
+      /** Format: uuid */
+      latest_submission_id: string | null;
       display_version: number;
       history_enabled: boolean;
       title: string;
@@ -3498,6 +3589,7 @@ export interface components {
       /** Format: date-time */
       submitted_at: string;
       images: components["schemas"]["ShortPostImage"][];
+      limit_case_revision: number | null;
       review_reason: string;
     };
     ShortPostFeedPage: {
@@ -3555,6 +3647,7 @@ export interface components {
     };
     OwnedShortPostVersion: {
       platform_limited: boolean;
+      limit_case_revision: number | null;
       review_reason: string;
       /** Format: uuid */
       id: string;
@@ -5116,6 +5209,155 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listMyShortPostAppeals: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 查看本人短帖复核记录 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostAppealPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readMyShortPostAppeal: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 读取本人短帖复核申请 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostAppeal"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  fileShortPostAppeal: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          case_revision: number;
+          reason: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 为本人的有效处置提交复核 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostAppeal"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readOpsShortPostAppeal: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 运营读取短帖复核申请 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostAppeal"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listOpsShortPostAppeals: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 运营读取待处理短帖复核队列 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostAppealPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listShortPostRevisionQueue: {
     parameters: {
       query?: {
@@ -5305,7 +5547,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description 用固定预览修订本人已正式发布的短帖 */
+      /** @description 用固定预览修订本人短帖或替换首次待审稿 */
       200: {
         headers: {
           [name: string]: unknown;
@@ -5556,8 +5798,12 @@ export interface operations {
             | "limit"
             | "revoke_limit"
             | "limit_version"
-            | "revoke_version_limit";
+            | "revoke_version_limit"
+            | "appeal_uphold"
+            | "appeal_revoke";
           version?: number;
+          /** Format: uuid */
+          appeal_id?: string;
           /** Format: uuid */
           revision_id?: string;
           reason?: string;
