@@ -10,4 +10,15 @@ node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scr
 
 本机 test HTTP/MySQL 实测三个队列均完成读取。先审 0 项、复核 0 项、后审 226 项，其中 211 项超过 48 小时。该数据来自本机测试库。类型检查及两项定向验证通过，覆盖两种游标、重复任务、替换后首次等待、48 小时边界和扫描中断。会话扫描完成后退出。
 
-本包提供按需巡检，定时运行、通知恢复和负责人处置演练仍是开放前的 P1。退出条件是对齐通知渠道和负责人，用已超时、扫描失败和恢复三种状态完成实际演练。 [审核时效规则](../increment-b-review.md) · [开放门槛](../handoff/07-primary-takeover.md)
+## 持久化跟踪
+
+```powershell
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --track
+node --no-warnings agents/author-support/scripts/review-backlog.ts --events
+```
+
+`--track` 将事件和最近一次完整积压快照写入本地 `.runtime/author-agent/review-backlog.sqlite`。每类队列只记录新增逾期或不再观测到的任务，积压总量相同也能发现任务更替。任务消失后，负责人仍须从原运营队列核对实际处理结果。扫描失败时保留最后一次完整积压，连续失败只记录一个事件，下一次成功记录扫描恢复。按扫描开始时间拒绝晚到的旧结果。事件和状态在同一事务提交，可通过 `--events` 查询最近 20 条事件。
+
+真实本地服务连续执行两次，均读到 211 项后审逾期。首次产生一个积压事件，第二次零新增事件，重新启动命令后可读到已持久化事件。两次运营会话均正常退出。三项定向测试与类型通过，受控演练覆盖扫描故障、恢复、旧扫描晚到、同量换项和积压清零。
+
+定时运行、通知投递和负责人实际处置仍是开放前的 P1。退出条件是对齐通知渠道和负责人，在目标环境对已超时、扫描失败和恢复完成投递和处置演练。 [审核时效规则](../increment-b-review.md) · [开放门槛](../handoff/07-primary-takeover.md)
