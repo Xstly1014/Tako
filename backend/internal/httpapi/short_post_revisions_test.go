@@ -42,8 +42,8 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 	act := func(actor uuid.UUID, path, action string, version uint64, submission *uuid.UUID, want int, code string) {
 		t.Helper()
 		in := shortpost.PostAction{MutationID: uuid.New(), ExpectedRevision: managed().Revision, Action: action, Version: version, RevisionID: submission}
-		if action == "reject" {
-			in.Reason = "合成驳回原因"
+		if action == "reject" || action == "limit_version" || action == "revoke_version_limit" {
+			in.Reason = "合成审核原因"
 		}
 		request("POST", actor, path+"/actions", in, want, code)
 	}
@@ -62,6 +62,23 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 	}
 	if !bytes.Equal(raw, request("PUT", owner, ownerPath+"/revisions/"+first.String(), in, 200, "").Body.Bytes()) {
 		t.Fatal("revision receipt changed")
+	}
+	queuePath := "/api/ops/short-post-revisions"
+	queue := func() shortpost.PostPage[shortpost.RevisionQueueItem] {
+		t.Helper()
+		return novelResult[shortpost.PostPage[shortpost.RevisionQueueItem]](t, request("GET", operator, queuePath, nil, 200, "").Body.Bytes())
+	}
+	queued := queue()
+	if len(queued.Items) != 1 || queued.Items[0].ID != first || queued.Items[0].PreReview || queued.Items[0].Version == nil || *queued.Items[0].Version != 2 {
+		t.Fatal("normal revision missing from the post-review queue")
+	}
+	act(operator, opsPath, "approve", 0, &first, 200, "")
+	if len(queue().Items) != 0 {
+		t.Fatal("reviewed revision stayed in queue")
+	}
+	postReview := novelResult[shortpost.RevisionSnapshot](t, request("GET", owner, ownerPath+"/revisions/"+first.String(), nil, 200, "").Body.Bytes())
+	if postReview.PostReviewPending || postReview.Version == nil || *postReview.Version != 2 {
+		t.Fatal("post-review created a new official version or left the revision pending")
 	}
 	readVersion(2)
 	request("GET", uuid.Nil, publicPath+"/versions/2/images/"+image.String(), nil, 200, "")
@@ -100,10 +117,9 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 	if got := novelResult[shortpost.RevisionSnapshot](t, request("GET", operator, opsPath+"/revisions/"+old.String(), nil, 200, "").Body.Bytes()); got.State != "superseded" || got.Version != nil {
 		t.Fatal("replacement left an official version")
 	}
-	queuePath := "/api/ops/short-post-revisions"
 	request("GET", other, queuePath, nil, 403, "operator_required")
-	queue := novelResult[shortpost.PostPage[shortpost.RevisionQueueItem]](t, request("GET", operator, queuePath, nil, 200, "").Body.Bytes())
-	if len(queue.Items) != 1 || queue.Items[0].ID != replacement {
+	queued = queue()
+	if len(queued.Items) != 1 || queued.Items[0].ID != replacement || !queued.Items[0].PreReview || queued.Items[0].Version != nil {
 		t.Fatal("review queue did not keep only the current submission")
 	}
 	reviewImage := opsPath + "/revisions/" + replacement.String() + "/images/" + image.String()
@@ -127,4 +143,45 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 		t.Fatal("rejected revision leaked or lost reason")
 	}
 	readVersion(3)
+	setObservation(false)
+	v4, _, _ := revise("第四版", image)
+	readVersion(4)
+	act(owner, ownerPath, "history_open", 0, nil, 200, "")
+	act(operator, opsPath, "limit_version", 4, nil, 200, "")
+	if len(queue().Items) != 0 {
+		t.Fatal("limited revision stayed in post-review queue")
+	}
+	limited := novelResult[shortpost.OwnedPostVersion](t, request("GET", owner, ownerPath+"/versions/4", nil, 200, "").Body.Bytes())
+	if !limited.PlatformLimited || limited.ReviewReason != "合成审核原因" || limited.Content == "" {
+		t.Fatal("author restriction details incorrect")
+	}
+	request("GET", uuid.Nil, publicPath, nil, 404, "resource_not_found")
+	request("GET", uuid.Nil, publicPath+"/versions/4", nil, 404, "resource_not_found")
+	v4Image := publicPath + "/versions/4/images/" + image.String()
+	request("GET", uuid.Nil, v4Image, nil, 404, "resource_not_found")
+	request("GET", uuid.Nil, publicPath+"/versions/2/images/"+image.String(), nil, 200, "")
+	nodes := novelResult[[]shortpost.VersionNode](t, request("GET", uuid.Nil, publicPath+"/versions", nil, 200, "").Body.Bytes())
+	if len(nodes) != 3 || nodes[0].Version != 3 {
+		t.Fatal("public timeline exposed the limited version")
+	}
+	page := novelResult[shortpost.PostPage[shortpost.FeedItem]](t, request("GET", uuid.Nil, "/api/short-posts", nil, 200, "").Body.Bytes())
+	for _, item := range page.Items {
+		if item.ID == post {
+			t.Fatal("limited display version remained in feed")
+		}
+	}
+	act(owner, ownerPath, "show_version", 2, nil, 200, "")
+	act(owner, ownerPath, "show_version", 4, nil, 409, "work_restricted")
+	act(owner, ownerPath, "hide", 0, nil, 200, "")
+	act(owner, ownerPath, "restore", 0, nil, 200, "")
+	readVersion(3)
+	act(operator, opsPath, "revoke_version_limit", 4, nil, 200, "")
+	readVersion(3)
+	request("GET", uuid.Nil, v4Image, nil, 200, "")
+	act(owner, ownerPath, "show_version", 4, nil, 200, "")
+	readVersion(4)
+	postReview = novelResult[shortpost.RevisionSnapshot](t, request("GET", owner, ownerPath+"/revisions/"+v4.String(), nil, 200, "").Body.Bytes())
+	if postReview.PostReviewPending || postReview.Version == nil || *postReview.Version != 4 {
+		t.Fatal("restriction reversal changed publication or post-review history")
+	}
 }

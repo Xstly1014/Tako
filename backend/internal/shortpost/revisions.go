@@ -20,12 +20,13 @@ type RevisePost struct {
 
 type RevisionSnapshot struct {
 	SubmissionReceipt
-	State   string          `json:"state"`
-	Version *uint64         `json:"version"`
-	Title   string          `json:"title"`
-	Content string          `json:"content"`
-	Images  []ImageMetadata `json:"images"`
-	Reason  string          `json:"review_reason"`
+	PostReviewPending bool            `json:"post_review_pending"`
+	State             string          `json:"state"`
+	Version           *uint64         `json:"version"`
+	Title             string          `json:"title"`
+	Content           string          `json:"content"`
+	Images            []ImageMetadata `json:"images"`
+	Reason            string          `json:"review_reason"`
 }
 
 func (s PostStore) Revise(ctx context.Context, owner, post, id uuid.UUID, in RevisePost) (SubmissionReceipt, error) {
@@ -62,7 +63,7 @@ func (s PostStore) Revise(ctx context.Context, owner, post, id uuid.UUID, in Rev
 	if err != nil {
 		return SubmissionReceipt{}, err
 	}
-	if revision != in.ExpectedRevision || last == 0 {
+	if revision != in.ExpectedRevision || last == 0 || last >= maxPostRevision {
 		return SubmissionReceipt{}, ErrStateConflict
 	}
 	if err = availablePreview(ctx, tx, owner, in.PreviewID); err != nil {
@@ -95,8 +96,8 @@ func (s PostStore) Revise(ctx context.Context, owner, post, id uuid.UUID, in Rev
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO short_post_revision_submissions
- (owner_id,id,post_id,preview_id,expected_revision,initial_pre_review,status,version,submitted_at)
- VALUES(?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6))`, owner[:], id[:], post[:], in.PreviewID[:], in.ExpectedRevision, preReview, state, version); err != nil {
+ (owner_id,id,post_id,preview_id,expected_revision,initial_pre_review,status,version,post_review_pending,submitted_at)
+ VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6))`, owner[:], id[:], post[:], in.PreviewID[:], in.ExpectedRevision, preReview, state, version, !preReview); err != nil {
 		return SubmissionReceipt{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE short_posts SET state_revision=state_revision+1 WHERE id=?", post[:]); err != nil {
@@ -130,7 +131,7 @@ func (s PostStore) Revision(ctx context.Context, owner, post, id uuid.UUID) (Rev
 		return out, err
 	}
 	defer tx.Rollback()
-	query := `SELECT r.owner_id,r.preview_id,r.initial_pre_review,r.status,r.version,r.submitted_at,r.reason,p.title,p.content
+	query := `SELECT r.owner_id,r.preview_id,r.initial_pre_review,r.status,r.version,r.submitted_at,r.reason,p.title,p.content,r.post_review_pending
  FROM short_post_revision_submissions r JOIN short_post_previews p ON p.owner_id=r.owner_id AND p.id=r.preview_id
  WHERE r.post_id=? AND r.id=?`
 	args := []any{post[:], id[:]}
@@ -140,7 +141,7 @@ func (s PostStore) Revision(ctx context.Context, owner, post, id uuid.UUID) (Rev
 	}
 	var actualOwner uuid.UUID
 	var pending bool
-	err = tx.QueryRowContext(ctx, query, args...).Scan(&actualOwner, &out.PreviewID, &pending, &out.State, &out.Version, &out.SubmittedAt, &out.Reason, &out.Title, &out.Content)
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&actualOwner, &out.PreviewID, &pending, &out.State, &out.Version, &out.SubmittedAt, &out.Reason, &out.Title, &out.Content, &out.PostReviewPending)
 	if err != nil {
 		return out, err
 	}
@@ -155,10 +156,15 @@ func (s PostStore) Revision(ctx context.Context, owner, post, id uuid.UUID) (Rev
 func decideRevision(ctx context.Context, tx *sql.Tx, post, id uuid.UUID, last uint64, approve bool, reason string) (uint64, error) {
 	var owner, preview uuid.UUID
 	var state string
-	err := tx.QueryRowContext(ctx, `SELECT owner_id,preview_id,status FROM short_post_revision_submissions
- WHERE post_id=? AND id=? FOR UPDATE`, post[:], id[:]).Scan(&owner, &preview, &state)
+	var postReview bool
+	err := tx.QueryRowContext(ctx, `SELECT owner_id,preview_id,status,post_review_pending FROM short_post_revision_submissions
+ WHERE post_id=? AND id=? FOR UPDATE`, post[:], id[:]).Scan(&owner, &preview, &state, &postReview)
 	if err != nil {
 		return 0, err
+	}
+	if state == "published" && postReview && approve {
+		_, err = tx.ExecContext(ctx, "UPDATE short_post_revision_submissions SET post_review_pending=FALSE,reason=? WHERE owner_id=? AND id=?", reason, owner[:], id[:])
+		return last, err
 	}
 	if state != "pending" {
 		return 0, ErrStateConflict
@@ -185,7 +191,7 @@ type VersionNode struct {
 
 func (s PostStore) Versions(ctx context.Context, post uuid.UUID, before uint64) ([]VersionNode, error) {
 	query := `SELECT v.version,v.published_at,COALESCE(s.history_enabled OR v.version=s.display_version,FALSE)
- FROM short_posts s LEFT JOIN short_post_versions v ON v.post_id=s.id`
+ FROM short_posts s LEFT JOIN short_post_versions v ON v.post_id=s.id AND v.platform_limited=FALSE`
 	var args []any
 	if before > 0 {
 		query += " AND v.version<?"
@@ -232,6 +238,8 @@ func (s PostStore) RevisionReviewImage(ctx context.Context, post, id, image uuid
 }
 
 type RevisionQueueItem struct {
+	PreReview   bool      `json:"pre_review"`
+	Version     *uint64   `json:"version"`
 	ID          uuid.UUID `json:"id"`
 	PostID      uuid.UUID `json:"post_id"`
 	Title       string    `json:"title"`
@@ -240,8 +248,8 @@ type RevisionQueueItem struct {
 
 func (s PostStore) RevisionQueue(ctx context.Context, cursor string) (PostPage[RevisionQueueItem], error) {
 	out := PostPage[RevisionQueueItem]{Items: []RevisionQueueItem{}}
-	query := `SELECT r.id,r.post_id,p.title,r.submitted_at FROM short_post_revision_submissions r
- JOIN short_post_previews p ON p.owner_id=r.owner_id AND p.id=r.preview_id WHERE r.status='pending'`
+	query := `SELECT r.id,r.post_id,p.title,r.submitted_at,(r.status='pending'),r.version FROM short_post_revision_submissions r
+ JOIN short_post_previews p ON p.owner_id=r.owner_id AND p.id=r.preview_id WHERE (r.status='pending' OR r.post_review_pending)`
 	var args []any
 	if cursor != "" {
 		left, right, ok := strings.Cut(cursor, ".")
@@ -268,7 +276,7 @@ func (s PostStore) RevisionQueue(ctx context.Context, cursor string) (PostPage[R
 	defer rows.Close()
 	for rows.Next() {
 		var item RevisionQueueItem
-		if err := rows.Scan(&item.ID, &item.PostID, &item.Title, &item.SubmittedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.PostID, &item.Title, &item.SubmittedAt, &item.PreReview, &item.Version); err != nil {
 			return out, err
 		}
 		out.Items = append(out.Items, item)

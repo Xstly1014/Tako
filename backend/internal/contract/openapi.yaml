@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.35.0
+  version: 0.36.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -23,14 +23,14 @@ paths:
     get:
       operationId: listShortPostRevisionQueue
       tags: [短内容]
-      summary: 运营浏览当前待先审修订
+      summary: 运营浏览待先审和待后审修订
       parameters:
         - in: query
           name: cursor
           schema: {type: string, maxLength: 73}
       responses:
         '200':
-          description: 待先审修订列表
+          description: 待处理修订列表
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ShortPostRevisionQueuePage'}
@@ -137,7 +137,7 @@ paths:
           description: 读取本人指定正式版本
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PublicShortPost'}
+              schema: {$ref: '#/components/schemas/OwnedShortPostVersion'}
         '400': {$ref: '#/components/responses/BadInput'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/OriginRejected'}
@@ -386,7 +386,7 @@ paths:
       operationId: changeOpsShortPost
       tags: [短内容]
       summary: 运营处理短帖状态
-      description: 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。 同一账号、原请求 ID 与载荷重试返回原回执。
+      description: 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。限制或撤销指定正式版本时填写 version。 同一账号、原请求 ID 与载荷重试返回原回执。
       parameters:
         - in: path
           name: id
@@ -403,7 +403,8 @@ paths:
               properties:
                 mutation_id: {type: string, format: uuid}
                 expected_revision: {type: integer, minimum: 1, maximum: 9007199254740990}
-                action: {type: string, enum: [approve, reject, limit, revoke_limit]}
+                action: {type: string, enum: [approve, reject, limit, revoke_limit, limit_version, revoke_version_limit]}
+                version: {type: integer, minimum: 1, maximum: 9007199254740991}
                 revision_id: {type: string, format: uuid}
                 reason: {type: string, maxLength: 500}
       responses:
@@ -6353,11 +6354,13 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, post_id, title, submitted_at]
+            required: [id, post_id, title, submitted_at, pre_review, version]
             properties:
               id: {type: string, format: uuid}
               post_id: {type: string, format: uuid}
               title: {type: string, minLength: 1, maxLength: 80}
+              pre_review: {type: boolean}
+              version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
               submitted_at: {type: string, format: date-time}
     ShortPostVersionNode:
       type: object
@@ -6370,8 +6373,9 @@ components:
     ShortPostRevisionSnapshot:
       type: object
       additionalProperties: false
-      required: [id, preview_id, post_id, status, submitted_at, state, version, title, content, images, review_reason]
+      required: [id, preview_id, post_id, status, submitted_at, state, version, title, content, images, review_reason, post_review_pending]
       properties:
+        post_review_pending: {type: boolean}
         id: {type: string, format: uuid}
         preview_id: {type: string, format: uuid}
         post_id: {type: string, format: uuid}
@@ -6470,6 +6474,31 @@ components:
       additionalProperties: false
       required: [id, title, content, author, version, published_at, images, novel]
       properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 80}
+        content: {type: string, minLength: 1, maxLength: 2000}
+        author: {type: string}
+        version: {type: integer, minimum: 1}
+        published_at: {type: string, format: date-time}
+        images:
+          type: array
+          maxItems: 4
+          items: {$ref: '#/components/schemas/ShortPostImage'}
+        novel:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, title]
+          properties:
+            id: {type: string, format: uuid}
+            title: {type: string}
+    OwnedShortPostVersion:
+      type: object
+      additionalProperties: false
+      required: [id, title, content, author, version, published_at, images, novel, platform_limited, review_reason]
+      properties:
+        platform_limited: {type: boolean}
+        review_reason: {type: string, maxLength: 500}
         id: {type: string, format: uuid}
         title: {type: string, minLength: 1, maxLength: 80}
         content: {type: string, minLength: 1, maxLength: 2000}

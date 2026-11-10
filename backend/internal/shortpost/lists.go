@@ -70,7 +70,7 @@ func (s PostStore) Feed(ctx context.Context, cursor string) (PostPage[FeedItem],
 	}
 	rows, err := s.DB.QueryContext(ctx, `SELECT s.id,p.title,LEFT(p.content,120),a.nickname,v.version,s.first_published_at,
  i.id,COALESCE(i.media_type,''),COALESCE(i.width,0),COALESCE(i.height,0)
- FROM short_posts s JOIN short_post_versions v ON v.post_id=s.id AND v.version=s.display_version
+ FROM short_posts s JOIN short_post_versions v ON v.post_id=s.id AND v.version=s.display_version AND v.platform_limited=FALSE
  JOIN short_post_previews p ON p.owner_id=v.owner_id AND p.id=v.preview_id
  JOIN accounts a ON a.id=s.owner_id
  LEFT JOIN short_post_preview_images m ON m.owner_id=v.owner_id AND m.preview_id=v.preview_id AND m.position=1
