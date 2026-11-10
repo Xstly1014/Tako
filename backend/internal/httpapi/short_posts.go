@@ -3,6 +3,7 @@ package httpapi
 import (
 	"database/sql"
 	"errors"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -61,21 +62,60 @@ func (a API) registerShortPosts(api, protected *gin.RouterGroup) {
 			respondError(c, 404, "resource_not_found")
 			return
 		}
-		out, err := store.Public(c.Request.Context(), id)
+		out, err := store.Public(c.Request.Context(), id, 0)
 		if err != nil {
 			shortPostError(c, err)
 			return
 		}
 		c.JSON(200, out)
 	})
-	posts.GET("/versions/1/images/:imageId", func(c *gin.Context) {
-		post, postErr := uuid.Parse(c.Param("id"))
-		image, imageErr := uuid.Parse(c.Param("imageId"))
-		if postErr != nil || imageErr != nil || post == uuid.Nil || image == uuid.Nil {
+	posts.GET("/versions", func(c *gin.Context) {
+		id, ok := shortPostTarget(c, "id")
+		if !ok {
+			return
+		}
+		var before uint64
+		if raw := c.Query("before"); raw != "" {
+			var valid bool
+			before, valid = shortPostVersion(raw)
+			if !valid {
+				respondError(c, 400, "invalid_input")
+				return
+			}
+		}
+		out, err := store.Versions(c.Request.Context(), id, before)
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.JSON(200, out)
+	})
+	posts.GET("/versions/:version", func(c *gin.Context) {
+		id, ok := shortPostTarget(c, "id")
+		if !ok {
+			return
+		}
+		version, ok := shortPostVersion(c.Param("version"))
+		if !ok {
 			respondError(c, 404, "resource_not_found")
 			return
 		}
-		mediaType, content, err := store.PublicImage(c.Request.Context(), post, image)
+		out, err := store.Public(c.Request.Context(), id, version)
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.JSON(200, out)
+	})
+	posts.GET("/versions/:version/images/:imageId", func(c *gin.Context) {
+		post, postErr := uuid.Parse(c.Param("id"))
+		image, imageErr := uuid.Parse(c.Param("imageId"))
+		version, valid := shortPostVersion(c.Param("version"))
+		if postErr != nil || imageErr != nil || post == uuid.Nil || image == uuid.Nil || !valid {
+			respondError(c, 404, "resource_not_found")
+			return
+		}
+		mediaType, content, err := store.PublicImage(c.Request.Context(), post, image, version)
 		if err != nil {
 			shortPostError(c, err)
 			return
@@ -111,4 +151,9 @@ func shortPostError(c *gin.Context, err error) {
 	default:
 		respondError(c, 503, "service_unavailable")
 	}
+}
+
+func shortPostVersion(raw string) (uint64, bool) {
+	version, err := strconv.ParseUint(raw, 10, 64)
+	return version, err == nil && version > 0 && version <= 9007199254740991
 }

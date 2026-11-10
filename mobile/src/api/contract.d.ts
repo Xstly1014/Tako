@@ -4,6 +4,126 @@
  */
 
 export interface paths {
+  "/api/ops/short-post-revisions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营浏览当前待先审修订 */
+    get: operations["listShortPostRevisionQueue"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}/revisions/{revisionId}/images/{imageId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营读取已提交修订的指定图片 */
+    get: operations["readShortPostRevisionReviewImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/short-posts/{id}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 读取公开短帖版本节点 */
+    get: operations["listShortPostVersions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/short-posts/{id}/versions/{version}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 读取指定公开版本 */
+    get: operations["readShortPostVersion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}/versions/{version}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 读取本人指定正式版本 */
+    get: operations["readMyShortPostVersion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}/revisions/{revisionId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 读取本人提交的修订快照和状态 */
+    get: operations["readMyShortPostRevision"];
+    /** 用固定预览修订本人已正式发布的短帖 */
+    put: operations["reviseShortPost"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}/revisions/{revisionId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 运营读取已提交的修订快照 */
+    get: operations["readOpsShortPostRevision"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/short-posts": {
     parameters: {
       query?: never;
@@ -89,7 +209,7 @@ export interface paths {
     put?: never;
     /**
      * 作者处理短帖状态
-     * @description 作品存在平台限制时无法恢复公开。 同一账号、原请求 ID 与载荷重试返回原回执。
+     * @description 作品存在平台限制时无法恢复公开。show_version 需要正式版本号。 同一账号、原请求 ID 与载荷重试返回原回执。
      */
     post: operations["changeMyShortPost"];
     delete?: never;
@@ -126,7 +246,7 @@ export interface paths {
     put?: never;
     /**
      * 运营处理短帖状态
-     * @description 驳回、限制及撤销限制须填写原因。 同一账号、原请求 ID 与载荷重试返回原回执。
+     * @description 驳回、限制及撤销限制须填写原因。通过或驳回后续修订时填写 revision_id。 同一账号、原请求 ID 与载荷重试返回原回执。
      */
     post: operations["changeOpsShortPost"];
     delete?: never;
@@ -179,7 +299,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/short-posts/{id}/versions/1/images/{imageId}": {
+  "/api/short-posts/{id}/versions/{version}/images/{imageId}": {
     parameters: {
       query?: never;
       header?: never;
@@ -187,8 +307,8 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * 读取已公开短帖 V1 的图片
-     * @description 仅 test 环境。每次校验帖子已发布且图片确实属于该版，响应禁止缓存。
+     * 读取短帖指定正式版本的图片
+     * @description 仅 test 环境。每次校验指定版本可读且图片确实属于该版，响应禁止缓存。
      */
     get: operations["readPublicShortPostImage"];
     put?: never;
@@ -3319,6 +3439,43 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ShortPostRevisionQueuePage: {
+      next_cursor: string;
+      items: {
+        /** Format: uuid */
+        id: string;
+        /** Format: uuid */
+        post_id: string;
+        title: string;
+        /** Format: date-time */
+        submitted_at: string;
+      }[];
+    };
+    ShortPostVersionNode: {
+      version: number;
+      /** Format: date-time */
+      published_at: string;
+      readable: boolean;
+    };
+    ShortPostRevisionSnapshot: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      preview_id: string;
+      /** Format: uuid */
+      post_id: string;
+      /** @enum {string} */
+      status: "published" | "pre_review";
+      /** Format: date-time */
+      submitted_at: string;
+      /** @enum {string} */
+      state: "pending" | "published" | "superseded" | "rejected";
+      version: number | null;
+      title: string;
+      content: string;
+      images: components["schemas"]["ShortPostImage"][];
+      review_reason: string;
+    };
     ShortPostState: {
       /** Format: uuid */
       id: string;
@@ -3331,6 +3488,8 @@ export interface components {
       published_at: string | null;
     };
     ShortPostManaged: components["schemas"]["ShortPostState"] & {
+      display_version: number;
+      history_enabled: boolean;
       title: string;
       content: string;
       /** Format: date-time */
@@ -3346,6 +3505,7 @@ export interface components {
         title: string;
         excerpt: string;
         author: string;
+        version: number;
         /** Format: date-time */
         published_at: string;
         cover: components["schemas"]["ShortPostImage"] | null;
@@ -4935,6 +5095,243 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listShortPostRevisionQueue: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 待先审修订列表 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostRevisionQueuePage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readShortPostRevisionReviewImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        revisionId: string;
+        imageId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已提交修订的固定图片 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/jpeg": string;
+          "image/png": string;
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listShortPostVersions: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 读取公开短帖版本节点 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostVersionNode"][];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readShortPostVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 读取指定公开版本 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicShortPost"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readMyShortPostVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 读取本人指定正式版本 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicShortPost"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readMyShortPostRevision: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        revisionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 读取本人提交的修订快照和状态 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostRevisionSnapshot"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  reviseShortPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        revisionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          preview_id: string;
+          /** @enum {boolean} */
+          rights_confirmed: true;
+          expected_revision: number;
+        };
+      };
+    };
+    responses: {
+      /** @description 用固定预览修订本人已正式发布的短帖 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostSubmissionReceipt"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      410: components["responses"]["PreviewExpired"];
+      413: components["responses"]["TooLarge"];
+      415: components["responses"]["NotJSON"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readOpsShortPostRevision: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        revisionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 运营读取已提交的修订快照 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostRevisionSnapshot"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listShortPosts: {
     parameters: {
       query?: {
@@ -5058,7 +5455,13 @@ export interface operations {
           mutation_id: string;
           expected_revision: number;
           /** @enum {string} */
-          action: "hide" | "restore";
+          action:
+            | "hide"
+            | "restore"
+            | "history_open"
+            | "history_close"
+            | "show_version";
+          version?: number;
           reason?: string;
         };
       };
@@ -5127,6 +5530,8 @@ export interface operations {
           expected_revision: number;
           /** @enum {string} */
           action: "approve" | "reject" | "limit" | "revoke_limit";
+          /** Format: uuid */
+          revision_id?: string;
           reason?: string;
         };
       };
@@ -5259,6 +5664,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        version: number;
         id: string;
         imageId: string;
       };

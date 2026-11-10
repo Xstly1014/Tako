@@ -25,6 +25,7 @@ type FeedItem struct {
 	Title       string         `json:"title"`
 	Excerpt     string         `json:"excerpt"`
 	Author      string         `json:"author"`
+	Version     uint64         `json:"version"`
 	PublishedAt time.Time      `json:"published_at"`
 	Cover       *ImageMetadata `json:"cover"`
 }
@@ -67,11 +68,12 @@ func (s PostStore) Feed(ctx context.Context, cursor string) (PostPage[FeedItem],
 	if err != nil {
 		return out, err
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT s.id,p.title,LEFT(p.content,120),a.nickname,s.first_published_at,
+	rows, err := s.DB.QueryContext(ctx, `SELECT s.id,p.title,LEFT(p.content,120),a.nickname,v.version,s.first_published_at,
  i.id,COALESCE(i.media_type,''),COALESCE(i.width,0),COALESCE(i.height,0)
- FROM short_posts s JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=s.preview_id
+ FROM short_posts s JOIN short_post_versions v ON v.post_id=s.id AND v.version=s.display_version
+ JOIN short_post_previews p ON p.owner_id=v.owner_id AND p.id=v.preview_id
  JOIN accounts a ON a.id=s.owner_id
- LEFT JOIN short_post_preview_images m ON m.owner_id=s.owner_id AND m.preview_id=s.preview_id AND m.position=1
+ LEFT JOIN short_post_preview_images m ON m.owner_id=v.owner_id AND m.preview_id=v.preview_id AND m.position=1
  LEFT JOIN short_post_images i ON i.owner_id=m.owner_id AND i.id=m.image_id
  WHERE `+readablePost+clause+" ORDER BY s.first_published_at DESC,s.id DESC LIMIT 13", args...)
 	if err != nil {
@@ -82,7 +84,7 @@ func (s PostStore) Feed(ctx context.Context, cursor string) (PostPage[FeedItem],
 		var item FeedItem
 		var id uuid.NullUUID
 		var cover ImageMetadata
-		if err := rows.Scan(&item.ID, &item.Title, &item.Excerpt, &item.Author, &item.PublishedAt, &id, &cover.MediaType, &cover.Width, &cover.Height); err != nil {
+		if err := rows.Scan(&item.ID, &item.Title, &item.Excerpt, &item.Author, &item.Version, &item.PublishedAt, &id, &cover.MediaType, &cover.Width, &cover.Height); err != nil {
 			return out, err
 		}
 		if id.Valid {
