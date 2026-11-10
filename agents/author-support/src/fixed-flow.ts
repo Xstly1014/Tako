@@ -9,6 +9,7 @@ import type {createAuthorTools} from './tools.ts';
 export async function runFixedFlow(input:string,tools:Pick<ReturnType<typeof createAuthorTools>,'invoke'>){
   const context=contextFromInput(input);
   const evidence:Evidence[]=[];
+  let cited=evidence;
   let blocked=false;
   async function read(tool:string,args:Record<string,unknown>){
     if(blocked||evidence.length>=limits.max_tool_calls)return;
@@ -53,11 +54,17 @@ export async function runFixedFlow(input:string,tools:Pick<ReturnType<typeof cre
         if(title)await read('find_my_works',{query:title});
       }
     }
-    if(evidence.length&&evidence.every(x=>x.result.status==='error'&&x.result.error==='resource_unavailable')){
+    const unavailable=evidence.filter(x=>x.result.status==='error'&&x.result.error==='resource_unavailable');
+    const pairUnreadable=!context.original_result_only&&context.work_id&&preview_id&&
+      unavailable.some(x=>x.tool==='read_publication_result'||x.tool==='read_work_state');
+    if(pairUnreadable)cited=unavailable;
+    if(pairUnreadable||(unavailable.length>0&&unavailable.length===evidence.length)){
+      verdict.publication='unknown';
+      verdict.access='unknown';
       verdict.next_action='provide_identifiers';
     }
   }
-  verdict.evidence_ids=evidence.map(x=>x.result.evidence_id);
+  verdict.evidence_ids=cited.map(x=>x.result.evidence_id);
   const delivery=deliver(context,verdict,evidence);
   return {verdict,evidence,delivery};
 }

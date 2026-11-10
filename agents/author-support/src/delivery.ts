@@ -1,7 +1,7 @@
 import {UUID} from '../../../mobile/src/api/reader.ts';
 import {grade,parseVerdict,workSnapshot,type Evidence,type Verdict} from './grade.ts';
 
-export const deliveryVersion='evidence-delivery-v3';
+export const deliveryVersion='evidence-delivery-v4';
 export type Context={work_id?:string;preview_id?:string;draft_id?:string;original_result_only:boolean;ambiguous_identifiers:boolean};
 export type NextStep={kind:'read_original_result';preview_id:string}|{kind:'read_submission_record';submission_id:string}|{kind:'read_work_state';work_id:string}|{kind:'provide_identifiers'|'contact_support'|'reauthenticate'};
 export type Delivery={version:string;status:'admitted'|'recovered'|'fallback';verdict:Verdict;reasons:string[];free_text_used:false;next_step?:NextStep;verification?:'facts_checked'|'needs_clarification'|'unable_to_check';corrected_fields?:string[]};

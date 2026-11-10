@@ -58,6 +58,8 @@ node agents/author-support/scripts/delivery-replay.ts .runtime/author-agent/suit
 
 `delivery.next_step`是消费方执行的只读下一步，不是任意URL、模型新工具或自动轮询。`follow-up.ts` 的 `followUp(step, session.authorized)` 只调用已有原预览、作品状态或本人提交记录GET；提交详情经既有解码器校验后只投影状态元信息，不输出正文、标题、处置理由或候选版号。每次重新按当前会话授权，404不揭示归属，401要求重新确认身份。contact_support只返回操作提示，不发送消息。交付函数不执行下一步，当前尚未接App按钮或新HTTP路由。
 
+交付 v4 在输入作品状态与原预览正式发行回执均可读取时识别跨作品标识冲突，返回 `provide_identifiers`，要求作者重新核对同一次操作的两个标识。此步骤不发请求。真实探针覆盖可读冲突、不可读标识、另一账号与修正后的只读详情。
+
 先审的next_step指向具体submission_id；其当前状态与原预览的历史受理回执分开。真实测试覆盖pending→withdrawn后原回执不变、其他账号拒绝。具体证据、数据来源及下一阶段见[部分事实与下一步复盘](../../docs/reviews/author-agent-recovery-review.md)。
 
 费用恢复（命令从仓库根执行，无需密钥）：

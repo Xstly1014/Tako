@@ -33,6 +33,24 @@ export function deliver(context:Context,proposed:unknown,evidence:Evidence[]):De
     const blocked=fallback(context,['forbidden']);
     return {...blocked,verification:'unable_to_check',next_step:{kind:'contact_support'},verdict:{...blocked.verdict,next_action:'contact_support',explanation:'当前账号没有读取权限，暂不能继续核对。请联系人工，不要绕过权限或重复提交。'}};
   }
+  if(!context.original_result_only&&context.work_id&&context.preview_id&&
+      original.reasons.includes('work_receipt_mismatch')&&!original.reasons.includes('invalid_evidence_reference')&&
+      !evidence.some(x=>['read_work_state','read_publication_result'].includes(x.tool)&&
+        x.result.status==='error'&&x.result.error==='resource_unavailable')){
+    const receipt=data(evidence,'read_publication_result').filter(x=>x.data.preview_id===context.preview_id).at(-1);
+    const published=receipt?.data.published as {work_id:string;version:number;published_at:string}|null|undefined;
+    const snapshot=workSnapshot(evidence,context.work_id);
+    const state=evidence.find(x=>x.tool==='read_work_state'&&x.result.status==='ok'&&x.result.data===snapshot.state);
+    if(state&&!snapshot.failures.length&&receipt&&published&&UUID.test(published.work_id)&&
+        published.work_id!==context.work_id&&Number.isSafeInteger(published.version)&&published.version>0&&
+        Number.isFinite(Date.parse(published.published_at))){
+      return {
+        ...original,verification:'needs_clarification',next_step:{kind:'provide_identifiers'},
+        verdict:{...original.verdict,next_action:'provide_identifiers',evidence_ids:[receipt.id,state.result.evidence_id],
+          explanation:'作品标识和原预览标识对应不同作品。请从同一次发布操作重新核对两个标识，再继续查询。'},
+      };
+    }
+  }
   if(original.status!=='fallback')return enrich(original,context,evidence);
   const recoverable=['unsupported_access_claim','unsupported_publication_claim','work_navigation_unavailable','original_result_scope','original_identifier_missing','disallowed_advice','latest_receipt_not_unconfirmed'];
   if(!original.reasons.length||original.reasons.some(x=>!recoverable.includes(x)))return enrich(original,context,evidence);

@@ -67,4 +67,19 @@ test('holdout fixtures expose distinct candidate states and never blend mismatch
   assert.equal(conflicted.turns[0].delivery.status,'fallback');
   assert.ok(conflicted.turns[0].delivery.reasons.includes('work_receipt_mismatch'));
   assert.equal(conflicted.turns[0].delivery.verdict.publication,'unknown');
+  assert.equal(conflicted.turns[0].delivery.verdict.access,'unknown');
+  assert.match(conflicted.turns[0].delivery.verdict.explanation,/对应不同作品/);
+  assert.deepEqual(conflicted.turns[0].delivery.next_step,{kind:'provide_identifiers'});
+  assert.equal(conflicted.turns[0].delivery.verdict.evidence_ids.length,2);
+  const [turn]=conflicted.turns;
+  const stale=deliver(contextFromInput(mismatch.task.prompt),turn.verdict,[...turn.evidence,{
+    tool:'read_work_state',result:{status:'error',error:'resource_unavailable',evidence_id:'unavailable',
+      guidance:'无法读取',observed_at:new Date().toISOString()},
+  }]);
+  assert.doesNotMatch(stale.verdict.explanation,/对应不同作品/);
+  const unreadable=await runFixedFlow(`作品ID ${ids.missing}，原预览ID ${ids.preview}。`,environment(mismatch.task).tools);
+  assert.equal(unreadable.delivery.verdict.publication,'unknown');
+  assert.equal(unreadable.delivery.verdict.access,'unknown');
+  assert.match(unreadable.delivery.verdict.explanation,/无法读取/);
+  assert.doesNotMatch(unreadable.delivery.verdict.explanation,/对应不同作品/);
 });

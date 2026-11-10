@@ -20,6 +20,7 @@ async function main(){
   const {deliver}=await import('../src/recovery.ts');
   const {contextFromInput}=await import('../src/delivery.ts');
   const {followUp}=await import('../src/follow-up.ts');
+  const {runFixedFlow}=await import('../src/fixed-flow.ts');
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
   const directory=path.resolve('.runtime/author-agent/runs',runId);mkdirSync(directory,{recursive:true});
@@ -70,6 +71,37 @@ async function main(){
     const sp=await publisher.prepare({mutation_id:randomUUID(),draft_id:second.draft_id,source_revision:1,introduction:'',tags:['日常'],rights_confirmed:true});
     const sr=await publisher.publish({mutation_id:randomUUID(),preview_id:sp.id,expected_version:0});works.push(sr.work_id);
     assert.equal((ok(await tools.invoke('find_my_works',{query:prefix})).items as unknown[]).length,2);checks.push('multiple_candidates_not_auto_selected');
+    phase='identifier_conflict';
+    const pair=(work:string,preview:string)=>`作品ID ${work}，原预览ID ${preview}。请核对是否属于同一件作品。`;
+    const conflict=await runFixedFlow(pair(sr.work_id,p2.id),tools);
+    assert.equal(conflict.delivery.verdict.publication,'unknown');assert.equal(conflict.delivery.verdict.access,'unknown');
+    assert.match(conflict.delivery.verdict.explanation,/对应不同作品/);
+    assert.deepEqual(conflict.delivery.next_step,{kind:'provide_identifiers'});
+    assert.equal(ok(await followUp(conflict.delivery.next_step!,transport)).no_request_sent,true);
+    checks.push('owned_mismatch_requests_correction_without_read_or_write');
+    for(const input of [pair(randomUUID(),p2.id),pair(sr.work_id,randomUUID())]){
+      const result=await runFixedFlow(input,tools);
+      assert.ok(result.evidence.some(x=>x.result.status==='ok'));
+      assert.ok(result.evidence.some(x=>x.result.status==='error'&&x.result.error==='resource_unavailable'));
+      assert.equal(result.delivery.verdict.publication,'unknown');assert.equal(result.delivery.verdict.access,'unknown');
+      assert.match(result.delivery.verdict.explanation,/无法读取/);
+      assert.doesNotMatch(result.delivery.verdict.explanation,/对应不同作品/);
+      assert.deepEqual(result.delivery.next_step,{kind:'provide_identifiers'});
+    }
+    checks.push('one_unreadable_identifier_remains_indeterminate');
+    const deniedPair=await runFixedFlow(pair(sr.work_id,p2.id),foreign);
+    assert.equal(deniedPair.evidence.length,2);
+    assert.ok(deniedPair.evidence.every(x=>x.result.status==='error'&&x.result.error==='resource_unavailable'));
+    assert.match(deniedPair.delivery.verdict.explanation,/无法读取/);
+    assert.doesNotMatch(deniedPair.delivery.verdict.explanation,/对应不同作品/);
+    checks.push('another_account_cannot_infer_pair_relationship');
+    const corrected=await runFixedFlow(pair(r1.work_id,p2.id),tools);
+    assert.equal(corrected.delivery.verdict.publication,'confirmed');
+    assert.equal(corrected.delivery.verdict.access,'author_hidden');
+    assert.deepEqual(corrected.delivery.next_step,{kind:'read_work_state',work_id:r1.work_id});
+    assert.equal(ok(await followUp(corrected.delivery.next_step!,transport)).work_id,r1.work_id);
+    checks.push('corrected_pair_confirms_and_navigates_to_bound_work');
+    phase='core_fixture';
     const raw=await author.authorized<{content:string;revision:number}>('/drafts/'+draft.draft_id);assert.equal(raw.content,body2);assert.equal(raw.revision,2);
     assert.ok(!JSON.stringify([tools.trace(),foreign.trace()]).includes('PRIVATE_PROBE'));checks.push('read_only_and_sanitized_trace');
     if(process.argv.includes('--pre-review')){
