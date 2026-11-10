@@ -4,6 +4,33 @@
  */
 
 export interface paths {
+  "/api/my/short-post-images/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 作者生成的非零上传 UUID，按登录账号隔离 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * 读取本人私密暂存图片
+     * @description 本机 test 验证入口。会话账号与素材 ID 共同限定范围，响应禁止缓存。
+     */
+    get: operations["readMyShortPostImage"];
+    /**
+     * 上传本人短帖暂存图片
+     * @description 本机 test 验证入口。每图最多 8 MiB 和 1200 万像素。服务端解码重编码。同账号同 UUID 及相同文件重试返回原结果，换文件返回 409。暂存素材不公开。
+     */
+    put: operations["stageShortPostImage"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/novel-notices": {
     parameters: {
       query?: never;
@@ -4139,6 +4166,11 @@ export interface components {
         | "nickname_required"
         | "payload_too_large"
         | "json_required"
+        | "invalid_image"
+        | "image_type_unsupported"
+        | "image_too_large"
+        | "image_upload_busy"
+        | "image_quota_reached"
         | "rate_limited"
         | "mail_unavailable"
         | "service_unavailable"
@@ -4591,6 +4623,102 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  readMyShortPostImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 作者生成的非零上传 UUID，按登录账号隔离 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 去除原文件元数据的图片 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/jpeg": string;
+          "image/png": string;
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  stageShortPostImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 作者生成的非零上传 UUID，按登录账号隔离 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "image/jpeg": string;
+        "image/png": string;
+      };
+    };
+    responses: {
+      /** @description 上传确认，含本人素材 ID、格式和尺寸 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            media_type: "image/jpeg" | "image/png";
+            width: number;
+            height: number;
+          };
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      /** @description UUID 复用、缺少笔名或账号暂存额度耗尽 */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      /** @description 文件、解码像素或规范化图片超过上限 */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      /** @description 上传必须声明 JPEG 或 PNG */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      429: components["responses"]["Limited"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listMyNovelNotices: {
     parameters: {
       query?: {

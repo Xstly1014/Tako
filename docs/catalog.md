@@ -74,6 +74,7 @@
 ## publication
 
 - [publication/pre-review-spec.md](<publication/pre-review-spec.md>)
+- [publication/short-posts-v1.md](<publication/short-posts-v1.md>)
 
 ## recruitment
 
@@ -185,6 +186,7 @@
 - [reviews/readme-current-state-review.md](<reviews/readme-current-state-review.md>)
 - [reviews/resend-integration.md](<reviews/resend-integration.md>)
 - [reviews/retired-documents-assets-cleanup.md](<reviews/retired-documents-assets-cleanup.md>)
+- [reviews/short-posts-stage-review.md](<reviews/short-posts-stage-review.md>)
 - [reviews/tako-collab-skill-review.md](<reviews/tako-collab-skill-review.md>)
 - [reviews/two-level-comments-review.md](<reviews/two-level-comments-review.md>)
 - [reviews/usb-creator-device-review.md](<reviews/usb-creator-device-review.md>)
