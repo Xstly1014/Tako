@@ -6,7 +6,7 @@ import {ApiError} from '../../../mobile/src/api/client.ts';
 import {createAuthorTools,safeToolError,type ToolResult} from './tools.ts';
 import type {NextStep} from './delivery.ts';
 
-async function currentPending(api:WorkSubmissionsApi,workId:string){
+export async function currentPendingSubmission(api:WorkSubmissionsApi,workId:string){
   let cursor='';
   const visited=new Set<string>();
   try{
@@ -44,7 +44,7 @@ export async function followUp(step:NextStep,authorized:Transport):Promise<ToolR
     if(step.kind==='read_submission_record'&&valid(step.submission_id)){
       const api=new WorkSubmissionsApi(read);
       const {submission:s}=await api.detail(step.submission_id);
-      const pending=s.state==='superseded'?await currentPending(api,s.work_id):undefined;
+      const pending=s.state==='superseded'?await currentPendingSubmission(api,s.work_id):undefined;
       return {evidence_id,observed_at:new Date().toISOString(),status:'ok',data:{
         submission_id:s.id,work_id:s.work_id,state:s.state,accepted_at:s.accepted_at,decided_at:s.decided_at,
         meaning:'current_submission_state_not_public_visibility',

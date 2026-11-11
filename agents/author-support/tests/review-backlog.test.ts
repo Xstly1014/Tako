@@ -13,9 +13,9 @@ test('uses first waiting time, follows both cursor types and deduplicates overla
   const pages:Record<string,unknown>={
     '/ops/work-submissions':{items:[pending],next_cursor:'page+'},
     '/ops/work-submissions?cursor=page%2B':{items:[pending,{...pending,id:ids.other,first_waiting_at:atTarget}],next_cursor:''},
-    '/ops/reviews':{items:[{id:1,state:'pending',first_waiting_at:atTarget}],next:1},
-    '/ops/reviews?after=1':{items:[{id:2,state:'pending',first_waiting_at:overdue}],next:0},
-    '/ops/appeals':{items:[{id:3,state:'pending',created_at:overdue,reason:'private reason'}],next:0},
+    '/ops/reviews':{items:[{id:1,work_id:ids.work,version:1,state:'pending',first_waiting_at:atTarget}],next:1},
+    '/ops/reviews?after=1':{items:[{id:2,work_id:ids.work,version:2,state:'pending',first_waiting_at:overdue}],next:0},
+    '/ops/appeals':{items:[{id:3,case_id:4,state:'pending',created_at:overdue,reason:'private reason'}],next:0},
   };
   const report=await scanReviewBacklog(async<T>(path:string,options?:Parameters<Transport>[1])=>{
     assert.deepEqual(options,{method:'GET'});

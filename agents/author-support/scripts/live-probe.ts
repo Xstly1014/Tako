@@ -25,6 +25,9 @@ async function main(){
   const {runFixedFlow}=await import('../src/fixed-flow.ts');
   const {checkModerationVisibility,checkPublication}=await import('../src/session-diagnostic.ts');
   const {submissionAnswer}=await import('../src/submission-answer.ts');
+  const {scanReviewBacklog}=await import('../src/review-backlog.ts');
+  const {reviewHandoff}=await import('../src/review-handoff.ts');
+  type HandoffItem=import('../src/review-monitor.ts').ReviewHandoffItem;
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
   const authorEmail=prefix+'@example.test',authorPassword=randomUUID();
@@ -38,6 +41,18 @@ async function main(){
   const tools=createAuthorTools(transport),foreign=createAuthorTools((p,o)=>other.authorized(p,o));
   const ok=(r:Result)=>{assert.equal(r.status,'ok');if(r.status!=='ok')throw Error('expected_tool_result');return r.data};
   const recoverNavigation=(preview:string,result:Result)=>deliver(contextFromInput('原预览ID '+preview),{publication:'unconfirmed',access:'unknown',next_action:'open_work_detail',evidence_ids:[result.evidence_id],explanation:'受控复现上一批错误的正式作品导航建议。'},[{tool:'read_publication_result',result}]);
+  const opsRead:import('../../../mobile/src/auth/session.ts').Transport=(p,o)=>operator.authorized(p,o);
+  async function capture(queue:HandoffItem['queue'],id:string|number):Promise<HandoffItem>{
+    const report=await scanReviewBacklog(opsRead,Date.now()+49*60*60*1000);
+    assert.equal(report.status,'complete');
+    const item=report.queues.find(item=>item.queue===queue)?.overdue.find(item=>item.id===id);
+    assert.ok(item);
+    return {queue,...item,target:item.target??null};
+  }
+  async function inspect(item:HandoffItem){
+    const result=await reviewHandoff(opsRead,[item]);
+    return result.rows[0];
+  }
   let report:Record<string,unknown>={run_id:runId,kind:'live_tool_probe',source:'real_local_test_http_mysql',model_called:false};
   let setupComplete=false;
   let phase='core_fixture';
@@ -144,6 +159,9 @@ async function main(){
         visibility:{status:'not_visible',blocker:'display_limited'},
       });
       assert.deepEqual(await checkModerationVisibility(other,target.id),{status:'case_unavailable'});
+      const appealRecord=(await appeals.detail(target.id)).appeals.items[0];
+      const appealTarget=await capture('appeal',appealRecord.id);
+      assert.equal((await inspect(appealTarget)).status,'pending');
       checks.push('moderation_pending_and_foreign_case_denied');
       const visibleState=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+sr.work_id);
       await api.change(sr.work_id,{mutation_id:randomUUID(),expected_state_revision:visibleState.state_revision,action:'hide'});
@@ -155,6 +173,10 @@ async function main(){
         status:'checked',moderation:{state:'revoked',scope:'version',version:1,latestAppeal:'revoked'},
         visibility:{status:'not_visible',blocker:'author_hidden'},
       });
+      const appealAfter=await inspect(appealTarget);
+      assert.equal(appealAfter.status,'decided');
+      assert.equal('decision' in appealAfter?appealAfter.decision:null,'revoked');
+      checks.push('handoff_rechecks_original_appeal_after_revocation');
       checks.push('revoked_moderation_does_not_restore_author_hidden_work');
       const hiddenState=await author.authorized<import('../../../mobile/src/api/author-works.ts').WorkState>('/my/works/'+sr.work_id);
       await api.change(sr.work_id,{mutation_id:randomUUID(),expected_state_revision:hiddenState.state_revision,action:'restore',version:1});
@@ -180,6 +202,8 @@ async function main(){
       assert.ok(accepted.submission_id);pendingSubmissions.push(accepted.submission_id);
       phase='pre_review_projection';
       const observed=await tools.invoke('read_publication_result',{preview_id:pending.id}),projection=ok(observed);
+      const submissionTarget=await capture('pre_review',accepted.submission_id);
+      assert.equal((await inspect(submissionTarget)).status,'pending');
       assert.equal(projection.published,null);assert.equal((projection.submission as Record<string,unknown>).submission_id,accepted.submission_id);
       report.pre_review_evidence=observed;checks.push('real_pre_review_is_acceptance_not_formal_publication');
       const recovered=recoverNavigation(pending.id,observed);
@@ -222,6 +246,11 @@ async function main(){
       assert.match(superseded.answer,/已被替换.*有当前待审记录/);
       assert.equal(superseded.followUp.data.current_pending_for_work.submission_id,newer.submission_id);
       assert.equal(superseded.followUp.data.current_pending_for_work.preview_id,replacement.id);
+      const replacedTarget=await inspect(submissionTarget);
+      assert.equal(replacedTarget.status,'decided');
+      assert.equal('decision' in replacedTarget?replacedTarget.decision:null,'superseded');
+      assert.equal('currentPending' in replacedTarget?replacedTarget.currentPending?.status:null,'found');
+      checks.push('handoff_rechecks_superseded_original_and_current_pending');
       const initialSubmission=await author.authorized<{submission:{first_waiting_at:string}}>('/my/work-submissions/'+accepted.submission_id);
       assert.equal(superseded.followUp.data.current_pending_for_work.first_waiting_at,initialSubmission.submission.first_waiting_at);
       checks.push('superseded_receipt_keeps_original_and_identifies_current_pending_work');
@@ -289,6 +318,20 @@ async function main(){
       assert.match(submissionAnswer(approvedCheck.getDelivery()!,hiddenResult),/已通过并发行 V1.*作者隐藏仍然生效/);
       checks.push('approved_submission_confirms_version_separately_from_reader_visibility');
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
+    }
+    if(process.argv.includes('--pre-review')){
+      phase='handoff_post_review';
+      const path='/ops/reviews/'+r1.work_id+'/versions/2';
+      const detail=await operator.authorized<{task:{id:number;revision:number}}>(path);
+      const item=await capture('post_review',detail.task.id);
+      assert.equal((await inspect(item)).status,'pending');
+      await operator.authorized(path,{method:'POST',body:{
+        mutation_id:randomUUID(),expected_revision:detail.task.revision,decision:'approve',reason:'合成任务交班核对',
+      }});
+      const after=await inspect(item);
+      assert.equal(after.status,'decided');
+      assert.equal('decision' in after?after.decision:null,'approved');
+      checks.push('handoff_rechecks_original_post_review_after_approval');
     }
     setupComplete=true;report.checks=checks;report.tool_trace=tools.trace();report.foreign_trace=foreign.trace();
     if(process.argv.includes('--model')){

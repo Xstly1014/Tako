@@ -1,5 +1,5 @@
 import {DatabaseSync,type SQLOutputValue} from 'node:sqlite';
-import type {scanReviewBacklog} from './review-backlog.ts';
+import type {scanReviewBacklog,ReviewTarget} from './review-backlog.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -8,6 +8,7 @@ export type Observation=Report|{
 };
 type Queue=Report['queues'][number]['queue'];
 type TaskId=string|number;
+export type ReviewHandoffItem={queue:Queue;id:TaskId;waitingSince:string|null;target:ReviewTarget|null};
 type Backlog=Partial<Record<Queue,TaskId[]>>;
 type Event=
   | {kind:'scan_failed';queue:Queue|'session';error:string;httpStatus:number|null}
@@ -32,6 +33,10 @@ export class ReviewMonitor {
         event_id INTEGER PRIMARY KEY REFERENCES monitor_events(id),
         operator_label TEXT NOT NULL, acknowledged_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS monitor_targets(
+        queue TEXT NOT NULL, task_id TEXT NOT NULL, waiting_since TEXT NOT NULL, target TEXT NOT NULL,
+        PRIMARY KEY(queue,task_id)
+      );
     `);
   }
 
@@ -52,6 +57,12 @@ export class ReviewMonitor {
       }else{
         if(prior?.status==='incomplete')events.push({kind:'scan_restored'});
         for(const queue of report.queues){
+          for(const item of queue.overdue){
+            if(item.target)this.db.prepare(`
+              INSERT INTO monitor_targets(queue,task_id,waiting_since,target) VALUES(?,?,?,?)
+              ON CONFLICT(queue,task_id) DO NOTHING
+            `).run(queue.queue,String(item.id),item.waitingSince,JSON.stringify(item.target));
+          }
           const previous=new Set(backlog[queue.queue]);
           const current=new Set(queue.overdue.map(item=>item.id));
           const added=[...current].filter(id=>!previous.has(id));
@@ -108,6 +119,19 @@ export class ReviewMonitor {
     const row=this.db.prepare('SELECT operator_label,acknowledged_at FROM monitor_acknowledgments WHERE event_id=?').get(id);
     if(!row)throw Error('review_event_not_found');
     return {id,operatorLabel:String(row.operator_label),acknowledgedAt:String(row.acknowledged_at),alreadyAcknowledged:updated.changes===0};
+  }
+
+  handoffItems(eventId:number):ReviewHandoffItem[]{
+    const row=this.db.prepare('SELECT event FROM monitor_events WHERE id=?').get(eventId);
+    if(!row)throw Error('review_event_not_found');
+    const event=JSON.parse(String(row.event)) as Event;
+    if(event.kind!=='overdue_changed')throw Error('not_backlog_event');
+    return [...new Set([...event.added,...event.noLongerObserved])].map(id=>{
+      const saved=this.db.prepare('SELECT waiting_since,target FROM monitor_targets WHERE queue=? AND task_id=?')
+        .get(event.queue,String(id));
+      return {queue:event.queue,id,waitingSince:saved?String(saved.waiting_since):null,
+        target:saved?JSON.parse(String(saved.target)) as ReviewTarget:null};
+    }).sort((a,b)=>(a.waitingSince??'9999').localeCompare(b.waitingSince??'9999')||String(a.id).localeCompare(String(b.id)));
   }
 
   close(){this.db.close()}

@@ -23,3 +23,22 @@
 5. 用真实测试会话验证先审替换、后审完成、复核决定三类变化，受控验证读取失败与历史记录兼容。
 
 实现触点限定为本端运营巡检模块、调用入口及阶段记录。短帖、App/Web、共享 OpenAPI、通知投递和审核写操作归现有负责人。本次完成范围核对，下一包实现以上完整链路。
+
+## 实现与验收
+
+2026-11-11，已同步主线 `ee7fd6a`，在本端完成交班链路。扫描保留先审提交编号、后审作品与版本、复核处置编号，随完整扫描事务写入独立定位表。旧事件保持原记录，重新扫描可为仍能观测到的任务补齐定位。仍缺信息的旧任务显示 `rescan_required`。
+
+```powershell
+# 先记录一轮完整扫描，补齐当前可观测任务的定位
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --track
+# 从 --events 或 --pending 得到实际的积压事件编号，再读取交班页
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --handoff 1
+# 按返回的 nextOffset 继续，例如
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --handoff 1 20
+```
+
+每页按首次等待排序，最多 20 项，返回原任务、目标 API 路径、工作台入口、查询时点的待处理或实际决定。先审被替换时保留旧单状态，并独立核对同作品当前待审。复核读取同一处置下的原申请，分页查到该申请后再报告结果。读取失败、不可访问、证据不匹配或达到查询上限均保留未知，权限和限频异常停止后续读取。任务核对和本地值班确认分别执行。
+
+类型检查和六项定向测试通过，覆盖旧记录补定位、原任务绑定、交班分页、失败与权限异常。真实 test HTTP/MySQL 探针 `e1288871-03cc-48f4-8a72-5cb930c62f7f` 通过 35 项，包括先审替换、后审完成和复核撤销前后的交班结果。扫描时注入未来 49 小时只用于把本次合成任务纳入超时范围，服务状态与审核决定走真实接口。
+
+本地旧积压事件原有 211 项，重新扫描后可直接分页核对。第二页实测 20 项均能定位到原任务且仍待处理，nextOffset 为 40。合成测试作品已隐藏，会话已撤销。结果基于逐项读取时点，运营执行决定前继续使用原工作台的刷新和并发校验。产品页面及外部通知沿既有分工接入。

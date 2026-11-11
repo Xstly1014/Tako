@@ -4,6 +4,11 @@ import type {Transport} from '../../../mobile/src/auth/session.ts';
 
 const targetMs=48*60*60*1000;
 const pageLimit=200;
+export type ReviewTarget=
+  | {queue:'pre_review';submissionId:string}
+  | {queue:'post_review';workId:string;version:number}
+  | {queue:'appeal';caseId:number};
+type OverdueItem={id:string|number;waitingSince:string;target?:ReviewTarget};
 const queues=[
   {name:'pre_review',path:'/ops/work-submissions',cursor:'cursor',next:'next_cursor',since:'first_waiting_at',initial:''},
   {name:'post_review',path:'/ops/reviews',cursor:'after',next:'next',since:'first_waiting_at',initial:0},
@@ -18,12 +23,12 @@ export async function scanReviewBacklog(read:Transport,now=Date.now()){
   for(const queue of queues){
     try{
       const pending=await scanQueue(read,queue);
-      const ordered=[...pending].sort((a,b)=>a[1]-b[1]);
+      const ordered=[...pending].sort((a,b)=>a[1].since-b[1].since);
       reports.push({
         queue:queue.name,pending:ordered.length,
-        oldestWaitingAt:ordered.length?new Date(ordered[0][1]).toISOString():null,
-        overdue:ordered.filter(([,since])=>now-since>targetMs)
-          .map(([id,since])=>({id,waitingSince:new Date(since).toISOString()})),
+        oldestWaitingAt:ordered.length?new Date(ordered[0][1].since).toISOString():null,
+        overdue:ordered.filter(([,item])=>now-item.since>targetMs)
+          .map(([id,item]):OverdueItem=>({id,waitingSince:new Date(item.since).toISOString(),target:item.target})),
       });
     }catch(error){
       return {
@@ -38,7 +43,7 @@ export async function scanReviewBacklog(read:Transport,now=Date.now()){
 }
 
 async function scanQueue(read:Transport,queue:typeof queues[number]){
-  const items=new Map<string|number,number>();
+  const items=new Map<string|number,{since:number;target:ReviewTarget}>();
   const visited=new Set<string|number>();
   let cursor:string|number=queue.initial;
   for(let page=0;page<pageLimit;page++){
@@ -54,8 +59,19 @@ async function scanQueue(read:Transport,queue:typeof queues[number]){
       const since=typeof timestamp==='string'?Date.parse(timestamp):NaN;
       if(!validId||item.state!=='pending'||!Number.isFinite(since))throw new ScanError('invalid_queue_item');
       const key=id as string|number;
-      if(items.has(key)&&items.get(key)!==since)throw new ScanError('queue_item_changed');
-      items.set(key,since);
+      let target:ReviewTarget;
+      if(queue.name==='pre_review')target={queue:queue.name,submissionId:String(id)};
+      else if(queue.name==='post_review'&&typeof item.work_id==='string'&&UUID.test(item.work_id)&&
+        Number.isSafeInteger(item.version)&&item.version>0){
+        target={queue:queue.name,workId:item.work_id,version:item.version};
+      }else if(queue.name==='appeal'&&Number.isSafeInteger(item.case_id)&&item.case_id>0){
+        target={queue:queue.name,caseId:item.case_id};
+      }else throw new ScanError('invalid_queue_target');
+      const previous=items.get(key);
+      if(previous&&(previous.since!==since||JSON.stringify(previous.target)!==JSON.stringify(target))){
+        throw new ScanError('queue_item_changed');
+      }
+      items.set(key,{since,target});
     }
     const next=response[queue.next];
     if(next===queue.initial)return items;

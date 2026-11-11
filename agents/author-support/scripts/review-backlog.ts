@@ -2,6 +2,7 @@ import {mkdirSync} from 'node:fs';
 import path from 'node:path';
 import {setTimeout as wait} from 'node:timers/promises';
 import {ReviewMonitor,type Observation} from '../src/review-monitor.ts';
+import {reviewHandoff} from '../src/review-handoff.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -16,6 +17,11 @@ async function main(){
     if(args.length>2||(value!==undefined&&!validId(value)))throw Error('invalid_cli');
   }else if(mode==='--ack'){
     if(args.length!==3||!validId(value))throw Error('invalid_cli');
+  }else if(mode==='--handoff'){
+    if(args.length<2||args.length>3||!validId(value)||
+      (operatorLabel!==undefined&&(!/^\d+$/.test(operatorLabel)||!Number.isSafeInteger(Number(operatorLabel))))){
+      throw Error('invalid_cli');
+    }
   }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
     throw Error('invalid_cli');
   }
@@ -27,6 +33,19 @@ async function main(){
     if(mode==='--events')console.log(JSON.stringify(monitor.recentEvents(),null,2));
     else if(mode==='--pending')console.log(JSON.stringify(monitor.pendingEvents(Number(value??0)),null,2));
     else if(mode==='--ack')console.log(JSON.stringify(monitor.acknowledge(Number(value),operatorLabel),null,2));
+    else if(mode==='--handoff'){
+      const items=monitor.handoffItems(Number(value));
+      const {session,password}=await createOperator();
+      let report;
+      try{
+        await session.signIn('login','operator@tako-test.invalid',password);
+        report=await reviewHandoff((path,options)=>session.authorized(path,options),items,Number(operatorLabel??0));
+      }finally{
+        if(session.snapshot().phase==='ready')await session.logout();
+      }
+      console.log(JSON.stringify(report,null,2));
+      if(report.rows.some(row=>row.status==='unavailable'||row.status==='rescan_required'))process.exitCode=1;
+    }
     else if(mode==='--watch')await watch(monitor,Number(value??300));
     else printScan(await runScan(monitor));
   }finally{monitor.close()}
@@ -70,19 +89,25 @@ async function watch(monitor:ReviewMonitor,seconds:number){
   }
 }
 
-async function runScan(monitor?:ReviewMonitor,signal?:AbortSignal){
+async function createOperator(){
   if(process.env.EXPO_PUBLIC_API_URL&&process.env.EXPO_PUBLIC_API_URL!==localApi)throw Error('local_api_required');
   process.env.EXPO_PUBLIC_API_URL=localApi;
   const password=process.env.TEST_OPERATOR_PASSWORD;
   if(!password)throw Error('test_operator_required');
 
   const {Session}=await import('../../../mobile/src/auth/session.ts');
-  const {ApiError,request}=await import('../../../mobile/src/api/client.ts');
-  const {scanReviewBacklog}=await import('../src/review-backlog.ts');
+  const {request}=await import('../../../mobile/src/api/client.ts');
   let token:string|null=null;
   const session=new Session({
     get:async()=>token,set:async value=>{token=value},remove:async()=>{token=null},
   },request);
+  return {session,password};
+}
+
+async function runScan(monitor?:ReviewMonitor,signal?:AbortSignal){
+  const {session,password}=await createOperator();
+  const {ApiError}=await import('../../../mobile/src/api/client.ts');
+  const {scanReviewBacklog}=await import('../src/review-backlog.ts');
   const started=Date.now();
   let report:Observation;
   let cleanupFailed=false;
@@ -106,7 +131,7 @@ function printScan({report,tracking,cleanupFailed}:Awaited<ReturnType<typeof run
 
 main().catch(error=>{
   const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
-    'invalid_acknowledgment','review_event_not_found'].includes(error.message)
+    'invalid_acknowledgment','review_event_not_found','not_backlog_event'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;
