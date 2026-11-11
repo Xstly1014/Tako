@@ -148,6 +148,10 @@ function ShortPostFeedContent() {
         <InlineAction label="中篇" onPress={() => router.dismissTo("/community")} />
         <InlineAction label="长文" onPress={() => router.navigate({ pathname: "/novel-community", params: { from: "short" } })} />
       </View>
+      <View style={s.compose}>
+        <InlineAction label="我的短帖" onPress={() => router.push("/my-short-posts")} />
+        <InlineAction label="发短帖" onPress={() => router.push("/short-compose")} selected />
+      </View>
       {page ? (
         <FlatList
           data={page.items}
@@ -336,6 +340,7 @@ function ShortPostHistory({ post, onRead, busy, readError }: {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.surface },
   channels: { flexDirection: "row", justifyContent: "center", gap: 16, paddingVertical: 8 },
+  compose: { flexDirection: "row", justifyContent: "flex-end", gap: 8, paddingHorizontal: 16 },
   toolbar: { paddingHorizontal: 16, alignItems: "flex-start" },
   control: { minHeight: 44, minWidth: 44, paddingHorizontal: 8, justifyContent: "center", borderRadius: 8 },
   selected: { backgroundColor: t.selected },

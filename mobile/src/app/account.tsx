@@ -18,6 +18,7 @@ import { BottomNavigation, unavailable } from "../components/PrototypeUi";
 import { apiMessage, ApiError } from "../api/client";
 import { draftMessage } from "../drafts/workspace";
 import { theme as t } from "../theme";
+import { shortPostsTrial } from "../short-posts/trial";
 export default function Account() {
   const {
     session,
@@ -159,6 +160,10 @@ export default function Account() {
               <Text style={s.rowTitle}>草稿箱</Text>
               <Text style={s.meta}>新建或继续写中篇</Text>
             </Pressable>
+            {shortPostsTrial ? <Pressable accessibilityRole="button" onPress={() => router.push("/my-short-posts")} style={s.row}>
+              <Text style={s.rowTitle}>我的短帖</Text>
+              <Text style={s.meta}>查看审核结果和公开状态</Text>
+            </Pressable> : null}
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push("/favorites")}

@@ -250,6 +250,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/my/short-posts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+    * 列出本人提交的短帖
+    * @description 本机 test 验证入口。包含待审、驳回、隐藏和受限记录。按首次提交时间倒序，游标仅适用于同一作者。
+    */
+    get: operations["listMyShortPosts"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/short-posts/{id}": {
     parameters: {
       query?: never;
@@ -380,6 +400,26 @@ export interface paths {
      * @description 仅 test 环境。每次校验指定版本可读且图片确实属于该版，响应禁止缓存。
      */
     get: operations["readPublicShortPostImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-post-novel-options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+    * 选择本人的公开可读长文
+    * @description 本机 test 验证入口。分页游标限定当前会话作者。提交预览和确认发布时重新校验可读性。
+    */
+    get: operations["listShortPostNovelOptions"];
     put?: never;
     post?: never;
     delete?: never;
@@ -3579,6 +3619,15 @@ export interface components {
       /** Format: date-time */
       published_at: string | null;
     };
+    ShortPostOwnerPage: {
+      next_cursor: string;
+      items: (components["schemas"]["ShortPostState"] & {
+        title: string;
+        /** Format: date-time */
+        submitted_at: string;
+        display_version: number;
+      })[];
+    };
     ShortPostManaged: components["schemas"]["ShortPostState"] & {
       /** Format: uuid */
       latest_submission_id: string | null;
@@ -5675,6 +5724,32 @@ export interface operations {
       503: components["responses"]["Unavailable"];
     };
   };
+  listMyShortPosts: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人短帖页 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostOwnerPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   readMyShortPost: {
     parameters: {
       query?: never;
@@ -5959,6 +6034,32 @@ export interface operations {
       400: components["responses"]["BadInput"];
       403: components["responses"]["OriginRejected"];
       404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listShortPostNovelOptions: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人当前公开可读的长文 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicNovelPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
       503: components["responses"]["Unavailable"];
     };
   };

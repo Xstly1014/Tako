@@ -38,6 +38,9 @@ export class NovelReadingApi {
   async list(token = "", signal?: AbortSignal) {
     return this.page("/novels", token, signal);
   }
+  async shortPostOptions(token = "", signal?: AbortSignal) {
+    return this.page("/my/short-post-novel-options", token, signal);
+  }
   async search(query: string, token = "", signal?: AbortSignal) {
     const q = searchQuery(query);
     if (q === null) throw new ApiError("invalid_input");

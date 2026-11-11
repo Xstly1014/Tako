@@ -36,7 +36,15 @@
       "expo-status-bar",
       "./plugins/withLocalTestNetwork.cjs",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "允许 Tako 选择短帖配图。",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

@@ -37,7 +37,7 @@ type PostPage[T any] struct {
 
 func (s PostStore) Queue(ctx context.Context, cursor string) (PostPage[QueueItem], error) {
 	out := PostPage[QueueItem]{Items: []QueueItem{}}
-	clause, args, err := s.pageBefore(ctx, "submitted_at", cursor)
+	clause, args, err := s.pageBefore(ctx, "submitted_at", cursor, uuid.Nil)
 	if err != nil {
 		return out, err
 	}
@@ -64,7 +64,7 @@ func (s PostStore) Queue(ctx context.Context, cursor string) (PostPage[QueueItem
 
 func (s PostStore) Feed(ctx context.Context, cursor string) (PostPage[FeedItem], error) {
 	out := PostPage[FeedItem]{Items: []FeedItem{}}
-	clause, args, err := s.pageBefore(ctx, "first_published_at", cursor)
+	clause, args, err := s.pageBefore(ctx, "first_published_at", cursor, uuid.Nil)
 	if err != nil {
 		return out, err
 	}
@@ -100,9 +100,53 @@ func (s PostStore) Feed(ctx context.Context, cursor string) (PostPage[FeedItem],
 	return out, rows.Err()
 }
 
-// field is the fixed, immutable sort column selected by the two callers above.
+type OwnedPostItem struct {
+	PostState
+	Title          string    `json:"title"`
+	SubmittedAt    time.Time `json:"submitted_at"`
+	DisplayVersion uint64    `json:"display_version"`
+}
+
+func (s PostStore) OwnedPosts(ctx context.Context, owner uuid.UUID, cursor string) (PostPage[OwnedPostItem], error) {
+	out := PostPage[OwnedPostItem]{Items: []OwnedPostItem{}}
+	if owner == uuid.Nil {
+		return out, ErrInvalidCursor
+	}
+	clause, pageArgs, err := s.pageBefore(ctx, "submitted_at", cursor, owner)
+	if err != nil {
+		return out, err
+	}
+	args := append([]any{owner[:]}, pageArgs...)
+	rows, err := s.DB.QueryContext(ctx, `SELECT s.id,s.state_revision,s.review_status,s.author_hidden,
+ s.platform_limited,s.first_published_at,s.submitted_at,s.display_version,p.title
+ FROM short_posts s
+ LEFT JOIN short_post_versions v ON v.post_id=s.id AND v.version=s.display_version
+ LEFT JOIN short_post_revision_submissions r ON r.post_id=s.id AND r.owner_id=s.owner_id AND s.display_version=0
+ AND r.id=(SELECT sr.id FROM short_post_revision_submissions sr WHERE sr.post_id=s.id ORDER BY sr.expected_revision DESC LIMIT 1)
+ JOIN short_post_previews p ON p.owner_id=s.owner_id AND p.id=COALESCE(v.preview_id,r.preview_id,s.preview_id)
+ WHERE s.owner_id=?`+clause+" ORDER BY s.submitted_at DESC,s.id DESC LIMIT 13", args...)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item OwnedPostItem
+		if err := rows.Scan(&item.ID, &item.Revision, &item.ReviewStatus, &item.AuthorHidden,
+			&item.PlatformLimited, &item.PublishedAt, &item.SubmittedAt, &item.DisplayVersion, &item.Title); err != nil {
+			return out, err
+		}
+		out.Items = append(out.Items, item)
+	}
+	if len(out.Items) > postPageSize {
+		out.Items = out.Items[:postPageSize]
+		out.NextCursor = out.Items[postPageSize-1].ID.String()
+	}
+	return out, rows.Err()
+}
+
+// field is a fixed, immutable sort column selected by the caller.
 // Once a post has been listed, visibility changes do not invalidate its anchor.
-func (s PostStore) pageBefore(ctx context.Context, field, cursor string) (string, []any, error) {
+func (s PostStore) pageBefore(ctx context.Context, field, cursor string, owner uuid.UUID) (string, []any, error) {
 	if cursor == "" {
 		return "", nil, nil
 	}
@@ -111,7 +155,13 @@ func (s PostStore) pageBefore(ctx context.Context, field, cursor string) (string
 		return "", nil, ErrInvalidCursor
 	}
 	var at sql.NullTime
-	err = s.DB.QueryRowContext(ctx, "SELECT "+field+" FROM short_posts WHERE id=?", id[:]).Scan(&at)
+	query := "SELECT " + field + " FROM short_posts WHERE id=?"
+	args := []any{id[:]}
+	if owner != uuid.Nil {
+		query += " AND owner_id=?"
+		args = append(args, owner[:])
+	}
+	err = s.DB.QueryRowContext(ctx, query, args...).Scan(&at)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && !at.Valid) {
 		return "", nil, ErrInvalidCursor
 	}

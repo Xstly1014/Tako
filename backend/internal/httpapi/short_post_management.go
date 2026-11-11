@@ -19,6 +19,15 @@ func (a API) registerShortPostManagement(protected *gin.RouterGroup) {
 	}
 	ops := protected.Group("/ops/short-posts", a.shortPostTestOnly, operatorOnly)
 	a.registerShortPostAppeals(protected, author, ops, operatorOnly, store)
+	author.GET("", func(c *gin.Context) {
+		owner := c.MustGet("account").(identity.Account).ID
+		out, err := store.OwnedPosts(c.Request.Context(), owner, c.Query("cursor"))
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.JSON(200, out)
+	})
 	ops.GET("", func(c *gin.Context) {
 		out, err := store.Queue(c.Request.Context(), c.Query("cursor"))
 		if err != nil {

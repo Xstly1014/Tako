@@ -100,6 +100,33 @@ func verifyShortPostPreview(t *testing.T, db *sql.DB, owner, publicBook, private
 		t.Helper()
 		return bytes.Clone(request(method, actor, "/api/my/short-post-previews/"+id.String(), in, want, code).Body.Bytes())
 	}
+	for _, check := range []struct {
+		actor uuid.UUID
+		want  bool
+	}{{owner, true}, {other, false}} {
+		var options struct {
+			Items []struct{ ID uuid.UUID }
+		}
+		response := request("GET", check.actor, "/api/my/short-post-novel-options", nil, 200, "")
+		if err := json.Unmarshal(response.Body.Bytes(), &options); err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, item := range options.Items {
+			if item.ID == privateBook {
+				t.Fatal("private book appeared in short-post options")
+			}
+			if item.ID == publicBook {
+				found = true
+			}
+		}
+		if found != check.want {
+			t.Fatal("short-post book options escaped the current owner")
+		}
+	}
+	request("GET", uuid.Nil, "/api/my/short-post-novel-options", nil, 401, "")
+	request("GET", owner, "/api/my/short-post-novel-options?cursor=invalid", nil, 400, "")
+
 	var sample bytes.Buffer
 	if err := png.Encode(&sample, image.NewRGBA(image.Rect(0, 0, 3, 2))); err != nil {
 		t.Fatal(err)

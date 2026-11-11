@@ -10,15 +10,23 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+export type RequestOptions = {
+  method?: string;
+  body?: unknown;
+  token?: string;
+  signal?: AbortSignal;
+  receiveImage?: boolean;
+  binary?: {
+    mediaType: "image/jpeg" | "image/png";
+    send: (url: string, init: RequestInit) =>
+      Promise<Pick<Response, "headers" | "ok" | "status" | "json" | "blob">>;
+  };
+};
 export async function request<T>(
   path: string,
-  options: {
-    method?: string;
-    body?: unknown;
-    token?: string;
-    signal?: AbortSignal;
-  } = {},
+  options: RequestOptions = {},
 ): Promise<T> {
+  if (options.binary && options.body !== undefined) throw new ApiError("invalid_input");
   const base = new URL(API_BASE);
   if (
     base.protocol !== "https:" &&
@@ -34,15 +42,17 @@ export async function request<T>(
   if (options.signal?.aborted) controller.abort();
   const timer = setTimeout(abort, 15000);
   try {
-    const response = await fetch(`${API_BASE}${path}`, {
+    const response = await (options.binary?.send ?? fetch)(`${API_BASE}${path}`, {
       method: options.method ?? "GET",
       credentials: "omit",
       signal: controller.signal,
       headers: {
-        Accept: "application/json",
-        ...(options.body === undefined
-          ? {}
-          : { "Content-Type": "application/json" }),
+        Accept: options.receiveImage ? "image/jpeg, image/png, application/json" : "application/json",
+        ...(options.binary
+          ? { "Content-Type": options.binary.mediaType }
+          : options.body === undefined
+            ? {}
+            : { "Content-Type": "application/json" }),
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       },
       ...(options.body === undefined
@@ -54,6 +64,14 @@ export async function request<T>(
     if (response.headers.get("X-Tako-Environment") !== "test")
       throw new ApiError("environment", requestId);
     if (response.status === 204 && response.ok) return undefined as T;
+    if (response.ok && options.receiveImage) {
+      const mime = response.headers.get("Content-Type");
+      if (mime !== "image/jpeg" && mime !== "image/png") throw new ApiError("contract", requestId);
+      const blob = await response.blob();
+      if (blob.type !== mime || blob.size === 0 || blob.size > 8 * 1024 * 1024)
+        throw new ApiError("contract", requestId);
+      return blob as T;
+    }
     let value: unknown;
     try {
       value = await response.json();

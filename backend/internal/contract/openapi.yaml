@@ -431,6 +431,26 @@ paths:
         '403': {$ref: '#/components/responses/OriginRejected'}
         '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts:
+    get:
+      operationId: listMyShortPosts
+      tags: [短内容]
+      summary: 列出本人提交的短帖
+      description: 本机 test 验证入口。包含待审、驳回、隐藏和受限记录。按首次提交时间倒序，游标仅适用于同一作者。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 本人短帖页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostOwnerPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-posts/{id}:
     get:
       operationId: readMyShortPost
@@ -663,6 +683,26 @@ paths:
         '400': {$ref: '#/components/responses/BadInput'}
         '403': {$ref: '#/components/responses/OriginRejected'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-post-novel-options:
+    get:
+      operationId: listShortPostNovelOptions
+      tags: [短内容]
+      summary: 选择本人的公开可读长文
+      description: 本机 test 验证入口。分页游标限定当前会话作者。提交预览和确认发布时重新校验可读性。
+      parameters:
+        - in: query
+          name: cursor
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          description: 本人当前公开可读的长文
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicNovelPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-post-previews/{id}:
     parameters:
@@ -6556,6 +6596,24 @@ components:
         author_hidden: {type: boolean}
         platform_limited: {type: boolean}
         published_at: {type: string, format: date-time, nullable: true}
+    ShortPostOwnerPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: {type: string, maxLength: 36}
+        items:
+          type: array
+          maxItems: 12
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ShortPostState'
+              - type: object
+                required: [title, submitted_at, display_version]
+                properties:
+                  title: {type: string, minLength: 1, maxLength: 80}
+                  submitted_at: {type: string, format: date-time}
+                  display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
     ShortPostManaged:
       allOf:
         - $ref: '#/components/schemas/ShortPostState'
