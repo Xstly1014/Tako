@@ -151,6 +151,16 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 	if len(queue().Items) != 0 {
 		t.Fatal("limited revision stayed in post-review queue")
 	}
+	ownerNodes := novelResult[[]shortpost.OwnerVersionNode](t, request("GET", owner, ownerPath+"/versions", nil, 200, "").Body.Bytes())
+	if len(ownerNodes) != 4 || ownerNodes[0].Version != 4 || !ownerNodes[0].PlatformLimited {
+		t.Fatal("author timeline omitted the limited version")
+	}
+	earlier := novelResult[[]shortpost.OwnerVersionNode](t, request("GET", owner, ownerPath+"/versions?before=4", nil, 200, "").Body.Bytes())
+	if len(earlier) != 3 || earlier[0].Version != 3 {
+		t.Fatal("author timeline did not advance")
+	}
+	request("GET", other, ownerPath+"/versions", nil, 404, "resource_not_found")
+	request("GET", owner, ownerPath+"/versions?before=0", nil, 400, "invalid_input")
 	limited := novelResult[shortpost.OwnedPostVersion](t, request("GET", owner, ownerPath+"/versions/4", nil, 200, "").Body.Bytes())
 	if !limited.PlatformLimited || limited.ReviewReason != "合成审核原因" || limited.Content == "" {
 		t.Fatal("author restriction details incorrect")

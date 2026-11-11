@@ -23,6 +23,7 @@ type RevisionSnapshot struct {
 	PostReviewPending bool            `json:"post_review_pending"`
 	State             string          `json:"state"`
 	Version           *uint64         `json:"version"`
+	NovelID           *uuid.UUID      `json:"novel_id"`
 	Title             string          `json:"title"`
 	Content           string          `json:"content"`
 	Images            []ImageMetadata `json:"images"`
@@ -139,7 +140,7 @@ func (s PostStore) Revision(ctx context.Context, owner, post, id uuid.UUID) (Rev
 		return out, err
 	}
 	defer tx.Rollback()
-	query := `SELECT r.owner_id,r.preview_id,r.initial_pre_review,r.status,r.version,r.submitted_at,r.reason,p.title,p.content,r.post_review_pending
+	query := `SELECT r.owner_id,r.preview_id,r.initial_pre_review,r.status,r.version,r.submitted_at,r.reason,p.title,p.content,p.novel_id,r.post_review_pending
  FROM short_post_revision_submissions r JOIN short_post_previews p ON p.owner_id=r.owner_id AND p.id=r.preview_id
  WHERE r.post_id=? AND r.id=?`
 	args := []any{post[:], id[:]}
@@ -149,7 +150,7 @@ func (s PostStore) Revision(ctx context.Context, owner, post, id uuid.UUID) (Rev
 	}
 	var actualOwner uuid.UUID
 	var pending bool
-	err = tx.QueryRowContext(ctx, query, args...).Scan(&actualOwner, &out.PreviewID, &pending, &out.State, &out.Version, &out.SubmittedAt, &out.Reason, &out.Title, &out.Content, &out.PostReviewPending)
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&actualOwner, &out.PreviewID, &pending, &out.State, &out.Version, &out.SubmittedAt, &out.Reason, &out.Title, &out.Content, &out.NovelID, &out.PostReviewPending)
 	if err != nil {
 		return out, err
 	}

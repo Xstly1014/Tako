@@ -131,6 +131,49 @@ paths:
         '403': {$ref: '#/components/responses/OriginRejected'}
         '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/appeals/{appealId}/evidence:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: appealId, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: readOpsShortPostAppealEvidence
+      tags: [短内容]
+      summary: 运营读取短帖复核证据
+      description: 单版本处置读取该正式版；整帖处置读取当前展示版或无正式版时的首发稿。仅测试环境运营可读。
+      responses:
+        '200':
+          description: 复核内容
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostAppealEvidence'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/ops/short-posts/{id}/appeals/{appealId}/evidence/images/{imageId}:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: appealId, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: imageId, required: true, schema: {type: string, format: uuid}}
+      - {in: query, name: version, required: true, schema: {type: integer, minimum: 0, maximum: 9007199254740991}}
+    get:
+      operationId: readOpsShortPostAppealEvidenceImage
+      tags: [短内容]
+      summary: 运营读取复核证据对应的配图
+      description: 版本参数须与证据返回一致，无正式版本时传 0；状态变化时需刷新证据。
+      responses:
+        '200':
+          description: 规范化图片
+          content:
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/ops/short-post-appeals:
     get:
       operationId: listOpsShortPostAppeals
@@ -246,6 +289,31 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/PublicShortPost'}
         '400': {$ref: '#/components/responses/BadInput'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/versions:
+    get:
+      operationId: listMyShortPostVersions
+      tags: [短内容]
+      summary: 读取本人短帖的正式版本节点
+      description: 包含隐藏和受限版本，按版本号倒序，每页最多 20 条。只有短帖作者可读。
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 1, maximum: 9007199254740991}
+      responses:
+        '200':
+          description: 本人短帖的版本节点
+          content:
+            application/json:
+              schema: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OwnedShortPostVersionNode'}}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/OriginRejected'}
         '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/Unavailable'}
@@ -6517,7 +6585,7 @@ components:
     ShortPostAppeal:
       type: object
       additionalProperties: false
-      required: [id, post_id, case_revision, version, state, reason, decision_reason, submitted_at, decided_at]
+      required: [id, post_id, case_revision, version, state, reason, case_reason, decision_reason, submitted_at, decided_at]
       properties:
         id: {type: string, format: uuid}
         post_id: {type: string, format: uuid}
@@ -6525,9 +6593,22 @@ components:
         version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
         state: {type: string, enum: [pending, upheld, revoked]}
         reason: {type: string, minLength: 1, maxLength: 500}
+        case_reason: {type: string, maxLength: 500}
         decision_reason: {type: string, maxLength: 500}
         submitted_at: {type: string, format: date-time}
         decided_at: {type: string, format: date-time, nullable: true}
+    ShortPostAppealEvidence:
+      type: object
+      additionalProperties: false
+      required: [title, content, version, images]
+      properties:
+        title: {type: string, minLength: 1, maxLength: 80}
+        content: {type: string, minLength: 1, maxLength: 2000}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
+        images:
+          type: array
+          maxItems: 4
+          items: {$ref: '#/components/schemas/ShortPostImage'}
     ShortPostAppealPage:
       type: object
       additionalProperties: false
@@ -6566,11 +6647,20 @@ components:
         version: {type: integer, minimum: 1, maximum: 9007199254740991}
         published_at: {type: string, format: date-time}
         readable: {type: boolean}
+    OwnedShortPostVersionNode:
+      type: object
+      additionalProperties: false
+      required: [version, published_at, platform_limited]
+      properties:
+        version: {type: integer, minimum: 1, maximum: 9007199254740991}
+        published_at: {type: string, format: date-time}
+        platform_limited: {type: boolean}
     ShortPostRevisionSnapshot:
       type: object
       additionalProperties: false
-      required: [id, preview_id, post_id, status, submitted_at, state, version, title, content, images, review_reason, post_review_pending]
+      required: [id, preview_id, post_id, status, submitted_at, state, version, title, content, images, review_reason, post_review_pending, novel_id]
       properties:
+        novel_id: {type: string, format: uuid, nullable: true}
         post_review_pending: {type: boolean}
         id: {type: string, format: uuid}
         preview_id: {type: string, format: uuid}
@@ -6618,8 +6708,9 @@ components:
       allOf:
         - $ref: '#/components/schemas/ShortPostState'
         - type: object
-          required: [title, content, submitted_at, images, review_reason, display_version, history_enabled, latest_submission_id, limit_case_revision]
+          required: [title, content, submitted_at, images, review_reason, display_version, history_enabled, latest_submission_id, limit_case_revision, novel_id]
           properties:
+            novel_id: {type: string, format: uuid, nullable: true}
             latest_submission_id: {type: string, format: uuid, nullable: true}
             display_version: {type: integer, minimum: 0, maximum: 9007199254740991}
             history_enabled: {type: boolean}

@@ -28,6 +28,7 @@ type Appeal struct {
 	Version        *uint64    `json:"version"`
 	State          string     `json:"state"`
 	Reason         string     `json:"reason"`
+	CaseReason     string     `json:"case_reason"`
 	DecisionReason string     `json:"decision_reason"`
 	SubmittedAt    time.Time  `json:"submitted_at"`
 	DecidedAt      *time.Time `json:"decided_at"`
@@ -38,11 +39,11 @@ type AppealPage struct {
 	NextBefore uint64   `json:"next_before"`
 }
 
-const appealSelect = `SELECT a.id,a.post_id,a.case_revision,c.target_version,a.state,a.reason,a.decision_reason,a.submitted_at,a.decided_at`
+const appealSelect = `SELECT a.id,a.post_id,a.case_revision,c.target_version,a.state,a.reason,c.reason,a.decision_reason,a.submitted_at,a.decided_at`
 const appealFrom = ` FROM short_post_appeals a JOIN short_post_actions c ON c.post_id=a.post_id AND c.state_revision=a.case_revision`
 
 func appealFields(out *Appeal) []any {
-	return []any{&out.ID, &out.PostID, &out.CaseRevision, &out.Version, &out.State, &out.Reason, &out.DecisionReason, &out.SubmittedAt, &out.DecidedAt}
+	return []any{&out.ID, &out.PostID, &out.CaseRevision, &out.Version, &out.State, &out.Reason, &out.CaseReason, &out.DecisionReason, &out.SubmittedAt, &out.DecidedAt}
 }
 
 func (s PostStore) FileAppeal(ctx context.Context, owner, post, id uuid.UUID, in FileAppeal) (Appeal, error) {

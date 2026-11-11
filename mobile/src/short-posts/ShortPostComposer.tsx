@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
-import { Redirect, router, useNavigation, usePreventRemove } from "expo-router";
+import { Redirect, router, useLocalSearchParams, useNavigation, usePreventRemove } from "expo-router";
 import { randomUUID } from "expo-crypto";
 import { launchImageLibraryAsync, type ImagePickerAsset } from "expo-image-picker";
 import { File } from "expo-file-system";
@@ -10,19 +10,26 @@ import { fetch as nativeFetch } from "expo/fetch";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError, type RequestOptions } from "../api/client";
 import { useSession } from "../auth/context";
+import { UUID } from "../api/reader";
 import { AuthSheet } from "../components/AuthSheet";
 import { Action, Status } from "../components/Ui";
 import { NovelReadingApi, type PublicNovel, type PublicNovelPage } from "../novels/reading-api";
 import { mergeReadingItems } from "../novels/reading-model";
 import { shortPostJournal } from "../publication/journal";
 import { theme as t } from "../theme";
-import { composeMessage, postInput, preparePost, ShortPostSubmission, type Preview, type Receipt } from "./publish";
+import { composeMessage, postInput, preparePost, ShortPostSubmission, type Preview, type Receipt, type RevisionTarget } from "./publish";
 import { shortPostsTrial } from "./trial";
+import { latestRevision, managedPost, type Managed, type Revision } from "./manage";
+import { PrivateImages, useOwner } from "./ShortPostManagement";
 
-type Photo = { id: string; asset: ImagePickerAsset; uploaded: boolean };
+type Photo = { id: string; asset?: ImagePickerAsset; uploaded: boolean };
 type Book = Pick<PublicNovel, "id" | "title">;
 const maxImages = 4;
-const back = () => router.dismissTo("/short-community");
+function back(post?: string) {
+  if (post && UUID.test(post)) router.dismissTo({ pathname: "/my-short-posts/[id]", params: { id: post } });
+  else router.dismissTo("/short-community");
+}
+type Seed = { post: Managed; snapshot: Managed | Revision; replacesPending: boolean };
 
 function TextAction({ label, onPress, disabled = false }: {
   label: string; onPress: () => void; disabled?: boolean;
@@ -37,14 +44,20 @@ function TextAction({ label, onPress, disabled = false }: {
 
 export default function ShortPostComposer() {
   const { account, phase } = useSession();
+  const params = useLocalSearchParams<{ post?: string; revision?: string }>();
+  const post = typeof params.post === "string" ? params.post : undefined;
+  const source = typeof params.revision === "string" ? params.revision : undefined;
   const [auth, setAuth] = useState(false);
   if (!shortPostsTrial) return <Redirect href="/community" />;
   if (phase === "ready" && account?.nickname) {
-    return <AuthorComposer key={account.id} owner={account.id} />;
+    return post === undefined
+      ? <AuthorComposer key={account.id} owner={account.id} />
+      : <RevisionEntry key={account.id + ":" + post + ":" + (source ?? "")}
+          owner={account.id} post={post} source={source} />;
   }
   return (
     <SafeAreaView style={s.screen}>
-      <TextAction label="返回短内容" onPress={back} />
+      <TextAction label={post ? "返回短帖管理" : "返回短内容"} onPress={() => back(post)} />
       <Status loading={phase === "loading"} title={
         phase === "loading" ? "正在核对账号" :
           phase === "offline" ? "联网后发帖" : account ? "先设置笔名" : "登录后发帖"
@@ -56,6 +69,34 @@ export default function ShortPostComposer() {
       <AuthSheet visible={auth} onClose={() => setAuth(false)} onComplete={() => setAuth(false)} />
     </SafeAreaView>
   );
+}
+
+function RevisionEntry({ owner, post, source }: { owner: string; post: string; source?: string }) {
+  const send = useOwner(owner);
+  const [seed, setSeed] = useState<Seed>();
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState<unknown>();
+  useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+    managedPost(send, post, signal).then(async (item) => {
+      const latest = item.latest_submission_id
+        ? await latestRevision(send, post, item.latest_submission_id, signal) : undefined;
+      const snapshot = !source ? item : latest?.id === source
+        ? latest : await latestRevision(send, post, source, signal);
+      if (!signal.aborted) setSeed({ post: item, snapshot,
+        replacesPending: latest?.state === "pending" || (!item.display_version && item.review_status === "pending") });
+    }).catch((failure: unknown) => {
+      if (!signal.aborted) setError(failure);
+    });
+    return () => controller.abort();
+  }, [attempt, post, send, source]);
+  return seed ? <AuthorComposer owner={owner} seed={seed} /> : <SafeAreaView style={s.screen}>
+    <TextAction label="返回短帖管理" onPress={() => back(post)} />
+    <Status loading={!error} title={error ? "未能打开原稿" : "正在读取原稿"}
+      message={error ? composeMessage(error) : undefined}
+      onRetry={error ? () => { setError(undefined); setAttempt((value) => value + 1); } : undefined} />
+  </SafeAreaView>;
 }
 
 function imageSource(asset: ImagePickerAsset) {
@@ -72,7 +113,7 @@ function imageSource(asset: ImagePickerAsset) {
   return { file, mediaType };
 }
 
-function AuthorComposer({ owner }: { owner: string }) {
+function AuthorComposer({ owner, seed }: { owner: string; seed?: Seed }) {
   const { session } = useSession();
   const nav = useNavigation();
   const send = useCallback(<T,>(path: string, options?: Omit<RequestOptions, "token">) => {
@@ -81,10 +122,19 @@ function AuthorComposer({ owner }: { owner: string }) {
   }, [owner, session]);
   const publication = useMemo(() => new ShortPostSubmission(owner, send, shortPostJournal(owner)), [owner, send]);
   const books = useMemo(() => new NovelReadingApi(send), [send]);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [book, setBook] = useState<Book>();
+  const [title, setTitle] = useState(seed?.snapshot.title ?? "");
+  const [content, setContent] = useState(seed?.snapshot.content ?? "");
+  const [photos, setPhotos] = useState<Photo[]>(() =>
+    seed?.snapshot.images.map(({ id }) => ({ id, uploaded: true })) ?? []);
+  const [book, setBook] = useState<Book | undefined>(() => {
+    const id = seed?.snapshot.novel_id;
+    return id ? { id, title: "原关联长文" } : undefined;
+  });
+  const [target, setTarget] = useState<RevisionTarget | undefined>(() =>
+    seed ? { post: seed.post.id, expectedRevision: seed.post.state_revision } : undefined);
+  const [conflict, setConflict] = useState(false);
+  const [replacesPending, setReplacesPending] = useState(seed?.replacesPending ?? false);
+  const [edited, setEdited] = useState(false);
   const [options, setOptions] = useState<PublicNovelPage>();
   const [choosing, setChoosing] = useState(false);
   const [preview, setPreview] = useState<Preview>();
@@ -96,7 +146,7 @@ function AuthorComposer({ owner }: { owner: string }) {
   const [error, setError] = useState<unknown>();
   const active = useRef<AbortController | null>(null);
   const previewKey = useRef<string | null>(null);
-  const dirty = Boolean(title || content || photos.length || book);
+  const dirty = seed ? edited : Boolean(title || content || photos.length || book);
 
   const run = useCallback(async (task: (signal: AbortSignal) => Promise<void>) => {
     if (active.current) return;
@@ -156,6 +206,7 @@ function AuthorComposer({ owner }: { owner: string }) {
   });
 
   function invalidate() {
+    setEdited(true);
     previewKey.current = null;
     setPreview(undefined);
     setRights(false);
@@ -183,6 +234,7 @@ function AuthorComposer({ owner }: { owner: string }) {
   }
 
   async function stage(photo: Photo, signal: AbortSignal) {
+    if (!photo.asset) throw new ApiError("short_post_image_unavailable");
     const { file, mediaType } = imageSource(photo.asset);
     const upload = (id: string) => send<{ id: string }>("/my/short-post-images/" + id, {
       method: "PUT",
@@ -219,7 +271,7 @@ function AuthorComposer({ owner }: { owner: string }) {
     } catch (error) {
       if (!signal.aborted && error instanceof ApiError) {
         if (error.code === "short_post_image_unavailable")
-          setPhotos((old) => old.map((item) => ({ ...item, uploaded: false })));
+          setPhotos((old) => old.map((item) => item.asset ? { ...item, uploaded: false } : item));
         if (error.code === "short_post_image_unavailable" || error.code === "preview_expired")
           invalidate();
       }
@@ -232,15 +284,16 @@ function AuthorComposer({ owner }: { owner: string }) {
       if (retry) {
         setReceipt(await publication.retry(signal));
       } else if (preview && rights) {
-        setReceipt(await publication.confirm(randomUUID(), preview.id, signal));
+        setReceipt(await publication.confirm(randomUUID(), preview.id, signal, target));
       }
     } catch (error) {
       if (!signal.aborted) {
         const repair = error instanceof ApiError &&
-          ["preview_expired", "short_post_novel_unavailable"].includes(error.code);
+          ["preview_expired", "short_post_novel_unavailable", "work_state_conflict"].includes(error.code);
         if (repair) {
           invalidate();
           setPending(false);
+          if (error.code === "work_state_conflict" && target) setConflict(true);
         } else {
           setReady(false);
           await recover(signal).catch(() => undefined);
@@ -248,6 +301,25 @@ function AuthorComposer({ owner }: { owner: string }) {
       }
       throw error;
     }
+  }
+
+  async function reconcile(signal: AbortSignal) {
+    if (!target) return;
+    const current = await managedPost(send, target.post, signal);
+    const latest = current.latest_submission_id
+      ? await latestRevision(send, target.post, current.latest_submission_id, signal) : undefined;
+    if (signal.aborted) return;
+    const version = current.display_version ? "V" + current.display_version : "待审或驳回提交";
+    Alert.alert("核对当前短帖", current.title + " · " + version +
+      "。继续会保留当前编辑，并按最新状态生成一份新的预览。", [
+      { text: "暂不继续", style: "cancel" },
+      { text: "继续修订", onPress: () => {
+        setTarget({ post: current.id, expectedRevision: current.state_revision });
+        setReplacesPending(latest?.state === "pending" ||
+          (!current.display_version && current.review_status === "pending"));
+        setConflict(false);
+      } },
+    ]);
   }
 
   async function loadBooks(signal: AbortSignal, cursor = "") {
@@ -271,9 +343,9 @@ function AuthorComposer({ owner }: { owner: string }) {
     if (destination.target === "public") {
       router.replace({ pathname: "/short-posts/[id]", params: { id: destination.post } });
     } else if (destination.target === "manage") {
-      router.replace({ pathname: "/my-short-posts/[id]", params: { id: destination.post } });
-    } else back();
-  }, [busy, destination]);
+      router.dismissTo({ pathname: "/my-short-posts/[id]", params: { id: destination.post } });
+    } else back(target?.post);
+  }, [busy, destination, target?.post]);
 
   const move = (index: number, delta: number) => {
     const next = [...photos];
@@ -285,9 +357,9 @@ function AuthorComposer({ owner }: { owner: string }) {
   return (
     <SafeAreaView style={s.screen}>
       <View style={s.header}>
-        <TextAction label="返回短内容" onPress={back} disabled={busy} />
+        <TextAction label={target ? "返回短帖管理" : "返回短内容"} onPress={() => back(target?.post)} disabled={busy} />
         <Text accessibilityRole="header" style={s.heading}>
-          {receipt ? "提交结果" : preview ? "发布预览" : "发短帖"}
+          {receipt ? "提交结果" : preview ? "发布预览" : target ? "修订短帖" : "发短帖"}
         </Text>
       </View>
       <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -296,7 +368,7 @@ function AuthorComposer({ owner }: { owner: string }) {
           {receipt ? (
             <>
               <Text style={s.heading}>{receipt.status === "published" ? "短帖已发布" : "已提交审核"}</Text>
-              {receipt.status === "pre_review" ? <Text style={s.meta}>通过审核后，读者才能看到这条短帖。</Text> : null}
+              {receipt.status === "pre_review" ? <Text style={s.meta}>当前审核进度可在短帖管理查看。</Text> : null}
               {receipt.status === "published" ? <Action label="阅读已发布短帖" disabled={busy} onPress={() => void run((signal) => finish(signal, "public"))} /> : null}
               <TextAction label="查看短帖管理" disabled={busy} onPress={() => void run((signal) => finish(signal, "manage"))} />
               <TextAction label="返回短内容" disabled={busy} onPress={() => void run((signal) => finish(signal, "feed"))} />
@@ -313,14 +385,18 @@ function AuthorComposer({ owner }: { owner: string }) {
               <Text style={s.body}>{preview.content}</Text>
               {preview.images.map((image) => {
                 const photo = photos.find((item) => item.id === image.id);
-                return photo ? <Image key={image.id} source={{ uri: photo.asset.uri }} style={s.previewPhoto} resizeMode="contain" accessible accessibilityLabel="待发布图片" /> : null;
+                return photo?.asset
+                  ? <Image key={image.id} source={{ uri: photo.asset.uri }} style={s.previewPhoto} resizeMode="contain" accessible accessibilityLabel="待发布图片" />
+                  : <PrivateImages key={image.id} ids={[image.id]} send={send} />;
               })}
               {book && preview.novel_id === book.id ? <Text style={s.meta}>关联长文 · {book.title}</Text> : null}
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: rights, disabled: busy }}
                 disabled={busy} onPress={() => setRights(!rights)} style={s.control}>
                 <Text style={rights ? s.link : s.body}>{rights ? "已确认" : "确认"}内容为原创或已获授权</Text>
               </Pressable>
-              <Action label={busy ? "正在提交" : "确认发布"} disabled={busy || !rights}
+              {replacesPending ? <Text style={s.meta}>确认后，这份内容会替换当前的待审提交。</Text> : null}
+              <Action label={busy ? "正在提交" : replacesPending ? "提交并替换待审稿" : target ? "提交修订" : "确认发布"}
+                disabled={busy || !rights}
                 onPress={() => void run((signal) => submit(signal))} />
               <TextAction label="返回编辑" disabled={busy} onPress={invalidate} />
             </>
@@ -335,7 +411,9 @@ function AuthorComposer({ owner }: { owner: string }) {
               <Text style={s.label}>图片 {photos.length}/{maxImages}</Text>
               {photos.map((photo, index) => (
                 <View key={photo.id} style={s.row}>
-                  <Image source={{ uri: photo.asset.uri }} style={s.thumbnail} accessible accessibilityLabel={"第 " + (index + 1) + " 张图片"} />
+                  {photo.asset
+                    ? <Image source={{ uri: photo.asset.uri }} style={s.thumbnail} accessible accessibilityLabel={"第 " + (index + 1) + " 张图片"} />
+                    : <Text style={s.meta}>原图 {index + 1}</Text>}
                   <Text style={s.meta}>{photo.uploaded ? "已上传" : "待上传"}</Text>
                   <TextAction label="前移" disabled={busy || index === 0} onPress={() => move(index, -1)} />
                   <TextAction label="后移" disabled={busy || index === photos.length - 1} onPress={() => move(index, 1)} />
@@ -364,8 +442,10 @@ function AuthorComposer({ owner }: { owner: string }) {
                     disabled={busy} onPress={() => void run((signal) => loadBooks(signal, options?.next_cursor))} /> : null}
                 </View>
               ) : null}
-              <Action label={busy ? "正在处理" : "准备发布预览"} disabled={busy}
-                onPress={() => void run(openPreview)} />
+              {conflict
+                ? <Action label="核对最新状态" disabled={busy} onPress={() => void run(reconcile)} />
+                : <Action label={busy ? "正在处理" : "准备发布预览"} disabled={busy}
+                    onPress={() => void run(openPreview)} />}
             </>
           )}
         </ScrollView>

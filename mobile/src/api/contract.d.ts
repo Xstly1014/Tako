@@ -56,6 +56,55 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ops/short-posts/{id}/appeals/{appealId}/evidence": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+      };
+      cookie?: never;
+    };
+    /**
+    * 运营读取短帖复核证据
+    * @description 单版本处置读取该正式版；整帖处置读取当前展示版或无正式版时的首发稿。仅测试环境运营可读。
+    */
+    get: operations["readOpsShortPostAppealEvidence"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ops/short-posts/{id}/appeals/{appealId}/evidence/images/{imageId}": {
+    parameters: {
+      query: {
+        version: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+        imageId: string;
+      };
+      cookie?: never;
+    };
+    /**
+    * 运营读取复核证据对应的配图
+    * @description 版本参数须与证据返回一致，无正式版本时传 0；状态变化时需刷新证据。
+    */
+    get: operations["readOpsShortPostAppealEvidenceImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ops/short-post-appeals": {
     parameters: {
       query?: never;
@@ -133,6 +182,26 @@ export interface paths {
     };
     /** 读取指定公开版本 */
     get: operations["readShortPostVersion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+    * 读取本人短帖的正式版本节点
+    * @description 包含隐藏和受限版本，按版本号倒序，每页最多 20 条。只有短帖作者可读。
+    */
+    get: operations["listMyShortPostVersions"];
     put?: never;
     post?: never;
     delete?: never;
@@ -3558,11 +3627,18 @@ export interface components {
       /** @enum {string} */
       state: "pending" | "upheld" | "revoked";
       reason: string;
+      case_reason: string;
       decision_reason: string;
       /** Format: date-time */
       submitted_at: string;
       /** Format: date-time */
       decided_at: string | null;
+    };
+    ShortPostAppealEvidence: {
+      title: string;
+      content: string;
+      version: number | null;
+      images: components["schemas"]["ShortPostImage"][];
     };
     ShortPostAppealPage: {
       next_before: number;
@@ -3588,7 +3664,15 @@ export interface components {
       published_at: string;
       readable: boolean;
     };
+    OwnedShortPostVersionNode: {
+      version: number;
+      /** Format: date-time */
+      published_at: string;
+      platform_limited: boolean;
+    };
     ShortPostRevisionSnapshot: {
+      /** Format: uuid */
+      novel_id: string | null;
       post_review_pending: boolean;
       /** Format: uuid */
       id: string;
@@ -3629,6 +3713,8 @@ export interface components {
       })[];
     };
     ShortPostManaged: components["schemas"]["ShortPostState"] & {
+      /** Format: uuid */
+      novel_id: string | null;
       /** Format: uuid */
       latest_submission_id: string | null;
       display_version: number;
@@ -5381,6 +5467,65 @@ export interface operations {
       503: components["responses"]["Unavailable"];
     };
   };
+  readOpsShortPostAppealEvidence: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 复核内容 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostAppealEvidence"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readOpsShortPostAppealEvidenceImage: {
+    parameters: {
+      query: {
+        version: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+        appealId: string;
+        imageId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 规范化图片 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/jpeg": string;
+          "image/png": string;
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   listOpsShortPostAppeals: {
     parameters: {
       query?: {
@@ -5513,6 +5658,35 @@ export interface operations {
         };
       };
       400: components["responses"]["BadInput"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listMyShortPostVersions: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人短帖的版本节点 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OwnedShortPostVersionNode"][];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
       403: components["responses"]["OriginRejected"];
       404: components["responses"]["NotFound"];
       503: components["responses"]["Unavailable"];

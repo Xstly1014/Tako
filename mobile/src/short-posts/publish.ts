@@ -13,9 +13,19 @@ export type PreviewInput = {
   image_ids: string[];
 };
 type Authorized = <T>(path: string, options?: Omit<RequestOptions, "token">) => Promise<T>;
-type Pending = { owner: string; id: string; preview: string };
+export type RevisionTarget = { post: string; expectedRevision: number };
+type Pending = { owner: string; id: string; preview: string; target?: RevisionTarget };
+function validTarget(target: RevisionTarget) {
+  return !!target && UUID.test(target.post) && Number.isSafeInteger(target.expectedRevision) &&
+    target.expectedRevision > 0 && target.expectedRevision < Number.MAX_SAFE_INTEGER;
+}
 const submission = "/my/short-post-submissions/";
 const active = new Set<string>();
+function submissionPath(pending: Pending) {
+  return pending.target
+    ? "/my/short-posts/" + pending.target.post + "/revisions/" + pending.id
+    : submission + pending.id;
+}
 
 export function postInput(input: PreviewInput) {
   const title = input.title.trim();
@@ -57,7 +67,7 @@ export class ShortPostSubmission {
     if (raw === null) return null;
     try { value = JSON.parse(raw); } catch { throw new ApiError("storage"); }
     if (!value || value.owner !== this.owner || !UUID.test(value.id) ||
-        !UUID.test(value.preview)) throw new ApiError("storage");
+        !UUID.test(value.preview) || (value.target !== undefined && !validTarget(value.target))) throw new ApiError("storage");
     return value;
   }
 
@@ -69,7 +79,7 @@ export class ShortPostSubmission {
 
   private checked(out: Receipt, pending: Pending) {
     if (!out || out.id !== pending.id || out.preview_id !== pending.preview ||
-        !UUID.test(out.post_id) || !["published", "pre_review"].includes(out.status) ||
+        !UUID.test(out.post_id) || (pending.target && pending.target.post !== out.post_id) || !["published", "pre_review"].includes(out.status) ||
         !Number.isFinite(Date.parse(out.submitted_at))) throw new ApiError("contract");
     return out;
   }
@@ -78,7 +88,7 @@ export class ShortPostSubmission {
     const pending = await this.pending();
     if (!pending) return { pending: false as const };
     try {
-      const receipt = this.checked(await this.send<Receipt>(submission + pending.id, { signal }), pending);
+      const receipt = this.checked(await this.send<Receipt>(submissionPath(pending), { signal }), pending);
       return { pending: true as const, receipt };
     } catch (error) {
       if (error instanceof ApiError && error.status === 404)
@@ -87,11 +97,11 @@ export class ShortPostSubmission {
     }
   }
 
-  async confirm(id: string, preview: string, signal?: AbortSignal) {
-    if (!UUID.test(id) || !UUID.test(preview)) throw new ApiError("short_post_input");
+  async confirm(id: string, preview: string, signal?: AbortSignal, target?: RevisionTarget) {
+    if (!UUID.test(id) || !UUID.test(preview) || (target && !validTarget(target))) throw new ApiError("short_post_input");
     return this.exclusive(async () => {
       if (await this.pending()) throw new ApiError("short_post_pending");
-      const pending: Pending = { owner: this.owner, id, preview };
+      const pending: Pending = { owner: this.owner, id, preview, ...(target ? { target } : {}) };
       await this.journal.set(JSON.stringify(pending));
       return this.submit(pending, signal);
     });
@@ -107,13 +117,20 @@ export class ShortPostSubmission {
 
   private async submit(pending: Pending, signal?: AbortSignal) {
     try {
-      return this.checked(await this.send<Receipt>(submission + pending.id, {
-        method: "PUT", body: { preview_id: pending.preview, rights_confirmed: true }, signal,
+      return this.checked(await this.send<Receipt>(submissionPath(pending), {
+        method: "PUT",
+        body: {
+          preview_id: pending.preview,
+          rights_confirmed: true,
+          ...(pending.target ? { expected_revision: pending.target.expectedRevision } : {}),
+        },
+        signal,
       }), pending);
     } catch (error) {
       // These responses follow the receipt lookup and definitively reject this attempt.
       if (error instanceof ApiError &&
-          (error.code === "preview_expired" || error.code === "short_post_novel_unavailable"))
+          (error.code === "preview_expired" || error.code === "short_post_novel_unavailable" ||
+            (pending.target && error.code === "work_state_conflict")))
         await this.journal.remove();
       throw error;
     }
@@ -133,6 +150,7 @@ export function composeMessage(error: unknown) {
   if (!(error instanceof ApiError)) return "暂时无法完成，请重试。";
   const messages: Record<string, string> = {
     short_post_input: "请填写标题和正文。标题最多 80 字，正文最多 2000 字。",
+    work_state_conflict: "短帖状态已变化。请核对最新状态，再决定是否继续提交。",
     short_post_pending: "还有一次发布结果待确认，请先查询回执。",
     short_post_image_unavailable: "有图片已失效。请重新上传后再预览。",
     short_post_novel_unavailable: "关联长文已不可读，请移除或重新选择。",

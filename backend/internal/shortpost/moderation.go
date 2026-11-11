@@ -41,6 +41,7 @@ type PostState struct {
 
 type ManagedPost struct {
 	PostState
+	NovelID            *uuid.UUID      `json:"novel_id"`
 	Title              string          `json:"title"`
 	Content            string          `json:"content"`
 	SubmittedAt        time.Time       `json:"submitted_at"`
@@ -65,7 +66,7 @@ func (s PostStore) Manage(ctx context.Context, post, owner uuid.UUID) (ManagedPo
 	ownerView := owner != uuid.Nil
 	query := `SELECT s.owner_id,p.id,s.state_revision,
  IF(?,s.review_status,COALESCE(s.initial_review_archive,s.review_status)),s.author_hidden,s.platform_limited,
- s.first_published_at,s.submitted_at,p.title,p.content,s.display_version,s.history_enabled,r.id,
+ s.first_published_at,s.submitted_at,p.title,p.content,p.novel_id,s.display_version,s.history_enabled,r.id,
  IF(s.platform_limited,(SELECT MAX(state_revision) FROM short_post_actions WHERE post_id=s.id AND action='limit'),NULL),
  COALESCE(IF(s.display_version=0,r.reason,NULL),(SELECT reason FROM short_post_actions WHERE post_id=s.id
  AND target_revision_id IS NULL AND target_version IS NULL AND action IN ('approve','reject','limit','revoke_limit','appeal_revoke')
@@ -82,7 +83,7 @@ func (s PostStore) Manage(ctx context.Context, post, owner uuid.UUID) (ManagedPo
 		args = append(args, owner[:])
 	}
 	err = tx.QueryRowContext(ctx, query, args...).Scan(&ownerID, &preview, &out.Revision, &out.ReviewStatus, &out.AuthorHidden,
-		&out.PlatformLimited, &out.PublishedAt, &out.SubmittedAt, &out.Title, &out.Content, &out.DisplayVersion, &out.HistoryEnabled, &latest, &out.LimitCaseRevision, &out.Reason)
+		&out.PlatformLimited, &out.PublishedAt, &out.SubmittedAt, &out.Title, &out.Content, &out.NovelID, &out.DisplayVersion, &out.HistoryEnabled, &latest, &out.LimitCaseRevision, &out.Reason)
 	if latest.Valid {
 		out.LatestSubmissionID = &latest.UUID
 	}

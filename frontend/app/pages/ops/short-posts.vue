@@ -8,22 +8,29 @@ useHead({
   meta: [{ name: 'robots', content: 'noindex,nofollow,noarchive' }],
 })
 
-type Lane = 'initial' | 'revision'
+type Lane = 'initial' | 'revision' | 'appeal'
 type QueueItem = { id: string; title: string; pre_review: boolean; submitted_at: string }
 type RevisionItem = QueueItem & { post_id: string; version: number | null }
 type Task = QueueItem & { post_id: string; version: number | null; lane: Lane }
 type Page<T> = { items: T[]; next_cursor: string }
+type Appeal = { id: string; post_id: string; case_revision: number; version: number | null;
+  state: string; reason: string; case_reason: string; submitted_at: string }
+type AppealPage = { items: Appeal[]; next_before: number }
 type ImageInfo = { id: string; width: number; height: number }
 type Post = { id: string; state_revision: number; review_status: string; published_at: string | null;
   platform_limited: boolean; title: string; content: string; images: ImageInfo[] }
 type Revision = { id: string; post_id: string; state: string; version: number | null;
   post_review_pending: boolean; title: string; content: string; images: ImageInfo[] }
-type Detail = { task: Task; post: Post; snapshot: Pick<Post, 'title' | 'content' | 'images'>; actionable: boolean }
-type Decision = 'approve' | 'reject' | 'limit' | 'limit_version'
+type Snapshot = Pick<Post, 'title' | 'content' | 'images'>
+type Evidence = Snapshot & { version: number | null }
+type Detail = { task: Task; post: Post; snapshot: Snapshot; actionable: boolean;
+  appeal?: Appeal; evidenceVersion?: number | null }
+type Decision = 'approve' | 'reject' | 'limit' | 'limit_version' | 'appeal_uphold' | 'appeal_revoke'
 type Pending = { post: string; mutation_id: string; expected_revision: number; action: Decision;
-  reason: string; version?: number; revision_id?: string }
+  reason: string; version?: number; revision_id?: string; appeal_id?: string }
 const labels: Record<Decision, string> = {
   approve: '通过审核', reject: '驳回提交', limit: '限制短帖', limit_version: '限制此版本',
+  appeal_uphold: '维持处置', appeal_revoke: '撤销处置',
 }
 const config = useRuntimeConfig()
 const enabled = String(config.public.environment) === 'test' && String(config.public.publicationEnabled) === 'true'
@@ -46,6 +53,7 @@ let channel: BroadcastChannel | undefined
 const choices = computed<Decision[]>(() => {
   const task = detail.value?.task
   if (!task) return []
+  if (task.lane === 'appeal') return ['appeal_uphold', 'appeal_revoke']
   if (task.pre_review) return ['approve', 'reject']
   return task.lane === 'initial' ? ['approve', 'limit'] : ['approve', 'limit_version']
 })
@@ -109,19 +117,29 @@ async function readQueue(epoch: number, selected: Lane, cursor = '') {
   if (epoch !== generation) return
   owner = actor
   ready.value = true
-  const query = cursor ? '?cursor=' + encodeURIComponent(cursor) : ''
-  const page = selected === 'initial'
-    ? await request<Page<QueueItem>>('/ops/short-posts' + query)
-    : await request<Page<RevisionItem>>('/ops/short-post-revisions' + query)
+  let rows: Task[]
+  let anchor: string
+  if (selected === 'appeal') {
+    const page = await request<AppealPage>('/ops/short-post-appeals' + (cursor ? '?before=' + encodeURIComponent(cursor) : ''))
+    rows = page.items.map((item) => ({ id: item.id, post_id: item.post_id, version: item.version,
+      title: item.reason, pre_review: false, submitted_at: item.submitted_at, lane: selected }))
+    anchor = page.next_before ? String(page.next_before) : ''
+  } else {
+    const query = cursor ? '?cursor=' + encodeURIComponent(cursor) : ''
+    const page = selected === 'initial'
+      ? await request<Page<QueueItem>>('/ops/short-posts' + query)
+      : await request<Page<RevisionItem>>('/ops/short-post-revisions' + query)
+    rows = page.items.map((item): Task => 'post_id' in item
+      ? { ...(item as RevisionItem), lane: selected }
+      : { ...item, post_id: item.id, version: null, lane: selected })
+    anchor = page.next_cursor
+  }
   await verify()
   if (epoch !== generation) return
-  const rows = page.items.map((item): Task => 'post_id' in item
-    ? { ...(item as RevisionItem), lane: selected }
-    : { ...item, post_id: item.id, version: null, lane: selected })
   const seen = new Set(cursor ? tasks.value.map((item) => item.id) : [])
   const fresh = rows.filter((item) => !seen.has(item.id))
   tasks.value = cursor ? [...tasks.value, ...fresh] : fresh
-  next.value = page.next_cursor
+  next.value = anchor
   loaded.value = true
 }
 function selectLane(nextLane: Lane) {
@@ -138,11 +156,25 @@ function open(task: Task) {
   result.value = ''
   detail.value = undefined
   reason.value = ''
-  decision.value = 'approve'
+  decision.value = task.lane === 'appeal' ? 'appeal_uphold' : 'approve'
   void run(async (epoch) => {
     await verify()
     const base = '/ops/short-posts/' + task.post_id
     const post = await request<Post>(base)
+    if (task.lane === 'appeal') {
+      const path = base + '/appeals/' + task.id
+      const [appeal, evidence] = await Promise.all([
+        request<Appeal>(path), request<Evidence>(path + '/evidence'),
+      ])
+      await verify()
+      if (epoch !== generation) return
+      if (post.id !== task.post_id || appeal.post_id !== task.post_id || appeal.id !== task.id ||
+          (appeal.version !== null && appeal.version !== evidence.version))
+        throw new APIError(409, 'work_state_conflict')
+      detail.value = { task, post, snapshot: evidence, appeal, evidenceVersion: evidence.version,
+        actionable: appeal.state === 'pending' }
+      return
+    }
     const revision = task.lane === 'revision'
       ? await request<Revision>(base + '/revisions/' + task.id) : undefined
     await verify()
@@ -156,8 +188,13 @@ function open(task: Task) {
     detail.value = { task, post, snapshot: revision ?? post, actionable }
   })
 }
-function imagePath(task: Task, image: string) {
+function imagePath(detail: Detail, image: string) {
+  const { task } = detail
   const base = '/api/ops/short-posts/' + encodeURIComponent(task.post_id)
+  if (task.lane === 'appeal') {
+    return base + '/appeals/' + encodeURIComponent(task.id) + '/evidence/images/' +
+      encodeURIComponent(image) + '?version=' + (detail.evidenceVersion ?? 0)
+  }
   return base + (task.lane === 'revision' ? '/revisions/' + encodeURIComponent(task.id) : '') +
     '/images/' + encodeURIComponent(image)
 }
@@ -172,6 +209,7 @@ function confirm() {
     post: task.post_id, expected_revision: selected.post.state_revision,
     mutation_id: crypto.randomUUID(), action, reason: reason.value.trim(),
     ...(revisionDecision ? { revision_id: task.id } : {}),
+    ...(task.lane === 'appeal' ? { appeal_id: task.id } : {}),
     ...(action === 'limit_version' && task.version ? { version: task.version } : {}),
   }
   void run((epoch) => apply(epoch, body))
@@ -195,7 +233,7 @@ async function apply(epoch: number, body: Pending) {
   pending.value = undefined
   detail.value = undefined
   reason.value = ''
-  result.value = '审核结果已记录。'
+  result.value = body.appeal_id ? '复核结果已记录。' : '审核结果已记录。'
   await readQueue(epoch, lane.value)
 }
 function recheck() {
@@ -232,18 +270,20 @@ onUnmounted(() => {
       <div class="desk-tools">
         <button type="button" :aria-pressed="lane === 'initial'" :disabled="busy || !!pending" @click="selectLane('initial')">首发</button>
         <button type="button" :aria-pressed="lane === 'revision'" :disabled="busy || !!pending" @click="selectLane('revision')">修订</button>
+        <button type="button" :aria-pressed="lane === 'appeal'" :disabled="busy || !!pending" @click="selectLane('appeal')">复核</button>
         <button type="button" :disabled="busy || !!pending" @click="run((epoch) => readQueue(epoch, lane))">刷新队列</button>
       </div>
       <p v-if="busy && !loaded" role="status">正在加载审核队列</p>
       <div v-if="ready && loaded" class="desk-grid">
         <section aria-label="审核任务">
-          <p v-if="!tasks.length">当前没有待处理的{{ lane === 'initial' ? '首发' : '修订' }}。</p>
+          <p v-if="!tasks.length">当前没有待处理的{{ lane === 'initial' ? '首发' : lane === 'revision' ? '修订' : '复核' }}。</p>
           <ul v-else class="tasks">
             <li v-for="task in tasks" :key="task.id">
               <button type="button" class="task" :aria-pressed="detail?.task.id === task.id"
                 :disabled="busy || !!pending" @click="open(task)">
                 <strong>{{ task.title }}</strong>
-                <span>{{ task.pre_review ? '待先审' : '待后审' }}{{ task.version ? ' · V' + task.version : '' }}</span>
+                <span v-if="task.lane === 'appeal'">{{ task.version ? '版本 V' + task.version : '整帖' }} · {{ new Date(task.submitted_at).toLocaleString('zh-CN') }}</span>
+                <span v-else>{{ task.pre_review ? '待先审' : '待后审' }}{{ task.version ? ' · V' + task.version : '' }}</span>
               </button>
             </li>
           </ul>
@@ -253,11 +293,17 @@ onUnmounted(() => {
         <section v-if="detail" class="snapshot" aria-label="提交内容">
           <h2>{{ detail.snapshot.title }}</h2>
           <p class="submitted">{{ new Date(detail.task.submitted_at).toLocaleString('zh-CN') }}</p>
+          <div v-if="detail.appeal" class="appeal-info">
+            <p>处置原因 · {{ detail.appeal.case_reason }}</p>
+            <p>申请说明 · {{ detail.appeal.reason }}</p>
+            <p class="submitted">{{ detail.appeal.version ? '处置所指版本 V' + detail.appeal.version :
+              detail.evidenceVersion ? '整帖当前展示版 V' + detail.evidenceVersion : '整帖首发稿' }}</p>
+          </div>
           <p class="post-body">{{ detail.snapshot.content }}</p>
           <ul v-if="detail.snapshot.images.length" class="images" aria-label="提交图片">
             <li v-for="(image, index) in detail.snapshot.images" :key="image.id">
-              <a :href="imagePath(detail.task, image.id)" target="_blank" rel="noopener noreferrer">
-                <img :src="imagePath(detail.task, image.id)" :alt="'提交图片 ' + (index + 1)" loading="lazy">
+              <a :href="imagePath(detail, image.id)" target="_blank" rel="noopener noreferrer">
+                <img :src="imagePath(detail, image.id)" :alt="'提交图片 ' + (index + 1)" loading="lazy">
               </a>
             </li>
           </ul>
@@ -298,6 +344,7 @@ button:disabled { cursor: default; opacity: .6; }
 .task { width: 100%; text-align: left; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .task span, .submitted { font-size: 14px; color: #535d70; }
 .snapshot { padding: 16px; border: 1px solid #e3e6ec; border-radius: 8px; }
+.appeal-info { margin: 12px 0; overflow-wrap: anywhere; }
 .post-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
 .images { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .images img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: contain; background: #f6f7f9; }
