@@ -16,6 +16,7 @@
     <div class="heading"><div><h1>复盘与异常</h1><p>先看最近观察，再进入班次核对和处理。</p></div><button id="refresh-overview">刷新记录</button></div>
     <section id="overview" aria-label="最近观察概览"><p>正在读取最近观察…</p></section>
     <h2>复核周期报表</h2>
+    <details class="compare" id="effects-section"><summary>处置后读者核验</summary><p>从待办、对账或复核明细选择“核验读者结果”；这里保留每次观察。</p><div id="effects-list"></div><button id="effects-more" hidden>加载更早核验</button><article id="effect-detail" hidden></article></details>
     <details class="compare"><summary>跨班次积压对账</summary><form id="reconcile-form" class="toolbar"><label>上班编号<input name="previousId" type="number" min="1" step="1" required></label><label>本班编号<input name="currentId" type="number" min="1" step="1" required></label><button type="submit" class="remote">核对积压变化</button></form><div id="reconciliations-list"></div><button id="reconciliations-more" hidden>加载更早对账</button><article id="reconciliation-detail" hidden></article></details>
     <details class="compare"><summary>周期对照</summary><form id="compare-form" class="toolbar"><label>前期报表编号<input name="previousId" type="number" min="1" step="1" required></label><label>本期报表编号<input name="currentId" type="number" min="1" step="1" required></label><button type="submit">对照两个周期</button></form></details>
     <div id="comparison"></div>

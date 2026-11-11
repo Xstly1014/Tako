@@ -3,6 +3,7 @@
 #overview{background:white;border:1px solid var(--line);padding:var(--s2);border-radius:6px;margin-bottom:var(--s3)}#overview .summary-row{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);padding:var(--s1) 0}#overview .summary-row div{min-width:0;overflow-wrap:anywhere}
 .compare{margin-bottom:var(--s2)}summary{cursor:pointer;padding:var(--s1) 0;color:var(--brand)}summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 #reconciliations-list{display:flex;flex-wrap:wrap;gap:var(--s1);margin-bottom:var(--s2)}#reconciliations-list .record{text-align:left}
+#effects-list{display:flex;flex-wrap:wrap;gap:var(--s1);margin-bottom:var(--s2)}#effects-list .record{text-align:left}
 @media(max-width:1024px){.columns{grid-template-columns:200px minmax(0,1fr)}main{padding:var(--s3)}header{padding:0 var(--s3)}}
 @media(max-width:767px){header{padding:0 var(--s2);gap:var(--s2)}main{padding:var(--s2)}nav{gap:0}nav button{padding:8px}.columns{grid-template-columns:1fr}aside .record{margin:0 0 4px}.heading{align-items:start;flex-wrap:wrap}.toolbar label{flex:1;min-width:136px}h1{font-size:20px;line-height:28px}.metrics{gap:var(--s2)}footer{padding:var(--s2)}.result-header{align-items:start}}
 @media(max-width:767px){#outcomes .columns article{order:-1}}

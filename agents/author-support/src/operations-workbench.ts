@@ -8,9 +8,10 @@ import {checkCuration} from './curation-check.ts';
 import {withOperator} from './operator-session.ts';
 import {ApiError} from '../../../mobile/src/api/client.ts';
 import {prepareReconciliation,reconciliationSummary,runReconciliation} from './shift-reconciliation.ts';
+import {effectInput,checkReaderEffect,type EffectSource} from './reader-effect.ts';
 
 type Operator=typeof withOperator;
-type Job={id:number;kind:'shift'|'curation'|'reconciliation';status:'running'|'complete'|'failed';startedAt:string;result?:unknown;error?:string};
+type Job={id:number;kind:'shift'|'curation'|'reconciliation'|'effect';status:'running'|'complete'|'failed';startedAt:string;result?:unknown;error?:string};
 type InputSchema={required?:string[];properties:Record<string,{type:string;enum?:unknown[];minimum?:number;maximum?:number;pattern?:string}>};
 const contract=JSON.parse(readFileSync(new URL('../workbench/openapi.json',import.meta.url),'utf8')) as {
   paths:Record<string,{post?:{requestBody:{content:{'application/json':{schema:InputSchema}}}}}>;
@@ -31,7 +32,8 @@ const knownErrors=new Set(['invalid_request','invalid_period','period_not_starte
   'shift_incomplete','invalid_acknowledgment','outcome_report_not_found','curation_report_not_found',
   'report_version_mismatch','report_not_comparable','period_still_open','periods_not_comparable',
   'test_operator_required','local_api_required','operator_logout_failed','job_cancelled',
-  'shift_scan_incomplete','shifts_not_comparable','reconciliation_target_changed','reconciliation_changed','reconciliation_not_found']);
+  'shift_scan_incomplete','shifts_not_comparable','reconciliation_target_changed','reconciliation_changed','reconciliation_not_found',
+  'effect_source_not_found','effect_locator_required','effect_report_not_found']);
 const errorCode=(error:unknown)=>error instanceof ApiError&&error.status===429?'operator_rate_limited':
   error instanceof ApiError&&[401,403].includes(error.status??0)?'operator_access_denied':
   error instanceof Error&&knownErrors.has(error.message)?error.message:'operation_failed';
@@ -96,8 +98,8 @@ export async function startWorkbench(monitor:ReviewMonitor,port=3410,operator:Op
       switch(url.pathname){
         case '/local/history':{
           keys(body,['kind','before']);
-          if(!['shifts','outcomes','curation','reconciliations'].includes(String(body.kind)))throw Error('invalid_request');
-          return send(200,monitor.history(body.kind as 'shifts'|'outcomes'|'curation'|'reconciliations',body.before===undefined?undefined:id(body.before)));
+          if(!['shifts','outcomes','curation','reconciliations','effects'].includes(String(body.kind)))throw Error('invalid_request');
+          return send(200,monitor.history(body.kind as Parameters<ReviewMonitor['history']>[0],body.before===undefined?undefined:id(body.before)));
         }
         case '/local/report':{
           keys(body,['kind','id']);const reportId=id(body.id);
@@ -108,6 +110,7 @@ export async function startWorkbench(monitor:ReviewMonitor,port=3410,operator:Op
           }
           if(body.kind==='outcomes')return send(200,monitor.outcomeReport(reportId));
           if(body.kind==='curation')return send(200,monitor.curationReport(reportId));
+          if(body.kind==='effects')return send(200,monitor.readerEffect(reportId));
           if(body.kind==='reconciliations'){
             const stored=monitor.reconciliation(reportId);
             return send(200,{...reconciliationSummary(reportId,stored.run),revision:stored.revision,details:stored.run});
@@ -167,6 +170,14 @@ export async function startWorkbench(monitor:ReviewMonitor,port=3410,operator:Op
         }
         case '/local/stop':
           keys(body,[]);stop?.abort();return send(202,{stopping:Boolean(active)});
+        case '/local/effect':{
+          const input=effectInput(monitor,body as unknown as EffectSource);
+          if(!launch('effect',signal=>operator(async read=>{
+            const report=await checkReaderEffect(input,read,signal);
+            return {reportId:monitor.saveReaderEffect(report),...report};
+          },signal)))return send(409,{error:'job_running'});
+          return send(202,{job});
+        }
         default:return send(404,{error:'not_found'});
       }
     }catch(error){

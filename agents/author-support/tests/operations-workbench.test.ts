@@ -178,3 +178,22 @@ test('reconciliation HTTP commands retain failures, resume the same record and e
     const history=await (await client.post('history',{kind:'reconciliations'})).json();assert.equal(history.items[0].reportId,reportId);
   }finally{await client.close();monitor.close()}
 });
+
+test('effect command binds to stored task metadata and keeps an independently retrievable report',async()=>{
+  const monitor=new ReviewMonitor(':memory:');
+  const client=await connect(monitor,async action=>action((async()=>({task:{id:1,work_id:ids.work,version:1,state:'pending'}})) as Transport));
+  try{
+    const stored=monitor.createShift({startedAt:new Date().toISOString(),period:outcomePeriod('2026-11-01','2026-11-06'),
+      scan:{status:'complete',scannedAt:new Date().toISOString(),totalOverdue:1,queues:[{queue:'post_review',pending:1,oldestWaitingAt:null,
+        overdue:[{id:1,waitingSince:'2026-10-01T00:00:00Z',target:{queue:'post_review',workId:ids.work,version:1}}]}]},
+      checks:[],policy:null,outcomeStatus:'not_run',outcomeReportId:null});
+    const source={kind:'shifts',id:stored.id,queue:'post_review',itemId:'1'};
+    assert.equal((await client.post('effect',{...source,workId:ids.work})).status,400);
+    assert.equal((await client.post('effect',{...source,itemId:'99'})).status,404);
+    assert.equal((await client.post('effect',source)).status,202);
+    const job=await done(client);assert.equal(job.result.status,'awaiting_decision');
+    const report=await (await client.post('report',{kind:'effects',id:job.result.reportId})).json();
+    assert.equal(report.operation.workId,ids.work);assert.equal(report.display,null);
+    const history=await (await client.post('history',{kind:'effects'})).json();assert.equal(history.items[0].id,report.reportId);
+  }finally{await client.close();monitor.close()}
+});

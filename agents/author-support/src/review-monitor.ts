@@ -5,6 +5,7 @@ import {compareOutcomeReports,outcomeReportVersion,type OutcomeReport} from './r
 import {shiftSummary,type OperatorShift} from './operator-shift.ts';
 import type {checkCuration} from './curation-check.ts';
 import {reconciliationSummary,type ShiftReconciliation} from './shift-reconciliation.ts';
+import type {ReaderEffect} from './reader-effect.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -64,6 +65,7 @@ export class ReviewMonitor {
       CREATE TABLE IF NOT EXISTS shift_reconciliations(
         id INTEGER PRIMARY KEY, revision INTEGER NOT NULL, run TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS reader_effect_reports(id INTEGER PRIMARY KEY, report TEXT NOT NULL);
     `);
   }
 
@@ -291,6 +293,16 @@ export class ReviewMonitor {
 
   close(){this.db.close()}
 
+  saveReaderEffect(report:ReaderEffect){
+    return Number(this.db.prepare('INSERT INTO reader_effect_reports(report) VALUES(?)').run(JSON.stringify(report)).lastInsertRowid);
+  }
+
+  readerEffect(id:number){
+    const row=this.db.prepare('SELECT report FROM reader_effect_reports WHERE id=?').get(id);
+    if(!row)throw Error('effect_report_not_found');
+    return {reportId:id,...JSON.parse(String(row.report)) as ReaderEffect};
+  }
+
   createReconciliation(run:ShiftReconciliation){
     const result=this.db.prepare('INSERT INTO shift_reconciliations(revision,run) VALUES(1,?)').run(JSON.stringify(run));
     return {id:Number(result.lastInsertRowid),revision:1,run};
@@ -310,12 +322,16 @@ export class ReviewMonitor {
   }
 
   /** Local immutable history, newest first; keyset pagination survives concurrent inserts. */
-  history(kind:'shifts'|'outcomes'|'curation'|'reconciliations',before=Number.MAX_SAFE_INTEGER){
-    const table={shifts:'operator_shifts',outcomes:'outcome_reports',curation:'curation_reports',reconciliations:'shift_reconciliations'}[kind];
+  history(kind:'shifts'|'outcomes'|'curation'|'reconciliations'|'effects',before=Number.MAX_SAFE_INTEGER){
+    const table={shifts:'operator_shifts',outcomes:'outcome_reports',curation:'curation_reports',reconciliations:'shift_reconciliations',effects:'reader_effect_reports'}[kind];
     if(!table||!Number.isSafeInteger(before)||before<1)throw Error('invalid_history');
     const rows=this.db.prepare(`SELECT id FROM ${table} WHERE id<? ORDER BY id DESC LIMIT 21`).all(before);
     const items=rows.slice(0,20).map(row=>{
       const id=Number(row.id);
+      if(kind==='effects'){
+        const report=this.readerEffect(id);
+        return {id,status:report.status,startedAt:report.startedAt,source:report.source};
+      }
       if(kind==='reconciliations')return {id,...reconciliationSummary(id,this.reconciliation(id).run)};
       if(kind==='shifts')return {id,...shiftSummary(id,this.shift(id).run),acknowledgment:this.shiftAcknowledgment(id)};
       if(kind==='outcomes'){

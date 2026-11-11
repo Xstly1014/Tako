@@ -3,7 +3,8 @@ const $=selector=>document.querySelector(selector);
 const labels={complete:'检查完整',incomplete:'检查未完整',changed:'核验期间有变更',pending:'待处理',decided:'已有决定',
   unavailable:'未能读取',rescan_required:'需重新扫描',unchecked:'未核对',pre_review:'发行前审',post_review:'发行后审',appeal:'作者复核',
   empty:'未设置',selected_readable:'读者可见',selection_stale:'恢复后待重选',excluded_unreadable:'已排除不可读作品',observed_mismatch:'展示不一致',
-  approved:'通过',restricted:'限制',upheld:'维持',revoked:'撤销',superseded:'已被替换',rejected:'驳回',published:'已发行'};
+  approved:'通过',restricted:'限制',upheld:'维持',revoked:'撤销',superseded:'已被替换',rejected:'驳回',published:'已发行',withdrawn:'已撤回',
+  awaiting_decision:'尚待决定',not_released:'未发行本稿'};
 const errors={job_running:'已有检查在运行，请等待或停止当前检查。',invalid_period:'请选择有效的复盘日期，起日应早于截至日期。',
   period_not_started:'起日尚未到来，请选择已经开始的周期。',invalid_acknowledgment:'接收人请用 1—32 位字母、数字、下划线或短横线。',
   shift_changed:'班次已有新结果，请重新打开核对后再交班。',shift_incomplete:'本班检查尚未完整，请先续查。',
@@ -15,10 +16,11 @@ const errors={job_running:'已有检查在运行，请等待或停止当前检�
   shift_scan_incomplete:'两班的积压扫描必须完整，请先续查对应班次。',shifts_not_comparable:'请选择扫描时间先后明确的两个不同班次。',
   reconciliation_target_changed:'同一任务的定位信息不一致，暂不能对账，请重新检查班次来源。',
   reconciliation_changed:'对账记录已有更新，请重新打开后续查。',reconciliation_not_found:'没有找到这份对账，请刷新记录。',
+  effect_source_not_found:'原报告中没有这项任务，请重新打开原报告选择。',effect_locator_required:'旧任务缺少原始定位，暂不能核验，请使用新的班次记录。',
   job_cancelled:'检查已停止，可从班次记录继续。'};
 let tab='outcomes',busy=false,lastFinished=null,polling=false;
-const cursors={shifts:null,outcomes:null,curation:null,reconciliations:null};
-const selected={shifts:null,outcomes:null,curation:null,reconciliations:null};
+const cursors={shifts:null,outcomes:null,curation:null,reconciliations:null,effects:null};
+const selected={shifts:null,outcomes:null,curation:null,reconciliations:null,effects:null};
 function el(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text);if(className)node.className=className;return node}
 function notice(text,error=false){const node=$('#notice');node.hidden=!text;node.className=error?'error':'';node.textContent=text}
 function time(value){return value?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—'}
@@ -65,7 +67,29 @@ async function loadHistory(kind,more=false){
 async function openReport(kind,id){
   const data=await api('report',{kind,id});selected[kind]=id;
   for(const record of document.querySelectorAll('#'+kind+'-list .record'))record.setAttribute('aria-pressed',String(Number(record.dataset.id)===id));
-  if(kind==='shifts')renderShift(data);else if(kind==='outcomes')renderOutcome(data);else if(kind==='reconciliations')renderReconciliation(data);else renderCuration(data);
+  if(kind==='shifts')renderShift(data);else if(kind==='outcomes')renderOutcome(data);else if(kind==='reconciliations')renderReconciliation(data);else if(kind==='effects')renderEffect(data);else renderCuration(data);
+}
+function effectButton(kind,id,queue,itemId){return button('核验读者结果',()=>startJob('effect',{kind,id,queue,itemId:String(itemId)}),'remote')}
+function renderEffect(report){
+  const parent=$('#effect-detail');parent.hidden=false;$('#effects-section').open=true;parent.replaceChildren();
+  const head=title(parent,`核验 #${report.reportId} · ${textStatus(report.status)}`,`观察 ${time(report.startedAt)} 至 ${time(report.finishedAt)}`);
+  const source=report.source;
+  head.append(button('返回来源',async()=>{
+    $('#effects-section').open=false;await switchTab(source.kind==='shifts'?'shifts':'outcomes');await openReport(source.kind,source.id);
+    $({shifts:'#shift-detail',outcomes:'#outcome-detail',reconciliations:'#reconciliation-detail'}[source.kind]).scrollIntoView({block:'start'});
+  }));
+  parent.append(el('p',`来源：${{shifts:'班次',reconciliations:'对账',outcomes:'复核报表'}[source.kind]} #${source.id} · ${textStatus(source.queue)} ${source.itemId}`));
+  if(report.operation){const op=report.operation;
+    parent.append(el('p',`原记录：${textStatus(op.state)} · ${op.scope==='work'?'整件作品':'版本'} · ${source.queue==='pre_review'&&op.state!=='published'?'候选 ':''}V${op.version}`));
+    if(op.caseState)parent.append(el('p',`当前处置：${op.caseState==='active'?'生效中':'已撤销'} · 修订 ${op.caseRevision}`));
+  }
+  if(report.status==='complete'){
+    const readable=value=>value?.state==='readable'?`可读 · V${value.version}`:'未公开可读（原因未判定）';
+    parent.append(table(['核对对象','匿名读取结果'],[['当前展示版',readable(report.display)],['原记录目标版',readable(report.target)]]));
+    parent.append(el('small','这是观察时的可读状态。目标版可能不是展示版；隐藏、其他限制或历史权限均可能影响结果。'));
+  }else parent.append(el('p',report.status==='awaiting_decision'?'原任务尚待决定，本次未读取匿名内容。':report.status==='not_released'?
+    '这份稿件没有发行，本次未将候选版本当作正式版读取。':report.status==='changed'?'核验期间记录或公开结果有变化，请重新核验。':'核验未完整，权限或网络失败不能当作不可读。','warning'));
+  parent.append(effectButton(source.kind,source.id,source.queue,source.itemId));updateBusy();
 }
 function renderReconciliation(report){
   const parent=$('#reconciliation-detail');parent.hidden=false;parent.closest('details').open=true;parent.replaceChildren();
@@ -80,12 +104,12 @@ function renderReconciliation(report){
   for(const [value,label] of [['departed','离开超时队列'],['entered','新进入超时'],['retained','继续积压']]){const option=el('option',label);option.value=value;filter.append(option)}
   parent.append(el('h3','逐项变化'),filter);const list=el('div');parent.append(list);
   const checks=new Map(report.details.checks.map(row=>[row.queue+':'+row.id,row]));
-  const draw=()=>{list.replaceChildren();pageRows(list,['队列 / 标识','等待起点','回查结果','回查时间','处理入口'],report.details[filter.value].map(item=>{
+  const draw=()=>{list.replaceChildren();pageRows(list,['队列 / 标识','等待起点','回查结果','回查时间','处理入口','读者核验'],report.details[filter.value].map(item=>{
     const check=checks.get(item.queue+':'+item.id);
     const path=check?.workbenchPath??{pre_review:'/ops/work-submissions',post_review:'/ops/reviews',appeal:'/ops/appeals'}[item.queue];
     return [`${textStatus(item.queue)} · ${item.id}`,time(item.waitingSince),filter.value!=='departed'?'以本班快照为准':
       check?`${textStatus(check.status)}${check.decision&&check.decision!==check.status?' · '+textStatus(check.decision):''}${check.currentPending?.status==='unavailable'?' · 当前待审稿未确认':''}`:'未核对',
-      time(check?.checkedAt),opsLink(path)];
+      time(check?.checkedAt),opsLink(path),effectButton('reconciliations',report.reportId,item.queue,item.id)];
   }))};filter.addEventListener('change',draw);draw();updateBusy();
 }
 function renderShift(report){
@@ -106,9 +130,9 @@ function renderShift(report){
   for(const queue of report.details.scan?.queues??[])for(const item of queue.overdue)if(!all.has(queue.queue+':'+item.id))all.set(queue.queue+':'+item.id,{...item,queue:queue.queue,status:'unchecked'});
   const draw=()=>{
     const rows=[...all.values()].filter(row=>filter.value==='all'||row.status===filter.value||filter.value==='unresolved'&&(['unavailable','unchecked','rescan_required'].includes(row.status)||row.currentPending?.status==='unavailable'));
-    list.replaceChildren();pageRows(list,['队列 / 标识','当前结果','核对时间','处理入口'],rows.map(row=>[
+    list.replaceChildren();pageRows(list,['队列 / 标识','当前结果','核对时间','处理入口','读者核验'],rows.map(row=>[
       `${textStatus(row.queue)} · ${row.id}`,`${textStatus(row.status)}${row.decision&&row.decision!==row.status?' · '+textStatus(row.decision):''}${row.currentPending?.status==='unavailable'?' · 替换后的待审稿未确认':row.currentPending?.status==='found'?' · 当前待审 '+row.currentPending.submission_id:''}`,
-      time(row.checkedAt),row.workbenchPath?opsLink(row.workbenchPath):'—']));
+      time(row.checkedAt),row.workbenchPath?opsLink(row.workbenchPath):'—',effectButton('shifts',report.shiftId,row.queue,row.id)]));
   };filter.addEventListener('change',draw);draw();
   if(report.details.policy?.rows?.length){parent.append(el('h3','观察期中的送审稿'));pageRows(parent,['作品','观察期','稿件状态','入口'],report.details.policy.rows.map(row=>[row.workId,row.status==='submission_changed'?'需重新核对':row.observationActive?'生效中':'已结束',row.status==='submission_changed'?textStatus(row.currentState):'等待审核',opsLink('/ops/work-submissions')]))}
   parent.append(el('h3','交班记录'));
@@ -132,7 +156,7 @@ function renderOutcome(stored){
   parent.append(el('p',`决定中：维持 ${period.decisions.upheld} · 撤销 ${period.decisions.revoked}；期末超时 ${period.flow.closingOver48Hours}。`));
   parent.append(el('small','观察截至 '+time(period.observedThrough)));
   parent.append(el('h3','周期记录'));
-  pageRows(parent,['复核编号','提交时间','决定时间','截至期末状态'],period.outcomes.map(row=>[row.appealId,time(row.requestedAt),time(row.decidedAt),textStatus(row.stateAtCutoff??row.state)]));
+  pageRows(parent,['复核编号','提交时间','决定时间','截至期末状态','读者核验'],period.outcomes.map(row=>[row.appealId,time(row.requestedAt),time(row.decidedAt),textStatus(row.stateAtCutoff??row.state),effectButton('outcomes',stored.reportId,'appeal',row.appealId)]));
 }
 function renderCuration(report){
   const parent=$('#curation-detail');parent.replaceChildren();title(parent,`核验 #${report.reportId} · ${textStatus(report.status)}`,time(report.startedAt));
@@ -145,7 +169,7 @@ function renderCuration(report){
 async function switchTab(next){tab=next;for(const panel of document.querySelectorAll('.panel'))panel.hidden=panel.id!==next;
   for(const button of document.querySelectorAll('[data-tab]')){if(button.dataset.tab===next)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')}
   await loadHistory(next);
-  if(next==='outcomes'){await loadOverview();await loadHistory('reconciliations')}
+  if(next==='outcomes'){await loadOverview();await loadHistory('reconciliations');await loadHistory('effects')}
 }
 async function loadOverview(){
   const parent=$('#overview');
@@ -173,14 +197,14 @@ async function poll(){
   if(polling)return;polling=true;
   try{
     const state=await api('state'),job=state.job;busy=job?.status==='running';
-    $('#job').hidden=!busy;$('#job-text').textContent=job?.kind==='curation'?'正在核验精选展示…':job?.kind==='reconciliation'?'正在回查离开超时队列的任务…':'正在核对本班积压、观察期与复核报表…';updateBusy();
+    $('#job').hidden=!busy;$('#job-text').textContent=job?.kind==='effect'?'正在核对原处置记录与匿名读者结果…':job?.kind==='curation'?'正在核验精选展示…':job?.kind==='reconciliation'?'正在回查离开超时队列的任务…':'正在核对本班积压、观察期与复核报表…';updateBusy();
     if(job&&job.status!=='running'&&lastFinished!==job.id){
       lastFinished=job.id;
       if(job.status==='failed')notice(errors[job.error]??'检查未完成。已写入的班次记录可继续检查。',true);
       else{
-        const kind=job.kind==='shift'?'shifts':job.kind==='reconciliation'?'reconciliations':'curation',id=job.result?.shiftId??job.result?.reportId;
-        if(id){await switchTab(kind==='reconciliations'?'outcomes':kind);await openReport(kind,id)}
-        notice(job.result?.status==='complete'?'检查结果已保存。':'检查结果已保存，仍有未确认项。');
+        const kind=job.kind==='shift'?'shifts':job.kind==='effect'?'effects':job.kind==='reconciliation'?'reconciliations':'curation',id=job.result?.shiftId??job.result?.reportId;
+        if(id){await switchTab(['reconciliations','effects'].includes(kind)?'outcomes':kind);await openReport(kind,id)}
+        notice(['complete','awaiting_decision','not_released'].includes(job.result?.status)?'检查结果已保存。':'检查结果已保存，仍有未确认项。');
       }
       await loadHistory(tab);
     }else if(busy&&tab==='shifts'){
@@ -190,7 +214,7 @@ async function poll(){
   }catch(error){notice('工作台连接中断，请确认本地工作台仍在运行，再刷新页面。',true)}finally{polling=false}
 }
 for(const node of document.querySelectorAll('[data-tab]'))node.addEventListener('click',action(()=>switchTab(node.dataset.tab)));
-for(const kind of ['shifts','outcomes','curation','reconciliations'])$('#'+kind+'-more').addEventListener('click',action(()=>loadHistory(kind,true)));
+for(const kind of ['shifts','outcomes','curation','reconciliations','effects'])$('#'+kind+'-more').addEventListener('click',action(()=>loadHistory(kind,true)));
 $('#start-form').addEventListener('submit',action(event=>{const data=new FormData(event.target);return startJob('start',{from:data.get('from'),until:data.get('until')})}));
 $('#check-curation').addEventListener('click',action(()=>startJob('curation',{})));
 $('#stop').addEventListener('click',action(async()=>{await api('stop',{});notice('正在停止；当前请求结束后保留检查点。')}));
