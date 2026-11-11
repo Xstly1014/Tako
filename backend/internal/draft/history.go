@@ -11,6 +11,7 @@ import (
 	"writing.local/community/internal/novel"
 	"writing.local/community/internal/ops"
 	"writing.local/community/internal/publication"
+	"writing.local/community/internal/shortpost"
 )
 
 // ReadRevision is private-resource access for recovery tooling, not a public
@@ -141,6 +142,15 @@ func (s Store) RunMaintenance(ctx context.Context, logger *slog.Logger) {
 				if err != nil {
 					logger.Error("novel_notice_delivery_failed", "delivered", sent, "failure_code", "database_failure", "duration_ms", time.Since(started).Milliseconds())
 				}
+			}
+		}
+		if err == nil {
+			var previews, images int
+			previews, images, err = shortpost.CleanupTemporaryMaterial(runCtx, s.DB)
+			if err != nil {
+				logger.Error("short_post_retention_failed", "failure_code", "database_failure")
+			} else if previews+images > 0 {
+				logger.Info("short_post_retention_completed", "previews", previews, "images", images)
 			}
 		}
 		if err != nil {

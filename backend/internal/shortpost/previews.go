@@ -130,7 +130,7 @@ func (s PreviewStore) Prepare(ctx context.Context, owner, id uuid.UUID, in Prepa
 		return Preview{}, err
 	}
 	for index, imageID := range in.ImageIDs {
-		result, err := tx.ExecContext(ctx, "INSERT INTO short_post_preview_images(owner_id,preview_id,image_id,position) SELECT owner_id,?,id,? FROM short_post_images WHERE owner_id=? AND id=?",
+		result, err := tx.ExecContext(ctx, "INSERT INTO short_post_preview_images(owner_id,preview_id,image_id,position) SELECT owner_id,?,id,? FROM short_post_images WHERE owner_id=? AND id=? AND purged_at IS NULL",
 			id[:], index+1, owner[:], imageID[:])
 		if err != nil {
 			return Preview{}, err
