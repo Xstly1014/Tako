@@ -4,6 +4,7 @@ import {outcomePeriod,reviewOutcomes,summarizeOutcomePeriod,type Outcome} from '
 import {ids} from '../src/cases.ts';
 import {ApiError} from '../../../mobile/src/api/client.ts';
 import type {Transport} from '../../../mobile/src/auth/session.ts';
+import {ReviewMonitor} from '../src/review-monitor.ts';
 
 const at='2026-11-01T00:00:00Z',later='2026-11-01T01:00:00Z';
 const restriction={id:1,work_id:ids.work,version:1,scope:'version',state:'revoked',revision:2,
@@ -62,4 +63,28 @@ test('period reporting separates older decisions from new requests and reconstru
   assert.deepEqual(summary.outcomes.map(item=>item.appealId),[1,2,3]);
   assert.throws(()=>outcomePeriod('2026-02-30','2026-03-03'),/invalid_period/);
   assert.throws(()=>outcomePeriod('2026-11-02','2026-11-01'),/invalid_period/);
+});
+
+test('saved period comparisons preserve snapshots and reject partial or overlapping reports',()=>{
+  const monitor=new ReviewMonitor(':memory:');
+  try{
+    const startedAt='2026-11-11T00:00:00Z';
+    const report=(from:string,until:string)=>({
+      status:'complete' as const,startedAt,cases:0,
+      period:summarizeOutcomePeriod([],outcomePeriod(from,until),startedAt),
+    });
+    const first=monitor.saveOutcomeReport(report('2026-11-01','2026-11-06'));
+    const second=monitor.saveOutcomeReport(report('2026-11-06','2026-11-11'));
+    const original=monitor.outcomeReport(first);
+    assert.deepEqual(monitor.compareOutcomes(first,second).incoming,{previous:0,current:0,change:0});
+    assert.equal(monitor.compareOutcomes(first,second).medianProcessingMinutes.change,null);
+    assert.deepEqual(monitor.outcomeReport(first),original);
+    assert.throws(()=>monitor.compareOutcomes(first,first),/periods_not_comparable/);
+    const incomplete=monitor.saveOutcomeReport({
+      status:'incomplete',startedAt,cases:0,counts:null,outcomes:[],error:'request_failed',httpStatus:503,
+    });
+    assert.throws(()=>monitor.compareOutcomes(first,incomplete),/report_not_comparable/);
+    const open=monitor.saveOutcomeReport(report('2026-11-11','2026-11-16'));
+    assert.throws(()=>monitor.compareOutcomes(second,open),/period_still_open/);
+  }finally{monitor.close()}
 });

@@ -8,6 +8,34 @@ export type Outcome={
   detailPath:string;
 };
 export type OutcomePeriod={from:string;until:string;start:number;end:number};
+export const outcomeReportVersion='appeal-period-v1';
+export type OutcomeReport=Awaited<ReturnType<typeof reviewOutcomes>>;
+
+function comparablePeriod(report:OutcomeReport){
+  if(report.status!=='complete'||!report.period)throw Error('report_not_comparable');
+  const bounds=outcomePeriod(report.period.from,report.period.untilExclusive);
+  if(Date.parse(report.period.observedThrough)!==bounds.end)throw Error('period_still_open');
+  return {period:report.period,bounds};
+}
+
+export function compareOutcomeReports(previous:OutcomeReport,current:OutcomeReport){
+  const left=comparablePeriod(previous),right=comparablePeriod(current);
+  if(left.bounds.end-left.bounds.start!==right.bounds.end-right.bounds.start||
+    left.bounds.end>right.bounds.start)throw Error('periods_not_comparable');
+  const metric=(before:number,after:number)=>({previous:before,current:after,change:after-before});
+  const leftMedian=left.period.decisions.medianProcessingMinutes;
+  const rightMedian=right.period.decisions.medianProcessingMinutes;
+  return {
+    previousPeriod:{from:left.period.from,untilExclusive:left.period.untilExclusive},
+    currentPeriod:{from:right.period.from,untilExclusive:right.period.untilExclusive},
+    incoming:metric(left.period.incoming.total,right.period.incoming.total),
+    decisions:metric(left.period.decisions.total,right.period.decisions.total),
+    pendingAtCutoff:metric(left.period.incoming.pendingAtCutoff,right.period.incoming.pendingAtCutoff),
+    decisionsOver48Hours:metric(left.period.decisions.over48Hours,right.period.decisions.over48Hours),
+    medianProcessingMinutes:{previous:leftMedian,current:rightMedian,
+      change:leftMedian===null||rightMedian===null?null:rightMedian-leftMedian},
+  };
+}
 
 export function outcomePeriod(from:string,until:string):OutcomePeriod{
   const start=Date.parse(from+'T00:00:00+08:00'),end=Date.parse(until+'T00:00:00+08:00');

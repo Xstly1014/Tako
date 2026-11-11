@@ -29,6 +29,10 @@ async function main(){
   }else if(mode==='--outcomes'){
     if(args.length!==1&&args.length!==3)throw Error('invalid_cli');
     if(args.length===3)outcomePeriod(value,operatorLabel);
+  }else if(mode==='--outcome-report'){
+    if(args.length!==2||!validId(value))throw Error('invalid_cli');
+  }else if(mode==='--compare-outcomes'){
+    if(args.length!==3||!validId(value)||!validId(operatorLabel))throw Error('invalid_cli');
   }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
     throw Error('invalid_cli');
   }
@@ -41,6 +45,8 @@ async function main(){
     else if(mode==='--pending')console.log(JSON.stringify(monitor.pendingEvents(Number(value??0)),null,2));
     else if(mode==='--ack')console.log(JSON.stringify(monitor.acknowledge(Number(value),operatorLabel),null,2));
     else if(mode==='--handoff-status')console.log(JSON.stringify(monitor.handoffSummary(Number(value)),null,2));
+    else if(mode==='--outcome-report')console.log(JSON.stringify(monitor.outcomeReport(Number(value)),null,2));
+    else if(mode==='--compare-outcomes')console.log(JSON.stringify(monitor.compareOutcomes(Number(value),Number(operatorLabel)),null,2));
     else if(mode==='--outcomes'){
       const {session,password}=await createOperator();
       let report;
@@ -51,7 +57,8 @@ async function main(){
       }finally{
         if(session.snapshot().phase==='ready')await session.logout();
       }
-      console.log(JSON.stringify(report,null,2));
+      const reportId=monitor.saveOutcomeReport(report);
+      console.log(JSON.stringify({reportId,version:monitor.outcomeReport(reportId).version,...report},null,2));
       if(report.status==='incomplete')process.exitCode=1;
     }
     else if(mode==='--handoff'){
@@ -169,7 +176,8 @@ function printScan({report,tracking,cleanupFailed}:Awaited<ReturnType<typeof run
 main().catch(error=>{
   const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
     'invalid_acknowledgment','review_event_not_found','not_backlog_event','handoff_target_changed',
-    'invalid_period','period_not_started'].includes(error.message)
+    'invalid_period','period_not_started','outcome_report_not_found','report_version_mismatch',
+    'report_not_comparable','period_still_open','periods_not_comparable'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;

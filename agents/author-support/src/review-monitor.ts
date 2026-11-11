@@ -1,6 +1,7 @@
 import {DatabaseSync,type SQLOutputValue} from 'node:sqlite';
 import type {scanReviewBacklog,ReviewTarget} from './review-backlog.ts';
 import type {reviewHandoff} from './review-handoff.ts';
+import {compareOutcomeReports,outcomeReportVersion,type OutcomeReport} from './review-outcomes.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -42,6 +43,9 @@ export class ReviewMonitor {
         event_id INTEGER NOT NULL, queue TEXT NOT NULL, task_id TEXT NOT NULL,
         checked_at TEXT NOT NULL, result TEXT NOT NULL,
         PRIMARY KEY(event_id,queue,task_id)
+      );
+      CREATE TABLE IF NOT EXISTS outcome_reports(
+        id INTEGER PRIMARY KEY, version TEXT NOT NULL, generated_at TEXT NOT NULL, report TEXT NOT NULL
       );
     `);
   }
@@ -178,6 +182,24 @@ export class ReviewMonitor {
     const counts={pending:0,decided:0,unavailable:0,rescan_required:0,unchecked:0};
     for(const row of rows)counts[row.status]++;
     return {eventId,total:items.length,counts,rows};
+  }
+
+  saveOutcomeReport(report:OutcomeReport){
+    const result=this.db.prepare('INSERT INTO outcome_reports(version,generated_at,report) VALUES(?,?,?)')
+      .run(outcomeReportVersion,new Date().toISOString(),JSON.stringify(report));
+    return Number(result.lastInsertRowid);
+  }
+
+  outcomeReport(id:number){
+    const row=this.db.prepare('SELECT version,report FROM outcome_reports WHERE id=?').get(id);
+    if(!row)throw Error('outcome_report_not_found');
+    return {reportId:id,version:String(row.version),report:JSON.parse(String(row.report)) as OutcomeReport};
+  }
+
+  compareOutcomes(previousId:number,currentId:number){
+    const previous=this.outcomeReport(previousId),current=this.outcomeReport(currentId);
+    if(previous.version!==current.version||previous.version!==outcomeReportVersion)throw Error('report_version_mismatch');
+    return {previousId,currentId,version:previous.version,...compareOutcomeReports(previous.report,current.report)};
   }
 
   close(){this.db.close()}
