@@ -11,6 +11,7 @@ export default defineNuxtConfig({
     '/community': { headers: { 'cache-control': 'no-store' } },
     '/ops/curation': { ssr: false },
     '/ops/novels': { ssr: false },
+    '/ops/short-posts': { ssr: false, headers: { 'cache-control': 'no-store' } },
   },
   runtimeConfig: {
     publicationApiBase: 'http://api:8080',

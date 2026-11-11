@@ -23,6 +23,19 @@ func verifyShortPostManagement(t *testing.T, db *sql.DB, owner, other, operator 
 	const feed = "/api/short-posts"
 	request("GET", other, queue, nil, 403, "operator_required")
 	request("GET", other, ownerPath, nil, 404, "resource_not_found")
+	const mine = "/api/my/short-posts"
+	request("GET", uuid.Nil, mine, nil, 401, "authentication_required")
+	request("GET", other, mine+"?cursor="+published.PostID.String(), nil, 400, "invalid_input")
+	for _, fixture := range []shortpost.SubmissionReceipt{published, pending} {
+		first := novelResult[shortpost.PostPage[shortpost.OwnedPostItem]](t, request("GET", owner, mine, nil, 200, "").Body.Bytes())
+		found := false
+		for _, item := range first.Items {
+			found = found || item.ID == fixture.PostID
+		}
+		if !found {
+			t.Fatal("owner list omitted the submitted post")
+		}
+	}
 	request("GET", other, pendingOps+"/images/"+image.String(), nil, 403, "operator_required")
 	request("GET", operator, pendingOps+"/images/"+image.String(), nil, 200, "")
 	initial := novelResult[shortpost.ManagedPost](t, request("GET", operator, pendingOps, nil, 200, "").Body.Bytes())
@@ -130,6 +143,23 @@ func verifyShortPostManagement(t *testing.T, db *sql.DB, owner, other, operator 
 		t.Fatal("rejection visibility or reason")
 	}
 	request("GET", uuid.Nil, "/api/short-posts/"+rejected.PostID.String(), nil, 404, "resource_not_found")
+	firstMine := novelResult[shortpost.PostPage[shortpost.OwnedPostItem]](t, request("GET", owner, mine, nil, 200, "").Body.Bytes())
+	if len(firstMine.Items) != 12 || firstMine.Items[0].ID != rejected.PostID ||
+		firstMine.Items[0].ReviewStatus != "rejected" || firstMine.NextCursor == "" {
+		t.Fatal("author list lost the rejected submission or next cursor")
+	}
+	nextMine := novelResult[shortpost.PostPage[shortpost.OwnedPostItem]](t,
+		request("GET", owner, mine+"?cursor="+firstMine.NextCursor, nil, 200, "").Body.Bytes())
+	seen := map[uuid.UUID]bool{}
+	for _, item := range append(firstMine.Items, nextMine.Items...) {
+		if seen[item.ID] {
+			t.Fatal("author list repeated a post")
+		}
+		seen[item.ID] = true
+	}
+	if !seen[published.PostID] || !seen[first.Items[11].ID] {
+		t.Fatal("author list dropped public or hidden posts")
+	}
 }
 
 func createShortPostFixture(t *testing.T, request func(string, uuid.UUID, string, any, int, string) *httptest.ResponseRecorder, owner uuid.UUID) shortpost.SubmissionReceipt {

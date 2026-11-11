@@ -258,18 +258,21 @@ function AuthorComposer({ owner }: { owner: string }) {
     }));
   }
 
-  async function finish(signal: AbortSignal, open: boolean) {
+  async function finish(signal: AbortSignal, target: "feed" | "public" | "manage") {
     if (!receipt) return;
     await publication.acknowledge(receipt);
     if (signal.aborted) return;
     // Leave on the next render, once the navigation guard sees no active request.
-    setDestination(open ? receipt.post_id : "");
+    setDestination({ target, post: receipt.post_id });
   }
-  const [destination, setDestination] = useState<string>();
+  const [destination, setDestination] = useState<{ target: "feed" | "public" | "manage"; post: string }>();
   useEffect(() => {
     if (busy || destination === undefined) return;
-    if (destination) router.replace({ pathname: "/short-posts/[id]", params: { id: destination } });
-    else back();
+    if (destination.target === "public") {
+      router.replace({ pathname: "/short-posts/[id]", params: { id: destination.post } });
+    } else if (destination.target === "manage") {
+      router.replace({ pathname: "/my-short-posts/[id]", params: { id: destination.post } });
+    } else back();
   }, [busy, destination]);
 
   const move = (index: number, delta: number) => {
@@ -294,8 +297,9 @@ function AuthorComposer({ owner }: { owner: string }) {
             <>
               <Text style={s.heading}>{receipt.status === "published" ? "短帖已发布" : "已提交审核"}</Text>
               {receipt.status === "pre_review" ? <Text style={s.meta}>通过审核后，读者才能看到这条短帖。</Text> : null}
-              {receipt.status === "published" ? <Action label="阅读已发布短帖" disabled={busy} onPress={() => void run((signal) => finish(signal, true))} /> : null}
-              <TextAction label="返回短内容" disabled={busy} onPress={() => void run((signal) => finish(signal, false))} />
+              {receipt.status === "published" ? <Action label="阅读已发布短帖" disabled={busy} onPress={() => void run((signal) => finish(signal, "public"))} /> : null}
+              <TextAction label="查看短帖管理" disabled={busy} onPress={() => void run((signal) => finish(signal, "manage"))} />
+              <TextAction label="返回短内容" disabled={busy} onPress={() => void run((signal) => finish(signal, "feed"))} />
             </>
           ) : !ready || pending ? (
             <>

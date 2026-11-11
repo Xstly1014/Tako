@@ -117,6 +117,7 @@ onUnmounted(() => {
             ><template v-if="operator"><NuxtLink to="/ops/comments">评论治理</NuxtLink></template
             >
             <NuxtLink v-if="operator" to="/ops/novels">小说治理</NuxtLink>
+            <NuxtLink v-if="operator && environment === 'test'" to="/ops/short-posts">短帖审核</NuxtLink>
           </div>
         </details>
       </nav>

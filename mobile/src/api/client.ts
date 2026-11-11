@@ -15,10 +15,11 @@ export type RequestOptions = {
   body?: unknown;
   token?: string;
   signal?: AbortSignal;
+  receiveImage?: boolean;
   binary?: {
     mediaType: "image/jpeg" | "image/png";
     send: (url: string, init: RequestInit) =>
-      Promise<Pick<Response, "headers" | "ok" | "status" | "json">>;
+      Promise<Pick<Response, "headers" | "ok" | "status" | "json" | "blob">>;
   };
 };
 export async function request<T>(
@@ -46,7 +47,7 @@ export async function request<T>(
       credentials: "omit",
       signal: controller.signal,
       headers: {
-        Accept: "application/json",
+        Accept: options.receiveImage ? "image/jpeg, image/png, application/json" : "application/json",
         ...(options.binary
           ? { "Content-Type": options.binary.mediaType }
           : options.body === undefined
@@ -63,6 +64,14 @@ export async function request<T>(
     if (response.headers.get("X-Tako-Environment") !== "test")
       throw new ApiError("environment", requestId);
     if (response.status === 204 && response.ok) return undefined as T;
+    if (response.ok && options.receiveImage) {
+      const mime = response.headers.get("Content-Type");
+      if (mime !== "image/jpeg" && mime !== "image/png") throw new ApiError("contract", requestId);
+      const blob = await response.blob();
+      if (blob.type !== mime || blob.size === 0 || blob.size > 8 * 1024 * 1024)
+        throw new ApiError("contract", requestId);
+      return blob as T;
+    }
     let value: unknown;
     try {
       value = await response.json();
