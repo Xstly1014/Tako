@@ -42,3 +42,20 @@ node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scr
 类型检查和六项定向测试通过，覆盖旧记录补定位、原任务绑定、交班分页、失败与权限异常。真实 test HTTP/MySQL 探针 `e1288871-03cc-48f4-8a72-5cb930c62f7f` 通过 35 项，包括先审替换、后审完成和复核撤销前后的交班结果。扫描时注入未来 49 小时只用于把本次合成任务纳入超时范围，服务状态与审核决定走真实接口。
 
 本地旧积压事件原有 211 项，重新扫描后可直接分页核对。第二页实测 20 项均能定位到原任务且仍待处理，nextOffset 为 40。合成测试作品已隐藏，会话已撤销。结果基于逐项读取时点，运营执行决定前继续使用原工作台的刷新和并发校验。产品页面及外部通知沿既有分工接入。
+
+## 交班结果留存和续查
+
+交班页完成后逐项事务保存到本地 SQLite，绑定事件和原目标。摘要区分仍待处理、已有决定、无法核对、需重新扫描和未核对。每项保存本轮核对开始时间，晚到的旧轮次不能覆盖新结果。查阅记录时保留时间，进入运营工作台执行决定前重新刷新。
+
+```powershell
+# 连续核对同一事件的全部任务，每完成一页保存一页
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --handoff 1 all
+# 重启后读取已保存的交班情况
+node --no-warnings agents/author-support/scripts/review-backlog.ts --handoff-status 1
+# 仅续查未核对或上次读取失败的任务
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --handoff 1 resume
+```
+
+批量模式串行查询。权限、认证或限频异常停止后续页，已完成页保留。未核对行有独立计数，全部核对完成且没有未知时才返回成功退出码。缺定位的旧记录需要先运行完整扫描。
+
+本机实际对旧事件的 211 项任务完成整轮核对，保存结果均为待处理，未知和未核对均为 0。新进程读取到全部 211 项，续查保留原时间且未请求重复核对。三项交班定向测试与类型检查通过，覆盖旧数据、分页、权限、结果留存、原目标绑定及旧结果晚到。

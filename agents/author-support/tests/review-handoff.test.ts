@@ -43,3 +43,31 @@ test('retains unknown results on access failure and binds original IDs while pag
   assert.equal(wrong.rows[0].status,'unavailable');
   assert.equal(wrong.nextOffset,null);
 });
+
+test('stored handoff distinguishes unchecked tasks and rejects older or unrelated page results',async()=>{
+  const monitor=new ReviewMonitor(':memory:');
+  try{
+    monitor.record({
+      status:'complete',scannedAt:'2026-11-11T00:00:00Z',totalOverdue:2,queues:[{
+        queue:'post_review',pending:2,oldestWaitingAt:null,
+        overdue:[1,2].map(id=>({id,waitingSince:'2026-11-01T00:00:00Z',
+          target:{queue:'post_review',workId:ids.work,version:id}})),
+      }],
+    });
+    const items=monitor.handoffItems(1);
+    const read=(async()=>({task:{id:1,work_id:ids.work,version:1,state:'approved'}})) as Transport;
+    const report=await reviewHandoff(read,items.slice(0,1));
+    monitor.saveHandoff(1,{...report,checkedAt:'2026-11-11T02:00:00Z'});
+    const summary=monitor.handoffSummary(1);
+    assert.equal(summary.counts.decided,1);
+    assert.equal(summary.counts.unchecked,1);
+    monitor.saveHandoff(1,{
+      ...report,checkedAt:'2026-11-11T01:00:00Z',
+      rows:[{...report.rows[0],status:'unavailable'}],
+    });
+    assert.equal(monitor.handoffSummary(1).counts.decided,1);
+    const unrelated={...report.rows[0],id:999};
+    assert.throws(()=>monitor.saveHandoff(1,{...report,rows:[unrelated]}),/handoff_target_changed/);
+    assert.deepEqual(monitor.handoffSummary(1),summary);
+  }finally{monitor.close()}
+});

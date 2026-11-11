@@ -1,5 +1,6 @@
 import {DatabaseSync,type SQLOutputValue} from 'node:sqlite';
 import type {scanReviewBacklog,ReviewTarget} from './review-backlog.ts';
+import type {reviewHandoff} from './review-handoff.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -36,6 +37,11 @@ export class ReviewMonitor {
       CREATE TABLE IF NOT EXISTS monitor_targets(
         queue TEXT NOT NULL, task_id TEXT NOT NULL, waiting_since TEXT NOT NULL, target TEXT NOT NULL,
         PRIMARY KEY(queue,task_id)
+      );
+      CREATE TABLE IF NOT EXISTS monitor_checks(
+        event_id INTEGER NOT NULL, queue TEXT NOT NULL, task_id TEXT NOT NULL,
+        checked_at TEXT NOT NULL, result TEXT NOT NULL,
+        PRIMARY KEY(event_id,queue,task_id)
       );
     `);
   }
@@ -132,6 +138,46 @@ export class ReviewMonitor {
       return {queue:event.queue,id,waitingSince:saved?String(saved.waiting_since):null,
         target:saved?JSON.parse(String(saved.target)) as ReviewTarget:null};
     }).sort((a,b)=>(a.waitingSince??'9999').localeCompare(b.waitingSince??'9999')||String(a.id).localeCompare(String(b.id)));
+  }
+
+  saveHandoff(eventId:number,report:Awaited<ReturnType<typeof reviewHandoff>>){
+    const items=this.handoffItems(eventId);
+    const valid=new Map(items.map(item=>[item.queue+':'+item.id,item]));
+    this.db.exec('BEGIN IMMEDIATE');
+    try{
+      for(const row of report.rows){
+        const item=valid.get(row.queue+':'+row.id);
+        if(!item||JSON.stringify(item.target)!==JSON.stringify(row.target))throw Error('handoff_target_changed');
+        this.db.prepare(`
+          INSERT INTO monitor_checks(event_id,queue,task_id,checked_at,result) VALUES(?,?,?,?,?)
+          ON CONFLICT(event_id,queue,task_id) DO UPDATE SET
+            checked_at=excluded.checked_at,result=excluded.result
+          WHERE excluded.checked_at>monitor_checks.checked_at
+        `).run(eventId,row.queue,String(row.id),report.checkedAt,JSON.stringify(row));
+      }
+      this.db.exec('COMMIT');
+    }catch(error){
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  handoffSummary(eventId:number){
+    const items=this.handoffItems(eventId);
+    const saved=this.db.prepare('SELECT queue,task_id,checked_at,result FROM monitor_checks WHERE event_id=?').all(eventId);
+    const checks=new Map(saved.map(row=>[String(row.queue)+':'+String(row.task_id),row]));
+    const rows=items.map(item=>{
+      const row=checks.get(item.queue+':'+item.id);
+      if(!row)return {...item,status:'unchecked' as const,checkedAt:null};
+      const result=JSON.parse(String(row.result)) as Awaited<ReturnType<typeof reviewHandoff>>['rows'][number];
+      if(JSON.stringify(item.target)!==JSON.stringify(result.target)){
+        return {...item,status:'unchecked' as const,checkedAt:null};
+      }
+      return {...result,checkedAt:String(row.checked_at)};
+    });
+    const counts={pending:0,decided:0,unavailable:0,rescan_required:0,unchecked:0};
+    for(const row of rows)counts[row.status]++;
+    return {eventId,total:items.length,counts,rows};
   }
 
   close(){this.db.close()}

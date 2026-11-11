@@ -6,6 +6,7 @@ import type {components} from '../../../mobile/src/api/contract.d.ts';
 import {currentPendingSubmission} from './follow-up.ts';
 
 export async function reviewHandoff(read:Transport,items:ReviewHandoffItem[],offset=0){
+  const checkedAt=new Date().toISOString();
   const page=items.slice(offset,offset+20);
   const rows=[];
   let blocked=false;
@@ -29,7 +30,7 @@ export async function reviewHandoff(read:Transport,items:ReviewHandoffItem[],off
     }
   }
   return {
-    checkedAt:new Date().toISOString(),total:items.length,
+    checkedAt,total:items.length,
     nextOffset:offset+page.length<items.length?offset+page.length:null,rows,
   };
 }

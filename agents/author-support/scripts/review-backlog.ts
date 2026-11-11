@@ -19,9 +19,12 @@ async function main(){
     if(args.length!==3||!validId(value))throw Error('invalid_cli');
   }else if(mode==='--handoff'){
     if(args.length<2||args.length>3||!validId(value)||
-      (operatorLabel!==undefined&&(!/^\d+$/.test(operatorLabel)||!Number.isSafeInteger(Number(operatorLabel))))){
+      (operatorLabel!==undefined&&!['all','resume'].includes(operatorLabel)&&
+        (!/^\d+$/.test(operatorLabel)||!Number.isSafeInteger(Number(operatorLabel))))){
       throw Error('invalid_cli');
     }
+  }else if(mode==='--handoff-status'){
+    if(args.length!==2||!validId(value))throw Error('invalid_cli');
   }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
     throw Error('invalid_cli');
   }
@@ -33,18 +36,35 @@ async function main(){
     if(mode==='--events')console.log(JSON.stringify(monitor.recentEvents(),null,2));
     else if(mode==='--pending')console.log(JSON.stringify(monitor.pendingEvents(Number(value??0)),null,2));
     else if(mode==='--ack')console.log(JSON.stringify(monitor.acknowledge(Number(value),operatorLabel),null,2));
+    else if(mode==='--handoff-status')console.log(JSON.stringify(monitor.handoffSummary(Number(value)),null,2));
     else if(mode==='--handoff'){
-      const items=monitor.handoffItems(Number(value));
+      const eventId=Number(value);
+      const batch=operatorLabel==='all'||operatorLabel==='resume';
+      const items=operatorLabel==='resume'
+        ?monitor.handoffSummary(eventId).rows.filter(row=>['unchecked','unavailable'].includes(row.status))
+        :monitor.handoffItems(eventId);
+      if(batch&&!items.length){
+        console.log(JSON.stringify(monitor.handoffSummary(eventId),null,2));
+        return;
+      }
       const {session,password}=await createOperator();
       let report;
       try{
         await session.signIn('login','operator@tako-test.invalid',password);
-        report=await reviewHandoff((path,options)=>session.authorized(path,options),items,Number(operatorLabel??0));
+        for(let offset=batch?0:Number(operatorLabel??0);offset<items.length;offset+=20){
+          report=await reviewHandoff((path,options)=>session.authorized(path,options),items,offset);
+          monitor.saveHandoff(eventId,report);
+          const blocked=report.rows.some(row=>'httpStatus' in row&&[401,403,429].includes(row.httpStatus??0));
+          if(!batch||blocked)break;
+        }
       }finally{
         if(session.snapshot().phase==='ready')await session.logout();
       }
-      console.log(JSON.stringify(report,null,2));
-      if(report.rows.some(row=>row.status==='unavailable'||row.status==='rescan_required'))process.exitCode=1;
+      const summary=monitor.handoffSummary(eventId);
+      console.log(JSON.stringify(batch?summary:report??{total:items.length,rows:[],nextOffset:null},null,2));
+      if(batch
+        ?summary.counts.unavailable+summary.counts.rescan_required+summary.counts.unchecked>0
+        :report?.rows.some(row=>row.status==='unavailable'||row.status==='rescan_required'))process.exitCode=1;
     }
     else if(mode==='--watch')await watch(monitor,Number(value??300));
     else printScan(await runScan(monitor));
@@ -131,7 +151,7 @@ function printScan({report,tracking,cleanupFailed}:Awaited<ReturnType<typeof run
 
 main().catch(error=>{
   const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
-    'invalid_acknowledgment','review_event_not_found','not_backlog_event'].includes(error.message)
+    'invalid_acknowledgment','review_event_not_found','not_backlog_event','handoff_target_changed'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;
