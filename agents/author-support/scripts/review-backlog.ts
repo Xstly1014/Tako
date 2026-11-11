@@ -3,6 +3,7 @@ import path from 'node:path';
 import {setTimeout as wait} from 'node:timers/promises';
 import {ReviewMonitor,type Observation} from '../src/review-monitor.ts';
 import {reviewHandoff} from '../src/review-handoff.ts';
+import {reviewOutcomes} from '../src/review-outcomes.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -25,7 +26,7 @@ async function main(){
     }
   }else if(mode==='--handoff-status'){
     if(args.length!==2||!validId(value))throw Error('invalid_cli');
-  }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
+  }else if(args.length>1||(mode!==undefined&&!['--track','--events','--outcomes'].includes(mode))){
     throw Error('invalid_cli');
   }
   if(!mode)return printScan(await runScan());
@@ -37,6 +38,18 @@ async function main(){
     else if(mode==='--pending')console.log(JSON.stringify(monitor.pendingEvents(Number(value??0)),null,2));
     else if(mode==='--ack')console.log(JSON.stringify(monitor.acknowledge(Number(value),operatorLabel),null,2));
     else if(mode==='--handoff-status')console.log(JSON.stringify(monitor.handoffSummary(Number(value)),null,2));
+    else if(mode==='--outcomes'){
+      const {session,password}=await createOperator();
+      let report;
+      try{
+        await session.signIn('login','operator@tako-test.invalid',password);
+        report=await reviewOutcomes((path,options)=>session.authorized(path,options));
+      }finally{
+        if(session.snapshot().phase==='ready')await session.logout();
+      }
+      console.log(JSON.stringify(report,null,2));
+      if(report.status==='incomplete')process.exitCode=1;
+    }
     else if(mode==='--handoff'){
       const eventId=Number(value);
       const batch=operatorLabel==='all'||operatorLabel==='resume';
