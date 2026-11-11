@@ -21,6 +21,7 @@ import { Action, Status } from "../components/Ui";
 import { BottomNavigation, Icon, unavailable } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
 import { WorkRow } from "../components/WorkRow";
+import { shortPostsTrial } from "../short-posts/trial";
 export default function Community() {
   const [page, setPage] = useState<DiscoveryPage>(),
     [error, setError] = useState<unknown>(),
@@ -120,8 +121,8 @@ export default function Community() {
       <View style={s.channels}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="短内容，尚未开放"
-          onPress={() => unavailable("短内容频道")}
+          accessibilityLabel={shortPostsTrial ? "短内容频道" : "短内容，尚未开放"}
+          onPress={() => shortPostsTrial ? router.navigate("/short-community") : unavailable("短内容频道")}
           style={s.channelButton}
         >
           <Text style={s.channelText}>短内容</Text>

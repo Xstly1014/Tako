@@ -19,6 +19,7 @@ import { ShelfControls } from "./ShelfUi";
 import { Action, Brand, Status } from "../components/Ui";
 import { BottomNavigation } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
+import { shortPostsTrial } from "../short-posts/trial";
 import {
   NovelReadingApi,
   novelReadingMessage,
@@ -225,6 +226,8 @@ export function NovelSearchScreen() {
   );
 }
 export function NovelCommunityScreen() {
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const fromShort = shortPostsTrial && from === "short";
   const load = useCallback(
     (cursor: string, signal: AbortSignal) => api.list(cursor, signal),
     [],
@@ -234,8 +237,8 @@ export function NovelCommunityScreen() {
     <SafeAreaView style={s.screen}>
       <Header
         title="长文"
-        back="中篇"
-        onBack={() => router.dismissTo("/community")}
+        back={fromShort ? "返回短内容" : "中篇"}
+        onBack={() => router.dismissTo(fromShort ? "/short-community" : "/community")}
       />
       <Action label="搜索长文" onPress={() => router.push("/novel-search")} />
       {!page ? (
@@ -291,6 +294,7 @@ export function NovelDirectoryScreen() {
     id: string;
     from?: string;
     notice?: string;
+    post?: string;
   }>();
   const book = typeof params.id === "string" ? params.id : "";
   return (
@@ -299,6 +303,7 @@ export function NovelDirectoryScreen() {
       book={book}
       fromSearch={params.from === "search"}
       fromShelf={params.from === "shelf"}
+      fromPost={params.from === "short" && id(params.post) ? params.post : undefined}
       fromNotice={
         params.from === "notice" && id(params.notice)
           ? params.notice
@@ -312,11 +317,13 @@ function DirectoryContent({
   fromShelf,
   fromSearch,
   fromNotice,
+  fromPost,
 }: {
   book: string;
   fromShelf: boolean;
   fromSearch: boolean;
   fromNotice?: string;
+  fromPost?: string;
 }) {
   const sync = useReadingPosition(book);
   const { localError } = useReadingLifecycle(sync);
@@ -337,29 +344,17 @@ function DirectoryContent({
     <SafeAreaView style={s.screen}>
       <Header
         title="章节目录"
-        back={
-          fromNotice
-            ? "消息详情"
-            : fromShelf
-              ? "我的书架"
-              : fromSearch
-                ? "搜索结果"
-                : "长文频道"
-        }
-        onBack={() =>
-          fromNotice
-            ? router.dismissTo({
-                pathname: "/notice/[id]",
-                params: { id: fromNotice },
-              })
-            : router.dismissTo(
-                fromShelf
-                  ? "/shelf"
-                  : fromSearch
-                    ? "/novel-search"
-                    : "/novel-community",
-              )
-        }
+        back={fromPost ? "返回短帖" : fromNotice ? "消息详情" :
+          fromShelf ? "我的书架" : fromSearch ? "搜索结果" : "长文频道"}
+        onBack={() => {
+          if (fromPost) {
+            router.dismissTo({ pathname: "/short-posts/[id]", params: { id: fromPost } });
+          } else if (fromNotice) {
+            router.dismissTo({ pathname: "/notice/[id]", params: { id: fromNotice } });
+          } else {
+            router.dismissTo(fromShelf ? "/shelf" : fromSearch ? "/novel-search" : "/novel-community");
+          }
+        }}
       />
       {!valid || !page ? (
         <Status
