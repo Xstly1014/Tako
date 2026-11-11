@@ -5,6 +5,7 @@ import {ReviewMonitor,type Observation} from '../src/review-monitor.ts';
 import {reviewHandoff} from '../src/review-handoff.ts';
 import {outcomePeriod,reviewOutcomes} from '../src/review-outcomes.ts';
 import {policyPending} from '../src/policy-pending.ts';
+import {runOperatorShift,shiftSummary} from '../src/operator-shift.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -17,7 +18,7 @@ async function main(){
     }
   }else if(mode==='--pending'){
     if(args.length>2||(value!==undefined&&!validId(value)))throw Error('invalid_cli');
-  }else if(mode==='--ack'){
+  }else if(mode==='--ack'||mode==='--ack-shift'){
     if(args.length!==3||!validId(value))throw Error('invalid_cli');
   }else if(mode==='--handoff'){
     if(args.length<2||args.length>3||!validId(value)||
@@ -34,6 +35,11 @@ async function main(){
     if(args.length!==2||!validId(value))throw Error('invalid_cli');
   }else if(mode==='--compare-outcomes'){
     if(args.length!==3||!validId(value)||!validId(operatorLabel))throw Error('invalid_cli');
+  }else if(mode==='--shift'){
+    if(args.length!==3)throw Error('invalid_cli');
+    outcomePeriod(value,operatorLabel);
+  }else if(mode==='--resume-shift'||mode==='--shift-report'){
+    if(args.length!==2||!validId(value))throw Error('invalid_cli');
   }else if(args.length>1||(mode!==undefined&&!['--track','--events','--policy-pending'].includes(mode))){
     throw Error('invalid_cli');
   }
@@ -45,9 +51,43 @@ async function main(){
     if(mode==='--events')console.log(JSON.stringify(monitor.recentEvents(),null,2));
     else if(mode==='--pending')console.log(JSON.stringify(monitor.pendingEvents(Number(value??0)),null,2));
     else if(mode==='--ack')console.log(JSON.stringify(monitor.acknowledge(Number(value),operatorLabel),null,2));
+    else if(mode==='--ack-shift')console.log(JSON.stringify(monitor.acknowledgeShift(Number(value),operatorLabel),null,2));
     else if(mode==='--handoff-status')console.log(JSON.stringify(monitor.handoffSummary(Number(value)),null,2));
     else if(mode==='--outcome-report')console.log(JSON.stringify(monitor.outcomeReport(Number(value)),null,2));
     else if(mode==='--compare-outcomes')console.log(JSON.stringify(monitor.compareOutcomes(Number(value),Number(operatorLabel)),null,2));
+    else if(mode==='--shift-report'){
+      const stored=monitor.shift(Number(value));
+      console.log(JSON.stringify({...shiftSummary(stored.id,stored.run),revision:stored.revision,
+        acknowledgment:monitor.shiftAcknowledgment(stored.id),details:stored.run},null,2));
+    }
+    else if(mode==='--shift'||mode==='--resume-shift'){
+      const previous=mode==='--resume-shift'?monitor.shift(Number(value)):null;
+      const period=previous?.run.period??outcomePeriod(value,operatorLabel);
+      if(period.start>=Date.now())throw Error('period_not_started');
+      if(previous&&shiftSummary(previous.id,previous.run).status==='complete'){
+        console.log(JSON.stringify(shiftSummary(previous.id,previous.run),null,2));
+        return;
+      }
+      const {session,password}=await createOperator();
+      let report;
+      const stop=new AbortController();
+      const shutdown=()=>stop.abort();
+      process.on('SIGINT',shutdown);
+      process.on('SIGTERM',shutdown);
+      try{
+        await session.signIn('login','operator@tako-test.invalid',password);
+        report=await runOperatorShift((path,options)=>session.authorized(path,{...options,signal:stop.signal}),
+          monitor,period,previous?.id,stop.signal);
+      }finally{
+        try{if(session.snapshot().phase==='ready')await session.logout()}
+        finally{
+          process.off('SIGINT',shutdown);
+          process.off('SIGTERM',shutdown);
+        }
+      }
+      console.log(JSON.stringify(report,null,2));
+      if(report.status==='incomplete')process.exitCode=1;
+    }
     else if(mode==='--policy-pending'){
       const {session,password}=await createOperator();
       let report;
@@ -190,7 +230,7 @@ main().catch(error=>{
   const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
     'invalid_acknowledgment','review_event_not_found','not_backlog_event','handoff_target_changed',
     'invalid_period','period_not_started','outcome_report_not_found','report_version_mismatch',
-    'report_not_comparable','period_still_open','periods_not_comparable'].includes(error.message)
+    'report_not_comparable','period_still_open','periods_not_comparable','shift_not_found','shift_changed','shift_incomplete'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;

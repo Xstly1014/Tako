@@ -2,6 +2,19 @@
 
 解决作者的“原发布是否成功、当前为什么无法访问”咨询。仅消费已有本人接口，不保存或修改本机草稿，不替作者发布。当前是离线工程验证入口，尚未接入 App 或真实用户咨询。
 
+## 中篇运营值班与复盘
+
+从仓库根目录使用现有本地测试运营凭据，启动一次完整值班作业。日期为复盘周期，按上海时区包含起始日、排除结束日。以命令返回的实际 shiftId 读取、续查和确认。
+
+```powershell
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --shift 2026-11-01 2026-11-11
+node --no-warnings agents/author-support/scripts/review-backlog.ts --shift-report 1
+node --no-warnings --env-file=.runtime/local-test/.env agents/author-support/scripts/review-backlog.ts --resume-shift 1
+node --no-warnings agents/author-support/scripts/review-backlog.ts --ack-shift 1 shift-a
+```
+
+一次作业包含积压扫描、原任务核对、观察状态与待审交接、周期复盘。各阶段和任务结果在本地 SQLite 保留。续查仅重试未完成或失败的步骤，新的值班作业重新获取现状。全部读取完整才允许登记已查阅，确认绑定该班次的结果修订。待审任务的实际审核仍从原工作台执行。运行条件、失败恢复及证据见 [完整业务验收](../../docs/reviews/operations-gap-review.md)。
+
 从仓库根目录运行，Node 24.19.x（使用内置 SQLite）：
 
 ```powershell

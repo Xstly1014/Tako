@@ -2,6 +2,7 @@ import {DatabaseSync,type SQLOutputValue} from 'node:sqlite';
 import type {scanReviewBacklog,ReviewTarget} from './review-backlog.ts';
 import type {reviewHandoff} from './review-handoff.ts';
 import {compareOutcomeReports,outcomeReportVersion,type OutcomeReport} from './review-outcomes.ts';
+import {shiftSummary,type OperatorShift} from './operator-shift.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -46,6 +47,14 @@ export class ReviewMonitor {
       );
       CREATE TABLE IF NOT EXISTS outcome_reports(
         id INTEGER PRIMARY KEY, version TEXT NOT NULL, generated_at TEXT NOT NULL, report TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS operator_shifts(
+        id INTEGER PRIMARY KEY, revision INTEGER NOT NULL, run TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS operator_shift_acknowledgments(
+        shift_id INTEGER NOT NULL, revision INTEGER NOT NULL,
+        operator_label TEXT NOT NULL, acknowledged_at TEXT NOT NULL,
+        PRIMARY KEY(shift_id,revision)
       );
     `);
   }
@@ -200,6 +209,65 @@ export class ReviewMonitor {
     const previous=this.outcomeReport(previousId),current=this.outcomeReport(currentId);
     if(previous.version!==current.version||previous.version!==outcomeReportVersion)throw Error('report_version_mismatch');
     return {previousId,currentId,version:previous.version,...compareOutcomeReports(previous.report,current.report)};
+  }
+
+  createShift(run:OperatorShift){
+    const result=this.db.prepare('INSERT INTO operator_shifts(revision,run) VALUES(1,?)').run(JSON.stringify(run));
+    return {id:Number(result.lastInsertRowid),revision:1,run};
+  }
+
+  shift(id:number){
+    const row=this.db.prepare('SELECT revision,run FROM operator_shifts WHERE id=?').get(id);
+    if(!row)throw Error('shift_not_found');
+    return {id,revision:Number(row.revision),run:JSON.parse(String(row.run)) as OperatorShift};
+  }
+
+  saveShift(id:number,revision:number,run:OperatorShift){
+    const updated=this.db.prepare('UPDATE operator_shifts SET revision=revision+1,run=? WHERE id=? AND revision=?')
+      .run(JSON.stringify(run),id,revision);
+    if(updated.changes!==1)throw Error('shift_changed');
+    return {id,revision:revision+1,run};
+  }
+
+  saveShiftOutcome(id:number,revision:number,run:OperatorShift,report:OutcomeReport){
+    this.db.exec('BEGIN IMMEDIATE');
+    try{
+      const reportId=this.saveOutcomeReport(report);
+      const updated={...run,outcomeReportId:reportId,outcomeStatus:report.status};
+      const stored=this.saveShift(id,revision,updated);
+      this.db.exec('COMMIT');
+      Object.assign(run,updated);
+      return stored;
+    }catch(error){
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  shiftAcknowledgment(id:number){
+    const {revision}=this.shift(id);
+    const row=this.db.prepare('SELECT operator_label,acknowledged_at FROM operator_shift_acknowledgments WHERE shift_id=? AND revision=?')
+      .get(id,revision);
+    return row?{revision,operatorLabel:String(row.operator_label),acknowledgedAt:String(row.acknowledged_at)}:null;
+  }
+
+  acknowledgeShift(id:number,operatorLabel:string){
+    if(!/^[a-zA-Z0-9_-]{1,32}$/.test(operatorLabel))throw Error('invalid_acknowledgment');
+    this.db.exec('BEGIN IMMEDIATE');
+    try{
+      const {revision,run}=this.shift(id);
+      if(shiftSummary(id,run).status!=='complete')throw Error('shift_incomplete');
+      this.db.prepare(`
+        INSERT INTO operator_shift_acknowledgments(shift_id,revision,operator_label,acknowledged_at)
+        VALUES(?,?,?,?) ON CONFLICT(shift_id,revision) DO NOTHING
+      `).run(id,revision,operatorLabel,new Date().toISOString());
+      const receipt=this.shiftAcknowledgment(id)!;
+      this.db.exec('COMMIT');
+      return {shiftId:id,...receipt};
+    }catch(error){
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
   }
 
   close(){this.db.close()}
