@@ -60,6 +60,20 @@ func verifyShortPostAppeals(t *testing.T, db *sql.DB, owner, other, operator, po
 		t.Fatal("appeal queue did not preserve separate case scopes")
 	}
 	request("GET", operator, opsPath+"/appeals/"+original.String(), nil, 200, "")
+	evidencePath := opsPath + "/appeals/" + original.String() + "/evidence"
+	request("GET", other, evidencePath, nil, 403, "operator_required")
+	evidence := novelResult[shortpost.AppealEvidence](t, request("GET", operator, evidencePath, nil, 200, "").Body.Bytes())
+	if evidence.Version == nil || *evidence.Version != 4 || evidence.Title != "第四版" || len(evidence.Images) != 1 {
+		t.Fatal("appeal evidence was not pinned to the restricted version")
+	}
+	request("GET", operator, evidencePath+"/images/"+image.String()+"?version=4", nil, 200, "")
+	request("GET", operator, evidencePath+"/images/"+image.String()+"?version=3", nil, 404, "resource_not_found")
+	request("GET", operator, evidencePath+"/images/"+uuid.NewString()+"?version=4", nil, 404, "resource_not_found")
+	request("GET", other, evidencePath+"/images/"+image.String()+"?version=4", nil, 403, "operator_required")
+	if queue.Items[1].CaseReason != "合成处理原因" {
+		t.Fatal("appeal did not expose the reason for its exact restriction round")
+	}
+
 	uphold := action("appeal_uphold", 0, &original)
 	result := act(uphold, 200, "")
 	if !bytes.Equal(result, act(uphold, 200, "")) {

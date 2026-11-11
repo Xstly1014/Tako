@@ -60,6 +60,11 @@ func verifyShortPostSubmission(t *testing.T, db *sql.DB, owner, other, operator,
 	if body.Novel != nil || body.Content != preview.Content {
 		t.Fatal("hidden association leaked or changed the post")
 	}
+	ownerSnapshot := novelResult[shortpost.ManagedPost](t,
+		request("GET", owner, "/api/my/short-posts/"+published.PostID.String(), nil, 200, "").Body.Bytes())
+	if ownerSnapshot.NovelID == nil || *ownerSnapshot.NovelID != book {
+		t.Fatal("private revision source lost the original association")
+	}
 	if !bytes.Equal(original, request("PUT", owner, submission, in, 200, "").Body.Bytes()) {
 		t.Fatal("association visibility changed original submission receipt")
 	}

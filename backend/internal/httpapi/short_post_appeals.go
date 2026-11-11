@@ -47,6 +47,39 @@ func (a API) registerShortPostAppeals(protected, author, ops *gin.RouterGroup, o
 		out, err := store.FileAppeal(c.Request.Context(), owner, post, id, in)
 		sendShortAppeal(c, out, err)
 	})
+	ops.GET("/:id/appeals/:appealId/evidence", func(c *gin.Context) {
+		post, appeal, ok := shortAppealTarget(c)
+		if !ok {
+			return
+		}
+		out, err := store.AppealEvidence(c.Request.Context(), post, appeal)
+		sendShortAppeal(c, out, err)
+	})
+	ops.GET("/:id/appeals/:appealId/evidence/images/:imageId", func(c *gin.Context) {
+		post, appeal, ok := shortAppealTarget(c)
+		if !ok {
+			return
+		}
+		image, ok := shortPostTarget(c, "imageId")
+		if !ok {
+			return
+		}
+		var version uint64
+		if raw := c.Query("version"); raw != "0" {
+			version, ok = shortPostVersion(raw)
+			if !ok {
+				respondError(c, 400, "invalid_input")
+				return
+			}
+		}
+		mediaType, body, err := store.AppealEvidenceImage(c.Request.Context(), post, appeal, image, version)
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Data(200, mediaType, body)
+	})
 	for _, group := range []*gin.RouterGroup{author, ops} {
 		operator := group == ops
 		group.GET("/:id/appeals/:appealId", func(c *gin.Context) {
@@ -66,6 +99,15 @@ func (a API) registerShortPostAppeals(protected, author, ops *gin.RouterGroup, o
 			sendShortAppeal(c, out, err)
 		})
 	}
+}
+
+func shortAppealTarget(c *gin.Context) (uuid.UUID, uuid.UUID, bool) {
+	post, ok := shortPostTarget(c, "id")
+	if !ok {
+		return uuid.Nil, uuid.Nil, false
+	}
+	appeal, ok := shortPostTarget(c, "appealId")
+	return post, appeal, ok
 }
 
 func shortAppealBefore(c *gin.Context) (uint64, bool) {

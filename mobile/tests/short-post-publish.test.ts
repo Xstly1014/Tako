@@ -74,3 +74,32 @@ test("固定预览按上传顺序校验图片；二进制传输仍核对会话�
     },
   }), /environment/);
 });
+
+test("同帖修订绑定原提交编号和状态版本，丢响应后查同一修订", async () => {
+  const journal = store();
+  const target = { post: receipt.post_id, expectedRevision: 7 };
+  let sent = false;
+  const send = async <T>(path: string, options?: { method?: string; body?: unknown }) => {
+    assert.equal(path, "/my/short-posts/" + target.post + "/revisions/" + mutation);
+    if (options?.method === "PUT") {
+      assert.deepEqual(options.body, { preview_id: preview, rights_confirmed: true, expected_revision: 7 });
+      sent = true;
+      throw new ApiError("network");
+    }
+    assert.ok(sent);
+    return receipt as T;
+  };
+  await assert.rejects(new ShortPostSubmission(owner, send, journal).confirm(mutation, preview, undefined, target), /network/);
+  const resumed = new ShortPostSubmission(owner, send, journal);
+  assert.deepEqual(await resumed.recover(), { pending: true, receipt });
+  await resumed.acknowledge(receipt);
+  assert.deepEqual(await resumed.recover(), { pending: false });
+});
+
+test("修订明确过时后释放原请求，要求作者重新确认状态版本", async () => {
+  const journal = store();
+  const send = async <T>(): Promise<T> => { throw new ApiError("work_state_conflict", "", 409); };
+  const flow = new ShortPostSubmission(owner, send, journal);
+  await assert.rejects(flow.confirm(mutation, preview, undefined, { post: receipt.post_id, expectedRevision: 7 }), /work_state_conflict/);
+  assert.deepEqual(await flow.recover(), { pending: false });
+});

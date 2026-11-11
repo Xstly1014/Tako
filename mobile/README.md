@@ -6,7 +6,7 @@
 
 ## 当前源码与安装包
 
-短帖阅读已接入源码。通过构建环境变量 `EXPO_PUBLIC_SHORT_POSTS_TRIAL=true` 启用测试页签；`EXPO_PUBLIC_API_URL` 需指向有短帖路由、已应用迁移 36 的本地测试 API。游客可打开短帖频道、详情、公开历史和关联长文。测试入口已接图文发帖、本人可读长文关联和固定预览。试验入口还可查看本人短帖、审核原因、配图和公开状态。作者修订与复核仍待接入，设备可用时由主开发负责真机验收。最新进度与证据见[项目状态](../docs/project-status.md)与[短帖复盘](../docs/reviews/short-posts-stage-review.md)。
+短帖阅读已接入源码。通过构建环境变量 `EXPO_PUBLIC_SHORT_POSTS_TRIAL=true` 启用测试页签；`EXPO_PUBLIC_API_URL` 需指向有短帖路由、已应用迁移 36 的本地测试 API。游客可打开短帖频道、详情、公开历史和关联长文。测试入口已接图文发帖、本人可读长文关联和固定预览。试验入口还可查看本人短帖、审核原因、配图和公开状态。试验入口可提交同帖修订、切换正式展示版本及申请、查看复核。设备可用时由主开发负责真机验收。最新进度与证据见[项目状态](../docs/project-status.md)与[短帖复盘](../docs/reviews/short-posts-stage-review.md)。
 
 新增搜索已接入源码 ce1670a：社区入口、关键词/笔名/简介、结果分页与阅读返回。当前旧APK不含搜索，用户已明确由并行端负责打包/安装/设备验收；见 [交接任务](../docs/handoff/device-requests.md) 与 [本轮复盘](../docs/reviews/mobile-search-app-review.md)。主开发仅交付业务/自动化验证，不将旧包或DOM结果当新功能设备通过。
 

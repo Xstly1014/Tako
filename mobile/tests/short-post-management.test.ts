@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ApiError, request, type RequestOptions } from "../src/api/client.ts";
 import {
-  changePost, isDefiniteChangeError, ownerPage, ownerVersion, readOwnerImage, reviewLabel,
+  changePost, filePostAppeal, isDefiniteChangeError, ownerPage, ownerVersion, ownerVersions, readOwnerImage, reviewLabel,
 } from "../src/short-posts/manage.ts";
 
 const id = "00000000-0000-4000-8000-000000000001";
@@ -53,4 +53,17 @@ test("本人配图只接受测试环境的已认证图片响应", async ({ mock 
     headers: { "X-Tako-Environment": "test", "Content-Type": "text/html" },
   }));
   await assert.rejects(readOwnerImage(authorized, id), /contract/);
+});
+
+test("受限版本在作者时间线保留，复核回执须匹配原处置轮次", async () => {
+  const read = async <T>() => [{ version: 4, platform_limited: true, published_at: at }] as T;
+  assert.equal((await ownerVersions(read, id))[0].platform_limited, true);
+  await assert.rejects(ownerVersions(read, id, 4), /contract/);
+  const send = async <T>(path: string, options?: RequestOptions) => {
+    assert.equal(path, "/my/short-posts/" + id + "/appeals/" + id);
+    assert.deepEqual(options?.body, { case_revision: 8, reason: "补充说明" });
+    return { id, post_id: id, case_revision: 7, version: 4, state: "pending",
+      reason: "补充说明", case_reason: "处置原因", decision_reason: "", submitted_at: at, decided_at: null } as T;
+  };
+  await assert.rejects(filePostAppeal(send, id, id, 8, "补充说明"), /contract/);
 });
