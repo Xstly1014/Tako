@@ -6,6 +6,7 @@ import {reviewHandoff} from '../src/review-handoff.ts';
 import {outcomePeriod,reviewOutcomes} from '../src/review-outcomes.ts';
 import {policyPending} from '../src/policy-pending.ts';
 import {runOperatorShift,shiftSummary} from '../src/operator-shift.ts';
+import {checkCuration} from '../src/curation-check.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -40,7 +41,9 @@ async function main(){
     outcomePeriod(value,operatorLabel);
   }else if(mode==='--resume-shift'||mode==='--shift-report'){
     if(args.length!==2||!validId(value))throw Error('invalid_cli');
-  }else if(args.length>1||(mode!==undefined&&!['--track','--events','--policy-pending'].includes(mode))){
+  }else if(mode==='--curation-report'){
+    if(args.length!==2||!validId(value))throw Error('invalid_cli');
+  }else if(args.length>1||(mode!==undefined&&!['--track','--events','--policy-pending','--curation'].includes(mode))){
     throw Error('invalid_cli');
   }
   if(!mode)return printScan(await runScan());
@@ -55,6 +58,20 @@ async function main(){
     else if(mode==='--handoff-status')console.log(JSON.stringify(monitor.handoffSummary(Number(value)),null,2));
     else if(mode==='--outcome-report')console.log(JSON.stringify(monitor.outcomeReport(Number(value)),null,2));
     else if(mode==='--compare-outcomes')console.log(JSON.stringify(monitor.compareOutcomes(Number(value),Number(operatorLabel)),null,2));
+    else if(mode==='--curation-report')console.log(JSON.stringify(monitor.curationReport(Number(value)),null,2));
+    else if(mode==='--curation'){
+      const {session,password}=await createOperator();
+      let report;
+      try{
+        await session.signIn('login','operator@tako-test.invalid',password);
+        report=await checkCuration((path,options)=>session.authorized(path,options));
+      }finally{
+        if(session.snapshot().phase==='ready')await session.logout();
+      }
+      const reportId=monitor.saveCurationReport(report);
+      console.log(JSON.stringify({reportId,...report},null,2));
+      if(report.status!=='complete'||report.needsRecheck)process.exitCode=1;
+    }
     else if(mode==='--shift-report'){
       const stored=monitor.shift(Number(value));
       console.log(JSON.stringify({...shiftSummary(stored.id,stored.run),revision:stored.revision,
@@ -230,7 +247,8 @@ main().catch(error=>{
   const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
     'invalid_acknowledgment','review_event_not_found','not_backlog_event','handoff_target_changed',
     'invalid_period','period_not_started','outcome_report_not_found','report_version_mismatch',
-    'report_not_comparable','period_still_open','periods_not_comparable','shift_not_found','shift_changed','shift_incomplete'].includes(error.message)
+    'report_not_comparable','period_still_open','periods_not_comparable','shift_not_found','shift_changed','shift_incomplete',
+    'curation_report_not_found'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;

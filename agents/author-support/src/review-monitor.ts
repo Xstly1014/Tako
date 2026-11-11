@@ -3,6 +3,7 @@ import type {scanReviewBacklog,ReviewTarget} from './review-backlog.ts';
 import type {reviewHandoff} from './review-handoff.ts';
 import {compareOutcomeReports,outcomeReportVersion,type OutcomeReport} from './review-outcomes.ts';
 import {shiftSummary,type OperatorShift} from './operator-shift.ts';
+import type {checkCuration} from './curation-check.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -55,6 +56,9 @@ export class ReviewMonitor {
         shift_id INTEGER NOT NULL, revision INTEGER NOT NULL,
         operator_label TEXT NOT NULL, acknowledged_at TEXT NOT NULL,
         PRIMARY KEY(shift_id,revision)
+      );
+      CREATE TABLE IF NOT EXISTS curation_reports(
+        id INTEGER PRIMARY KEY, report TEXT NOT NULL
       );
     `);
   }
@@ -268,6 +272,16 @@ export class ReviewMonitor {
       this.db.exec('ROLLBACK');
       throw error;
     }
+  }
+
+  saveCurationReport(report:Awaited<ReturnType<typeof checkCuration>>){
+    return Number(this.db.prepare('INSERT INTO curation_reports(report) VALUES(?)').run(JSON.stringify(report)).lastInsertRowid);
+  }
+
+  curationReport(id:number){
+    const row=this.db.prepare('SELECT report FROM curation_reports WHERE id=?').get(id);
+    if(!row)throw Error('curation_report_not_found');
+    return {reportId:id,...JSON.parse(String(row.report)) as Awaited<ReturnType<typeof checkCuration>>};
   }
 
   close(){this.db.close()}
