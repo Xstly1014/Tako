@@ -255,11 +255,12 @@ export class ReviewMonitor {
     return row?{revision,operatorLabel:String(row.operator_label),acknowledgedAt:String(row.acknowledged_at)}:null;
   }
 
-  acknowledgeShift(id:number,operatorLabel:string){
+  acknowledgeShift(id:number,operatorLabel:string,expectedRevision?:number){
     if(!/^[a-zA-Z0-9_-]{1,32}$/.test(operatorLabel))throw Error('invalid_acknowledgment');
     this.db.exec('BEGIN IMMEDIATE');
     try{
       const {revision,run}=this.shift(id);
+      if(expectedRevision!==undefined&&expectedRevision!==revision)throw Error('shift_changed');
       if(shiftSummary(id,run).status!=='complete')throw Error('shift_incomplete');
       this.db.prepare(`
         INSERT INTO operator_shift_acknowledgments(shift_id,revision,operator_label,acknowledged_at)
@@ -285,6 +286,25 @@ export class ReviewMonitor {
   }
 
   close(){this.db.close()}
+
+  /** Local immutable history, newest first; keyset pagination survives concurrent inserts. */
+  history(kind:'shifts'|'outcomes'|'curation',before=Number.MAX_SAFE_INTEGER){
+    const table={shifts:'operator_shifts',outcomes:'outcome_reports',curation:'curation_reports'}[kind];
+    if(!table||!Number.isSafeInteger(before)||before<1)throw Error('invalid_history');
+    const rows=this.db.prepare(`SELECT id FROM ${table} WHERE id<? ORDER BY id DESC LIMIT 21`).all(before);
+    const items=rows.slice(0,20).map(row=>{
+      const id=Number(row.id);
+      if(kind==='shifts')return {id,...shiftSummary(id,this.shift(id).run),acknowledgment:this.shiftAcknowledgment(id)};
+      if(kind==='outcomes'){
+        const stored=this.outcomeReport(id);
+        return {id,version:stored.version,status:stored.report.status,startedAt:stored.report.startedAt,
+          period:stored.report.period?{from:stored.report.period.from,untilExclusive:stored.report.period.untilExclusive}:null};
+      }
+      const report=this.curationReport(id);
+      return {id,status:report.status,startedAt:report.startedAt};
+    });
+    return {items,nextBefore:rows.length>20?Number(rows[19].id):null};
+  }
 }
 
 function eventRow(row:Record<string,SQLOutputValue>){

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tako · 运营值班</title><link rel="stylesheet" href="/workbench.css"><script src="/workbench.js" defer></script></head>
+<body>
+<header><a class="brand" href="/">Tako</a><span>运营值班</span><span class="local">本地测试环境</span></header>
+<main>
+  <nav aria-label="运营工具"><button data-tab="outcomes" aria-current="page">复盘与异常</button><button data-tab="shifts">积压与交班</button><button data-tab="curation">精选核验</button></nav>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+  <section id="job" hidden aria-label="当前检查"><span id="job-text"></span><button id="stop" class="quiet">停止检查</button></section>
+  <section id="shifts" class="panel" hidden>
+    <div class="heading"><div><h1>积压与交班</h1><p>核对超时待办，保留本班检查结果。</p></div></div>
+    <form id="start-form" class="toolbar"><label>复盘起日<input type="date" name="from" required></label><label>截至日期（不含）<input type="date" name="until" required></label><button type="submit" class="primary remote">开始本班检查</button></form>
+    <div class="columns"><aside><h2>班次记录</h2><div id="shifts-list" aria-live="polite"></div><button id="shifts-more" hidden>加载更早班次</button></aside><article id="shift-detail"><div class="empty">选择一个班次查看结果，或开始本班检查。</div></article></div>
+  </section>
+  <section id="outcomes" class="panel">
+    <div class="heading"><div><h1>复盘与异常</h1><p>先看最近观察，再进入班次核对和处理。</p></div><button id="refresh-overview">刷新记录</button></div>
+    <section id="overview" aria-label="最近观察概览"><p>正在读取最近观察…</p></section>
+    <h2>复核周期报表</h2>
+    <details class="compare"><summary>周期对照</summary><form id="compare-form" class="toolbar"><label>前期报表编号<input name="previousId" type="number" min="1" step="1" required></label><label>本期报表编号<input name="currentId" type="number" min="1" step="1" required></label><button type="submit">对照两个周期</button></form></details>
+    <div id="comparison"></div>
+    <div class="columns"><aside><h2>报表记录</h2><div id="outcomes-list"></div><button id="outcomes-more" hidden>加载更早报表</button></aside><article id="outcome-detail"><div class="empty">选择报表查看。新报表随本班检查一起生成。</div></article></div>
+  </section>
+  <section id="curation" class="panel" hidden>
+    <div class="heading"><div><h1>精选核验</h1><p>核对六个精选位与匿名读者看到的内容。</p></div><button id="check-curation" class="primary remote">开始核验</button></div>
+    <div class="columns"><aside><h2>核验记录</h2><div id="curation-list"></div><button id="curation-more" hidden>加载更早记录</button></aside><article id="curation-detail"><div class="empty">开始核验后，在这里查看每个精选位的状态。</div></article></div>
+  </section>
+</main>
+<footer>检查结果为观察时快照。交班确认记录本地接收人，待办处理请进入运营页面。</footer>
+</body></html>
