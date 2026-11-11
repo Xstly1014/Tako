@@ -27,6 +27,7 @@ async function main(){
   const {submissionAnswer}=await import('../src/submission-answer.ts');
   const {scanReviewBacklog}=await import('../src/review-backlog.ts');
   const {reviewHandoff}=await import('../src/review-handoff.ts');
+  const {policyPending}=await import('../src/policy-pending.ts');
   type HandoffItem=import('../src/review-monitor.ts').ReviewHandoffItem;
   type Result=import('../src/tools.ts').ToolResult;
   const runId=randomUUID(),prefix='agent-probe-'+runId.slice(0,12),works:string[]=[],checks:string[]=[];
@@ -268,12 +269,12 @@ async function main(){
       checks.push('preview_cli_follows_withdrawn_submission_without_rewriting_old_receipt');
       assert.equal(historical.published,null);assert.ok(historical.submission);checks.push('current_withdrawn_does_not_rewrite_original_acceptance');
       phase='pre_review_terminal_decisions';
-      async function submitRevision(revision:number){
+      async function submitRevision(revision:number,expectedVersion=0){
         await author.authorized('/drafts/save',{method:'POST',body:{
           mutation_id:randomUUID(),draft_id:third.draft_id,base_revision:revision-1,title:prefix+'先审修订'+revision,content:body2,
         }});
         const preview=await publisher.prepare({mutation_id:randomUUID(),draft_id:third.draft_id,source_revision:revision,introduction:'',tags:['日常'],rights_confirmed:true});
-        const receipt=await publisher.publish({mutation_id:randomUUID(),preview_id:preview.id,expected_version:0});
+        const receipt=await publisher.publish({mutation_id:randomUUID(),preview_id:preview.id,expected_version:expectedVersion});
         assert.equal(receipt.review_status,'pre_review');
         pendingSubmissions.push(receipt.submission_id);
         return {previewId:preview.id,receipt};
@@ -317,6 +318,26 @@ async function main(){
       assert.deepEqual(hiddenData.reader_visibility,{status:'not_visible',blocker:'author_hidden'});
       assert.match(submissionAnswer(approvedCheck.getDelivery()!,hiddenResult),/已通过并发行 V1.*作者隐藏仍然生效/);
       checks.push('approved_submission_confirms_version_separately_from_reader_visibility');
+      const retained=await submitRevision(5,1);
+      const observedActive=await policyPending(opsRead);
+      assert.equal(observedActive.status,'complete');
+      const activeRow=observedActive.rows.find(row=>row.submissionId===retained.receipt.submission_id);
+      assert.ok(activeRow?.status==='awaiting_review');
+      assert.equal(activeRow.observationActive,true);
+      const currentPolicy=await operator.authorized<{policy:{revision:number}}>(policyContext);
+      await operator.authorized(policyContext,{method:'POST',body:{
+        mutation_id:randomUUID(),expected_revision:currentPolicy.policy.revision,action:'revoke',reason:'观察结束后的待审交接验收',
+      }});
+      policyStarted=false;
+      const observedInactive=await policyPending(opsRead);
+      assert.equal(observedInactive.status,'complete');
+      const inactiveRow=observedInactive.rows.find(row=>row.submissionId===retained.receipt.submission_id);
+      assert.ok(inactiveRow?.status==='awaiting_review');
+      assert.equal(inactiveRow.observationActive,false);
+      assert.equal(inactiveRow.firstWaitingAt,activeRow.firstWaitingAt);
+      await author.authorized('/my/work-submissions/'+retained.receipt.submission_id+'/withdraw',{method:'POST',body:{mutation_id:randomUUID()}});
+      pendingSubmissions.splice(pendingSubmissions.indexOf(retained.receipt.submission_id),1);
+      checks.push('policy_end_keeps_original_submission_pending_for_operator_handoff');
       report.follow_up={source:'real_http_with_controlled_candidate_not_new_model_trial',pending_read:true,foreign_denied:true,withdrawn_read:true,original_acceptance_unchanged:true};
     }
     if(process.argv.includes('--pre-review')){

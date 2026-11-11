@@ -4,6 +4,7 @@ import {setTimeout as wait} from 'node:timers/promises';
 import {ReviewMonitor,type Observation} from '../src/review-monitor.ts';
 import {reviewHandoff} from '../src/review-handoff.ts';
 import {outcomePeriod,reviewOutcomes} from '../src/review-outcomes.ts';
+import {policyPending} from '../src/policy-pending.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -33,7 +34,7 @@ async function main(){
     if(args.length!==2||!validId(value))throw Error('invalid_cli');
   }else if(mode==='--compare-outcomes'){
     if(args.length!==3||!validId(value)||!validId(operatorLabel))throw Error('invalid_cli');
-  }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
+  }else if(args.length>1||(mode!==undefined&&!['--track','--events','--policy-pending'].includes(mode))){
     throw Error('invalid_cli');
   }
   if(!mode)return printScan(await runScan());
@@ -47,6 +48,18 @@ async function main(){
     else if(mode==='--handoff-status')console.log(JSON.stringify(monitor.handoffSummary(Number(value)),null,2));
     else if(mode==='--outcome-report')console.log(JSON.stringify(monitor.outcomeReport(Number(value)),null,2));
     else if(mode==='--compare-outcomes')console.log(JSON.stringify(monitor.compareOutcomes(Number(value),Number(operatorLabel)),null,2));
+    else if(mode==='--policy-pending'){
+      const {session,password}=await createOperator();
+      let report;
+      try{
+        await session.signIn('login','operator@tako-test.invalid',password);
+        report=await policyPending((path,options)=>session.authorized(path,options));
+      }finally{
+        if(session.snapshot().phase==='ready')await session.logout();
+      }
+      console.log(JSON.stringify(report,null,2));
+      if(report.status==='incomplete')process.exitCode=1;
+    }
     else if(mode==='--outcomes'){
       const {session,password}=await createOperator();
       let report;
