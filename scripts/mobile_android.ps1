@@ -11,7 +11,7 @@ if ($Action -eq 'build') {
   if ($LASTEXITCODE -ne 0) { throw 'Android SDK installation failed' }
   & docker run --rm -v "${repo}/mobile:/app" -v tako-mobile-android-sdk:/opt/android-sdk tako-android-build:local sh tooling/install-ndk.sh
   if ($LASTEXITCODE -ne 0) { throw 'Android NDK integrity check or installation failed' }
-  & docker run --rm --memory=4g --cpus=4 -e CI=1 -v "${repo}/mobile:/app" -v "${artifacts}:/artifacts" -v tako-mobile-node-modules:/app/node_modules -v tako-mobile-npm-cache:/root/.npm -v tako-mobile-gradle-cache:/root/.gradle -v tako-mobile-android-sdk:/opt/android-sdk -w /app tako-android-build:local sh tooling/build-android.sh
+  & docker run --rm --memory=4g --cpus=4 -e CI=1 -e EXPO_PUBLIC_SHORT_POSTS_TRIAL -v "${repo}/mobile:/app" -v "${artifacts}:/artifacts" -v tako-mobile-node-modules:/app/node_modules -v tako-mobile-npm-cache:/root/.npm -v tako-mobile-gradle-cache:/root/.gradle -v tako-mobile-android-sdk:/opt/android-sdk -w /app tako-android-build:local sh tooling/build-android.sh
   if ($LASTEXITCODE -ne 0) { throw 'APK build failed' }
   exit 0
 }

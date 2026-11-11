@@ -1,4 +1,4 @@
-import { ApiError } from "../api/client.ts";
+import { ApiError, type RequestOptions } from "../api/client.ts";
 import { UUID } from "../api/reader.ts";
 import type { components } from "../api/contract";
 import { lockedDraftAccess, type DraftAccess, type DraftGrantVault, type LocalIdentityVault } from "../drafts/access.ts";
@@ -13,15 +13,7 @@ export type Snapshot = {
   generation: number;
   drafts: DraftAccess;
 };
-export type Transport = <T>(
-  path: string,
-  options?: {
-    method?: string;
-    body?: unknown;
-    token?: string;
-    signal?: AbortSignal;
-  },
-) => Promise<T>;
+export type Transport = <T>(path: string, options?: RequestOptions) => Promise<T>;
 export type Vault = {
   drafts?: DraftGrantVault;
   localIdentity?: LocalIdentityVault;
@@ -183,7 +175,7 @@ export class Session {
   }
   async authorized<T>(
     path: string,
-    options: { method?: string; body?: unknown; signal?: AbortSignal } = {},
+    options: Omit<RequestOptions, "token"> = {},
   ): Promise<T> {
     if (this.state.phase !== "ready" || !this.token)
       throw new ApiError("authentication_required", "", 401);

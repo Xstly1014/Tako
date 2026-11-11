@@ -95,7 +95,7 @@ type novelPublicCursor struct {
 }
 
 func (s Store) PublicNovels(ctx context.Context, token string) (PublicNovelPage, error) {
-	return s.publicNovelPage(ctx, token, "")
+	return s.publicNovelPage(ctx, token, "", uuid.Nil)
 }
 
 // SearchPublicNovels shares the channel visibility and stable publication ordering.
@@ -109,10 +109,17 @@ func (s Store) SearchPublicNovels(ctx context.Context, query, token string) (Pub
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	return s.publicNovelPage(ctx, token, query)
+	return s.publicNovelPage(ctx, token, query, uuid.Nil)
 }
 
-func (s Store) publicNovelPage(ctx context.Context, token, query string) (PublicNovelPage, error) {
+func (s Store) OwnedPublicNovels(ctx context.Context, owner uuid.UUID, token string) (PublicNovelPage, error) {
+	if owner == uuid.Nil {
+		return PublicNovelPage{}, ErrInvalid
+	}
+	return s.publicNovelPage(ctx, token, "", owner)
+}
+
+func (s Store) publicNovelPage(ctx context.Context, token, query string, owner uuid.UUID) (PublicNovelPage, error) {
 	out := PublicNovelPage{Items: []PublicNovel{}}
 	if len(token) > 512 {
 		return out, ErrInvalid
@@ -132,6 +139,11 @@ func (s Store) publicNovelPage(ctx context.Context, token, query string) (Public
 		q += " AND (LOWER(p.title) LIKE ? ESCAPE '!' OR LOWER(p.introduction) LIKE ? ESCAPE '!' OR LOWER(a.nickname) LIKE ? ESCAPE '!')"
 		args = append(args, pattern, pattern, pattern)
 	}
+	if owner != uuid.Nil {
+		q += " AND n.owner_id=?"
+		args = append(args, owner[:])
+		queryHash = owner.String()
+	}
 	if token != "" {
 		raw, e := base64.RawURLEncoding.DecodeString(token)
 		var c novelPublicCursor
@@ -141,7 +153,13 @@ func (s Store) publicNovelPage(ctx context.Context, token, query string) (Public
 		// The anchor can have become hidden since the previous page. Its immutable
 		// first-release identity still anchors pagination without disclosing content.
 		var n int
-		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM novel_publications WHERE novel_id=? AND first_published_at=?", c.ID[:], c.Time).Scan(&n); err != nil {
+		anchor := "SELECT COUNT(*) FROM novel_publications WHERE novel_id=? AND first_published_at=?"
+		params := []any{c.ID[:], c.Time}
+		if owner != uuid.Nil {
+			anchor += " AND owner_id=?"
+			params = append(params, owner[:])
+		}
+		if err = tx.QueryRowContext(ctx, anchor, params...).Scan(&n); err != nil {
 			return out, err
 		}
 		if n != 1 {

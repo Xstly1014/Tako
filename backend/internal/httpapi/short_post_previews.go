@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"writing.local/community/internal/identity"
+	"writing.local/community/internal/novel"
 	"writing.local/community/internal/shortpost"
 )
 
@@ -17,6 +18,16 @@ func (a API) shortPostTestOnly(c *gin.Context) {
 }
 
 func (a API) registerShortPostPreviews(protected *gin.RouterGroup) {
+	books := novel.Store{DB: a.DB}
+	protected.GET("/my/short-post-novel-options", a.shortPostTestOnly, func(c *gin.Context) {
+		owner := c.MustGet("account").(identity.Account)
+		page, err := books.OwnedPublicNovels(c.Request.Context(), owner.ID, c.Query("cursor"))
+		if err != nil {
+			novelError(c, err)
+			return
+		}
+		c.JSON(200, page)
+	})
 	store := shortpost.PreviewStore{DB: a.DB}
 	previews := protected.Group("/my/short-post-previews/:id", a.shortPostTestOnly)
 	previews.PUT("", func(c *gin.Context) {

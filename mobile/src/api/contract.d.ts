@@ -388,6 +388,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/my/short-post-novel-options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+    * 选择本人的公开可读长文
+    * @description 本机 test 验证入口。分页游标限定当前会话作者。提交预览和确认发布时重新校验可读性。
+    */
+    get: operations["listShortPostNovelOptions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/short-post-previews/{id}": {
     parameters: {
       query?: never;
@@ -5959,6 +5979,32 @@ export interface operations {
       400: components["responses"]["BadInput"];
       403: components["responses"]["OriginRejected"];
       404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listShortPostNovelOptions: {
+    parameters: {
+      query?: {
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人当前公开可读的长文 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicNovelPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
       503: components["responses"]["Unavailable"];
     };
   };
