@@ -65,6 +65,8 @@ func (a API) registerShortPostImages(protected *gin.RouterGroup) {
 			respondError(c, 400, "invalid_image")
 		case errors.Is(err, shortpost.ErrImageTooLarge):
 			respondError(c, 413, "image_too_large")
+		case errors.Is(err, shortpost.ErrImageUnavailable):
+			respondError(c, 409, "short_post_image_unavailable")
 		case errors.Is(err, shortpost.ErrImageQuota):
 			respondError(c, 409, "image_quota_reached")
 		case errors.Is(err, shortpost.ErrUploadIDReused):

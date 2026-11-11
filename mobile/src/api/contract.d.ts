@@ -429,7 +429,7 @@ export interface paths {
     get: operations["readMyShortPostImage"];
     /**
      * 上传本人短帖暂存图片
-     * @description 本机 test 验证入口。每图最多 8 MiB 和 1200 万像素。服务端解码重编码。同账号同 UUID 及相同文件重试返回原结果，换文件返回 409。暂存素材不公开。
+     * @description 本机 test 验证入口。每图最多 8 MiB 和 1200 万像素。服务端解码重编码。同账号同 UUID 及相同文件重试返回原结果，换文件返回 409。上传满 24 小时且没有预览或提交引用的素材可回收，已回收的 UUID 不能重新上传，请使用新 UUID。暂存素材不公开。
      */
     put: operations["stageShortPostImage"];
     post?: never;
@@ -6099,7 +6099,7 @@ export interface operations {
       400: components["responses"]["BadInput"];
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["OriginRejected"];
-      /** @description UUID 复用、缺少笔名或账号暂存额度耗尽 */
+      /** @description UUID 复用、缺少笔名、暂存额度耗尽，或素材已回收（short_post_image_unavailable） */
       409: {
         headers: {
           [name: string]: unknown;

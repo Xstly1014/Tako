@@ -94,14 +94,18 @@ func (s ImageStore) Save(ctx context.Context, owner, id uuid.UUID, mediaType str
 		return ImageMetadata{}, err
 	}
 	var priorHash []byte
+	var purged bool
 	var prior ImageMetadata
 	prior.ID = id
 	err = tx.QueryRowContext(ctx,
-		"SELECT input_hash,media_type,width,height FROM short_post_images WHERE owner_id=? AND id=?",
-		owner[:], id[:]).Scan(&priorHash, &prior.MediaType, &prior.Width, &prior.Height)
+		"SELECT input_hash,media_type,width,height,purged_at IS NOT NULL FROM short_post_images WHERE owner_id=? AND id=?",
+		owner[:], id[:]).Scan(&priorHash, &prior.MediaType, &prior.Width, &prior.Height, &purged)
 	if err == nil {
 		if !bytes.Equal(digest[:], priorHash) || prior.MediaType != mediaType {
 			return ImageMetadata{}, ErrUploadIDReused
+		}
+		if purged {
+			return ImageMetadata{}, ErrImageUnavailable
 		}
 		return prior, tx.Commit()
 	}
@@ -109,7 +113,11 @@ func (s ImageStore) Save(ctx context.Context, owner, id uuid.UUID, mediaType str
 		return ImageMetadata{}, err
 	}
 	var count int
-	if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM short_post_images WHERE owner_id=?", owner[:]).Scan(&count); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM short_post_images i
+ WHERE i.owner_id=? AND i.purged_at IS NULL AND NOT EXISTS (
+   SELECT 1 FROM short_post_preview_images p WHERE p.owner_id=i.owner_id AND p.image_id=i.id
+     AND NOT (`+previewUnsubmitted+`)
+ )`, owner[:]).Scan(&count); err != nil {
 		return ImageMetadata{}, err
 	}
 	if count >= maxStagedImages {
@@ -126,6 +134,6 @@ func (s ImageStore) Save(ctx context.Context, owner, id uuid.UUID, mediaType str
 func (s ImageStore) Read(ctx context.Context, owner, id uuid.UUID) (string, []byte, error) {
 	var mediaType string
 	var content []byte
-	err := s.DB.QueryRowContext(ctx, "SELECT media_type,content FROM short_post_images WHERE owner_id=? AND id=?", owner[:], id[:]).Scan(&mediaType, &content)
+	err := s.DB.QueryRowContext(ctx, "SELECT media_type,content FROM short_post_images WHERE owner_id=? AND id=? AND purged_at IS NULL", owner[:], id[:]).Scan(&mediaType, &content)
 	return mediaType, content, err
 }
