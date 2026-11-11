@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Tako local operations command bridge",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "仅 127.0.0.1:3410 的本地工具协议，不挂载业务服务。业务数据读取仍使用 backend/internal/contract/openapi.yaml。无查询参数；JSON 最多 2048 字节。作业 complete 表示已保存结果，结果自身 status 才表示检查完整性。进程级 Cookie 重启失效，刷新页面建立新本地会话。结果字段复用 review-monitor/operator-shift/review-outcomes/curation-check 的版本化快照。"
   },
   "servers": [
@@ -58,7 +58,8 @@
                     "enum": [
                       "shifts",
                       "outcomes",
-                      "curation"
+                      "curation",
+                      "reconciliations"
                     ]
                   },
                   "before": {
@@ -156,7 +157,8 @@
                     "enum": [
                       "shifts",
                       "outcomes",
-                      "curation"
+                      "curation",
+                      "reconciliations"
                     ]
                   },
                   "id": {
@@ -785,7 +787,8 @@
                             "kind": {
                               "enum": [
                                 "shift",
-                                "curation"
+                                "curation",
+                                "reconciliation"
                               ]
                             },
                             "status": {
@@ -815,6 +818,190 @@
             }
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/local/reconcile": {
+      "post": {
+        "operationId": "reconcile",
+        "summary": "冻结两班完整积压扫描并复查离开队列的任务",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须等于当前监听源"
+          },
+          {
+            "in": "header",
+            "name": "X-Tako-Workbench",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "previousId",
+                  "currentId"
+                ],
+                "properties": {
+                  "previousId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "currentId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同步结果；report 保留底层模块版本化快照，未完整状态不能当作成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "已启动或请求停止；作业状态通过 state 读取",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/local/resume-reconciliation": {
+      "post": {
+        "operationId": "resume-reconciliation",
+        "summary": "继续未确认的跨班对账",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须等于当前监听源"
+          },
+          {
+            "in": "header",
+            "name": "X-Tako-Workbench",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同步结果；report 保留底层模块版本化快照，未完整状态不能当作成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "已启动或请求停止；作业状态通过 state 读取",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }

@@ -12,10 +12,13 @@ const errors={job_running:'已有检查在运行，请等待或停止当前检�
   local_session_required:'本地会话已失效，请刷新页面后重试。',test_operator_required:'本机未配置测试运营凭据，请按启动说明配置。',
   operator_logout_failed:'检查结果已保留，但退出运营会话失败。请检查本地服务。',operation_failed:'检查未完成，请确认本地服务可用后重试。',
   operator_rate_limited:'运营认证已限频，请等待服务端窗口结束后再手动重试。',operator_access_denied:'运营身份或权限校验失败，请检查本地凭据与账号权限。',
+  shift_scan_incomplete:'两班的积压扫描必须完整，请先续查对应班次。',shifts_not_comparable:'请选择扫描时间先后明确的两个不同班次。',
+  reconciliation_target_changed:'同一任务的定位信息不一致，暂不能对账，请重新检查班次来源。',
+  reconciliation_changed:'对账记录已有更新，请重新打开后续查。',reconciliation_not_found:'没有找到这份对账，请刷新记录。',
   job_cancelled:'检查已停止，可从班次记录继续。'};
 let tab='outcomes',busy=false,lastFinished=null,polling=false;
-const cursors={shifts:null,outcomes:null,curation:null};
-const selected={shifts:null,outcomes:null,curation:null};
+const cursors={shifts:null,outcomes:null,curation:null,reconciliations:null};
+const selected={shifts:null,outcomes:null,curation:null,reconciliations:null};
 function el(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text);if(className)node.className=className;return node}
 function notice(text,error=false){const node=$('#notice');node.hidden=!text;node.className=error?'error':'';node.textContent=text}
 function time(value){return value?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—'}
@@ -62,7 +65,28 @@ async function loadHistory(kind,more=false){
 async function openReport(kind,id){
   const data=await api('report',{kind,id});selected[kind]=id;
   for(const record of document.querySelectorAll('#'+kind+'-list .record'))record.setAttribute('aria-pressed',String(Number(record.dataset.id)===id));
-  if(kind==='shifts')renderShift(data);else if(kind==='outcomes')renderOutcome(data);else renderCuration(data);
+  if(kind==='shifts')renderShift(data);else if(kind==='outcomes')renderOutcome(data);else if(kind==='reconciliations')renderReconciliation(data);else renderCuration(data);
+}
+function renderReconciliation(report){
+  const parent=$('#reconciliation-detail');parent.hidden=false;parent.closest('details').open=true;parent.replaceChildren();
+  const head=title(parent,`对账 #${report.reportId} · ${textStatus(report.status)}`,
+    `班次 #${report.previous.shiftId}（${time(report.previous.scannedAt)}）→ #${report.current.shiftId}（${time(report.current.scannedAt)}）`);
+  if(report.status==='incomplete')head.append(button('继续未确认项',()=>startJob('resume-reconciliation',{id:report.reportId}),'remote'));
+  const metrics=el('div',undefined,'metrics');metric(metrics,'继续积压',report.retained);metric(metrics,'新进入超时',report.entered);metric(metrics,'离开超时队列',report.departed);parent.append(metrics);
+  parent.append(el('p',`离开项回查：已有决定 ${report.departureChecks.decided} · 仍待处理 ${report.departureChecks.stillPending} · 未确认 ${report.departureChecks.unconfirmed}`));
+  parent.append(el('small','离开队列不等于已处理。回查反映核对时间的结果，不代表在两班之间完成，也不代表读者已可见。'));
+  parent.append(table(['队列','上班','新进入','离开','本班'],report.queues.map(row=>[textStatus(row.queue),row.previous,row.entered,row.departed,row.current])));
+  const filter=el('select');filter.setAttribute('aria-label','筛选对账变化');
+  for(const [value,label] of [['departed','离开超时队列'],['entered','新进入超时'],['retained','继续积压']]){const option=el('option',label);option.value=value;filter.append(option)}
+  parent.append(el('h3','逐项变化'),filter);const list=el('div');parent.append(list);
+  const checks=new Map(report.details.checks.map(row=>[row.queue+':'+row.id,row]));
+  const draw=()=>{list.replaceChildren();pageRows(list,['队列 / 标识','等待起点','回查结果','回查时间','处理入口'],report.details[filter.value].map(item=>{
+    const check=checks.get(item.queue+':'+item.id);
+    const path=check?.workbenchPath??{pre_review:'/ops/work-submissions',post_review:'/ops/reviews',appeal:'/ops/appeals'}[item.queue];
+    return [`${textStatus(item.queue)} · ${item.id}`,time(item.waitingSince),filter.value!=='departed'?'以本班快照为准':
+      check?`${textStatus(check.status)}${check.decision&&check.decision!==check.status?' · '+textStatus(check.decision):''}${check.currentPending?.status==='unavailable'?' · 当前待审稿未确认':''}`:'未核对',
+      time(check?.checkedAt),opsLink(path)];
+  }))};filter.addEventListener('change',draw);draw();updateBusy();
 }
 function renderShift(report){
   const parent=$('#shift-detail');parent.replaceChildren();
@@ -121,7 +145,7 @@ function renderCuration(report){
 async function switchTab(next){tab=next;for(const panel of document.querySelectorAll('.panel'))panel.hidden=panel.id!==next;
   for(const button of document.querySelectorAll('[data-tab]')){if(button.dataset.tab===next)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')}
   await loadHistory(next);
-  if(next==='outcomes')await loadOverview();
+  if(next==='outcomes'){await loadOverview();await loadHistory('reconciliations')}
 }
 async function loadOverview(){
   const parent=$('#overview');
@@ -149,13 +173,13 @@ async function poll(){
   if(polling)return;polling=true;
   try{
     const state=await api('state'),job=state.job;busy=job?.status==='running';
-    $('#job').hidden=!busy;$('#job-text').textContent=job?.kind==='curation'?'正在核验精选展示…':'正在核对本班积压、观察期与复核报表…';updateBusy();
+    $('#job').hidden=!busy;$('#job-text').textContent=job?.kind==='curation'?'正在核验精选展示…':job?.kind==='reconciliation'?'正在回查离开超时队列的任务…':'正在核对本班积压、观察期与复核报表…';updateBusy();
     if(job&&job.status!=='running'&&lastFinished!==job.id){
       lastFinished=job.id;
       if(job.status==='failed')notice(errors[job.error]??'检查未完成。已写入的班次记录可继续检查。',true);
       else{
-        const kind=job.kind==='shift'?'shifts':'curation',id=job.result?.shiftId??job.result?.reportId;
-        if(id){await switchTab(kind);await openReport(kind,id)}
+        const kind=job.kind==='shift'?'shifts':job.kind==='reconciliation'?'reconciliations':'curation',id=job.result?.shiftId??job.result?.reportId;
+        if(id){await switchTab(kind==='reconciliations'?'outcomes':kind);await openReport(kind,id)}
         notice(job.result?.status==='complete'?'检查结果已保存。':'检查结果已保存，仍有未确认项。');
       }
       await loadHistory(tab);
@@ -166,11 +190,14 @@ async function poll(){
   }catch(error){notice('工作台连接中断，请确认本地工作台仍在运行，再刷新页面。',true)}finally{polling=false}
 }
 for(const node of document.querySelectorAll('[data-tab]'))node.addEventListener('click',action(()=>switchTab(node.dataset.tab)));
-for(const kind of ['shifts','outcomes','curation'])$('#'+kind+'-more').addEventListener('click',action(()=>loadHistory(kind,true)));
+for(const kind of ['shifts','outcomes','curation','reconciliations'])$('#'+kind+'-more').addEventListener('click',action(()=>loadHistory(kind,true)));
 $('#start-form').addEventListener('submit',action(event=>{const data=new FormData(event.target);return startJob('start',{from:data.get('from'),until:data.get('until')})}));
 $('#check-curation').addEventListener('click',action(()=>startJob('curation',{})));
 $('#stop').addEventListener('click',action(async()=>{await api('stop',{});notice('正在停止；当前请求结束后保留检查点。')}));
 $('#refresh-overview').addEventListener('click',action(async()=>{await loadHistory('outcomes');await loadOverview();if(selected.outcomes)await openReport('outcomes',selected.outcomes)}));
+$('#reconcile-form').addEventListener('submit',action(event=>{
+  const data=new FormData(event.target);return startJob('reconcile',{previousId:Number(data.get('previousId')),currentId:Number(data.get('currentId'))});
+}));
 $('#compare-form').addEventListener('submit',action(async event=>{
   const data=new FormData(event.target),result=await api('compare',{previousId:Number(data.get('previousId')),currentId:Number(data.get('currentId'))}),parent=$('#comparison');parent.replaceChildren();
   title(parent,`报表 #${result.previousId} → #${result.currentId}`);

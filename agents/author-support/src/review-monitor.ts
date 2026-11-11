@@ -4,6 +4,7 @@ import type {reviewHandoff} from './review-handoff.ts';
 import {compareOutcomeReports,outcomeReportVersion,type OutcomeReport} from './review-outcomes.ts';
 import {shiftSummary,type OperatorShift} from './operator-shift.ts';
 import type {checkCuration} from './curation-check.ts';
+import {reconciliationSummary,type ShiftReconciliation} from './shift-reconciliation.ts';
 
 type Report=Awaited<ReturnType<typeof scanReviewBacklog>>;
 export type Observation=Report|{
@@ -59,6 +60,9 @@ export class ReviewMonitor {
       );
       CREATE TABLE IF NOT EXISTS curation_reports(
         id INTEGER PRIMARY KEY, report TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS shift_reconciliations(
+        id INTEGER PRIMARY KEY, revision INTEGER NOT NULL, run TEXT NOT NULL
       );
     `);
   }
@@ -287,13 +291,32 @@ export class ReviewMonitor {
 
   close(){this.db.close()}
 
+  createReconciliation(run:ShiftReconciliation){
+    const result=this.db.prepare('INSERT INTO shift_reconciliations(revision,run) VALUES(1,?)').run(JSON.stringify(run));
+    return {id:Number(result.lastInsertRowid),revision:1,run};
+  }
+
+  reconciliation(id:number){
+    const row=this.db.prepare('SELECT revision,run FROM shift_reconciliations WHERE id=?').get(id);
+    if(!row)throw Error('reconciliation_not_found');
+    return {id,revision:Number(row.revision),run:JSON.parse(String(row.run)) as ShiftReconciliation};
+  }
+
+  saveReconciliation(id:number,revision:number,run:ShiftReconciliation){
+    const result=this.db.prepare('UPDATE shift_reconciliations SET revision=revision+1,run=? WHERE id=? AND revision=?')
+      .run(JSON.stringify(run),id,revision);
+    if(result.changes!==1)throw Error('reconciliation_changed');
+    return {id,revision:revision+1,run};
+  }
+
   /** Local immutable history, newest first; keyset pagination survives concurrent inserts. */
-  history(kind:'shifts'|'outcomes'|'curation',before=Number.MAX_SAFE_INTEGER){
-    const table={shifts:'operator_shifts',outcomes:'outcome_reports',curation:'curation_reports'}[kind];
+  history(kind:'shifts'|'outcomes'|'curation'|'reconciliations',before=Number.MAX_SAFE_INTEGER){
+    const table={shifts:'operator_shifts',outcomes:'outcome_reports',curation:'curation_reports',reconciliations:'shift_reconciliations'}[kind];
     if(!table||!Number.isSafeInteger(before)||before<1)throw Error('invalid_history');
     const rows=this.db.prepare(`SELECT id FROM ${table} WHERE id<? ORDER BY id DESC LIMIT 21`).all(before);
     const items=rows.slice(0,20).map(row=>{
       const id=Number(row.id);
+      if(kind==='reconciliations')return {id,...reconciliationSummary(id,this.reconciliation(id).run)};
       if(kind==='shifts')return {id,...shiftSummary(id,this.shift(id).run),acknowledgment:this.shiftAcknowledgment(id)};
       if(kind==='outcomes'){
         const stored=this.outcomeReport(id);

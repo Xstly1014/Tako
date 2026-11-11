@@ -11,6 +11,8 @@ import type {withOperator} from '../src/operator-session.ts';
 import type {Transport} from '../../../mobile/src/auth/session.ts';
 import {outcomePeriod} from '../src/review-outcomes.ts';
 import {reviewOutcomes} from '../src/review-outcomes.ts';
+import {ApiError} from '../../../mobile/src/api/client.ts';
+import {ids} from '../src/cases.ts';
 
 const emptyRead=(async(route:string)=>{
   if(route==='/ops/work-submissions')return {items:[],next_cursor:''};
@@ -147,4 +149,32 @@ test('history pagination remains stable when new shifts arrive between pages',()
     const second=monitor.history('shifts',first.nextBefore!);assert.equal(second.items.length,5);
     assert.equal(new Set([...first.items,...second.items].map(row=>row.id)).size,25);
   }finally{monitor.close()}
+});
+
+test('reconciliation HTTP commands retain failures, resume the same record and expose saved history',async()=>{
+  const monitor=new ReviewMonitor(':memory:');let fail=true,calls=0;
+  const client=await connect(monitor,async action=>action((async route=>{
+    calls++;assert.equal(route,`/ops/reviews/${ids.work}/versions/1`);
+    if(fail)throw new ApiError('service_unavailable','',503);
+    return {task:{id:1,work_id:ids.work,version:1,state:'approved'}};
+  }) as Transport));
+  try{
+    const make=(at:string,hasTask:boolean)=>monitor.createShift({startedAt:at,period:outcomePeriod('2026-11-01','2026-11-06'),
+      scan:{status:'complete',scannedAt:at,totalOverdue:hasTask?1:0,queues:[{queue:'post_review',pending:hasTask?1:0,
+        oldestWaitingAt:hasTask?'2026-10-01T00:00:00Z':null,overdue:hasTask?[{id:1,waitingSince:'2026-10-01T00:00:00Z',
+          target:{queue:'post_review',workId:ids.work,version:1}}]:[]}]},
+      checks:[],policy:null,outcomeStatus:'not_run',outcomeReportId:null});
+    const previous=make('2026-11-01T00:00:00Z',true),current=make('2026-11-02T00:00:00Z',false);
+    assert.equal((await client.post('reconcile',{previousId:current.id,currentId:previous.id})).status,409);
+    assert.equal((await client.post('reconcile',{previousId:previous.id,currentId:999})).status,404);
+    const started=await client.post('reconcile',{previousId:previous.id,currentId:current.id});assert.equal(started.status,202);
+    const {reportId}=await started.json();await done(client);
+    let report=await (await client.post('report',{kind:'reconciliations',id:reportId})).json();
+    assert.equal(report.status,'incomplete');assert.equal(report.departureChecks.unconfirmed,1);
+    fail=false;assert.equal((await client.post('resume-reconciliation',{id:reportId})).status,202);await done(client);
+    report=await (await client.post('report',{kind:'reconciliations',id:reportId})).json();
+    assert.equal(report.status,'complete');assert.equal(report.departureChecks.decided,1);assert.equal(calls,2);
+    assert.equal((await client.post('resume-reconciliation',{id:reportId})).status,200);assert.equal(calls,2);
+    const history=await (await client.post('history',{kind:'reconciliations'})).json();assert.equal(history.items[0].reportId,reportId);
+  }finally{await client.close();monitor.close()}
 });

@@ -7,9 +7,10 @@ import {runOperatorShift,shiftSummary} from './operator-shift.ts';
 import {checkCuration} from './curation-check.ts';
 import {withOperator} from './operator-session.ts';
 import {ApiError} from '../../../mobile/src/api/client.ts';
+import {prepareReconciliation,reconciliationSummary,runReconciliation} from './shift-reconciliation.ts';
 
 type Operator=typeof withOperator;
-type Job={id:number;kind:'shift'|'curation';status:'running'|'complete'|'failed';startedAt:string;result?:unknown;error?:string};
+type Job={id:number;kind:'shift'|'curation'|'reconciliation';status:'running'|'complete'|'failed';startedAt:string;result?:unknown;error?:string};
 type InputSchema={required?:string[];properties:Record<string,{type:string;enum?:unknown[];minimum?:number;maximum?:number;pattern?:string}>};
 const contract=JSON.parse(readFileSync(new URL('../workbench/openapi.json',import.meta.url),'utf8')) as {
   paths:Record<string,{post?:{requestBody:{content:{'application/json':{schema:InputSchema}}}}}>;
@@ -29,7 +30,8 @@ function validateInput(route:string,body:Record<string,unknown>){
 const knownErrors=new Set(['invalid_request','invalid_period','period_not_started','shift_not_found','shift_changed',
   'shift_incomplete','invalid_acknowledgment','outcome_report_not_found','curation_report_not_found',
   'report_version_mismatch','report_not_comparable','period_still_open','periods_not_comparable',
-  'test_operator_required','local_api_required','operator_logout_failed','job_cancelled']);
+  'test_operator_required','local_api_required','operator_logout_failed','job_cancelled',
+  'shift_scan_incomplete','shifts_not_comparable','reconciliation_target_changed','reconciliation_changed','reconciliation_not_found']);
 const errorCode=(error:unknown)=>error instanceof ApiError&&error.status===429?'operator_rate_limited':
   error instanceof ApiError&&[401,403].includes(error.status??0)?'operator_access_denied':
   error instanceof Error&&knownErrors.has(error.message)?error.message:'operation_failed';
@@ -94,8 +96,8 @@ export async function startWorkbench(monitor:ReviewMonitor,port=3410,operator:Op
       switch(url.pathname){
         case '/local/history':{
           keys(body,['kind','before']);
-          if(!['shifts','outcomes','curation'].includes(String(body.kind)))throw Error('invalid_request');
-          return send(200,monitor.history(body.kind as 'shifts'|'outcomes'|'curation',body.before===undefined?undefined:id(body.before)));
+          if(!['shifts','outcomes','curation','reconciliations'].includes(String(body.kind)))throw Error('invalid_request');
+          return send(200,monitor.history(body.kind as 'shifts'|'outcomes'|'curation'|'reconciliations',body.before===undefined?undefined:id(body.before)));
         }
         case '/local/report':{
           keys(body,['kind','id']);const reportId=id(body.id);
@@ -106,6 +108,10 @@ export async function startWorkbench(monitor:ReviewMonitor,port=3410,operator:Op
           }
           if(body.kind==='outcomes')return send(200,monitor.outcomeReport(reportId));
           if(body.kind==='curation')return send(200,monitor.curationReport(reportId));
+          if(body.kind==='reconciliations'){
+            const stored=monitor.reconciliation(reportId);
+            return send(200,{...reconciliationSummary(reportId,stored.run),revision:stored.revision,details:stored.run});
+          }
           throw Error('invalid_request');
         }
         case '/local/compare':
@@ -140,6 +146,25 @@ export async function startWorkbench(monitor:ReviewMonitor,port=3410,operator:Op
             return {reportId:monitor.saveCurationReport(report),...report};
           },signal)))return send(409,{error:'job_running'});
           return send(202,{job});
+        case '/local/reconcile':{
+          const run=prepareReconciliation(monitor,id(body.previousId),id(body.currentId));
+          if(active||closing)return send(409,{error:'job_running'});
+          // Persist the frozen pair before login so a failed session can resume the same comparison.
+          const stored=monitor.createReconciliation(run);
+          launch('reconciliation',signal=>run.departed.length?
+            operator(read=>runReconciliation(read,monitor,stored.id,signal),signal):
+            Promise.resolve(reconciliationSummary(stored.id,run)));
+          return send(202,{job,reportId:stored.id});
+        }
+        case '/local/resume-reconciliation':{
+          const stored=monitor.reconciliation(id(body.id));
+          const summary=reconciliationSummary(stored.id,stored.run);
+          if(summary.status==='complete')return send(200,summary);
+          if(!launch('reconciliation',signal=>operator(read=>runReconciliation(read,monitor,stored.id,signal),signal))){
+            return send(409,{error:'job_running'});
+          }
+          return send(202,{job});
+        }
         case '/local/stop':
           keys(body,[]);stop?.abort();return send(202,{stopping:Boolean(active)});
         default:return send(404,{error:'not_found'});
