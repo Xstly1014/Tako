@@ -88,3 +88,22 @@ test('saved period comparisons preserve snapshots and reject partial or overlapp
     assert.throws(()=>monitor.compareOutcomes(second,open),/period_still_open/);
   }finally{monitor.close()}
 });
+
+test('period flow includes old pending requests and decisions at exact start and end boundaries',()=>{
+  const request=(id:number,requestedAt:string,decidedAt:string|null):Outcome=>({
+    appealId:id,caseId:1,scope:'work',state:decidedAt?'upheld':'pending',
+    requestedAt,decidedAt,processingMinutes:decidedAt?(Date.parse(decidedAt)-Date.parse(requestedAt))/60000:null,
+    detailPath:'/ops/moderation/1',
+  });
+  const report=summarizeOutcomePeriod([
+    request(1,'2026-10-28T00:00:00+08:00',null),
+    request(2,'2026-10-30T00:00:00+08:00','2026-11-01T00:00:00+08:00'),
+    request(3,'2026-11-01T00:00:00+08:00','2026-11-02T00:00:00+08:00'),
+    request(4,'2026-11-02T00:00:00+08:00',null),
+  ],outcomePeriod('2026-11-01','2026-11-02'),'2026-11-03T00:00:00Z');
+  assert.deepEqual(report.flow,{
+    openingPending:2,incoming:1,decisions:1,closingPending:2,closingOver48Hours:1,balanceDifference:0,
+  });
+  assert.equal(report.incoming.pendingAtCutoff,1);
+  assert.equal(report.outcomes.find(row=>row.appealId===1)?.stateAtCutoff,'pending');
+});

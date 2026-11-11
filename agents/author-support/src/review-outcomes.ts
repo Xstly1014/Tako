@@ -8,7 +8,7 @@ export type Outcome={
   detailPath:string;
 };
 export type OutcomePeriod={from:string;until:string;start:number;end:number};
-export const outcomeReportVersion='appeal-period-v1';
+export const outcomeReportVersion='appeal-period-v2';
 export type OutcomeReport=Awaited<ReturnType<typeof reviewOutcomes>>;
 
 function comparablePeriod(report:OutcomeReport){
@@ -31,6 +31,8 @@ export function compareOutcomeReports(previous:OutcomeReport,current:OutcomeRepo
     incoming:metric(left.period.incoming.total,right.period.incoming.total),
     decisions:metric(left.period.decisions.total,right.period.decisions.total),
     pendingAtCutoff:metric(left.period.incoming.pendingAtCutoff,right.period.incoming.pendingAtCutoff),
+    closingBacklog:metric(left.period.flow.closingPending,right.period.flow.closingPending),
+    closingOver48Hours:metric(left.period.flow.closingOver48Hours,right.period.flow.closingOver48Hours),
     decisionsOver48Hours:metric(left.period.decisions.over48Hours,right.period.decisions.over48Hours),
     medianProcessingMinutes:{previous:leftMedian,current:rightMedian,
       change:leftMedian===null||rightMedian===null?null:rightMedian-leftMedian},
@@ -51,6 +53,17 @@ export function summarizeOutcomePeriod(outcomes:Outcome[],period:OutcomePeriod,o
   const inside=(at:string)=>Date.parse(at)>=period.start&&Date.parse(at)<cutoff;
   const incoming=outcomes.filter(row=>inside(row.requestedAt));
   const decisions=outcomes.filter(row=>row.decidedAt!==null&&inside(row.decidedAt));
+  const pendingBefore=(row:Outcome,at:number)=>Date.parse(row.requestedAt)<at&&
+    (row.decidedAt===null||Date.parse(row.decidedAt)>=at);
+  const opening=outcomes.filter(row=>pendingBefore(row,period.start));
+  const closing=outcomes.filter(row=>pendingBefore(row,cutoff));
+  const flow={
+    openingPending:opening.length,incoming:incoming.length,decisions:decisions.length,
+    closingPending:closing.length,
+    closingOver48Hours:closing.filter(row=>cutoff-Date.parse(row.requestedAt)>48*3600000).length,
+    balanceDifference:opening.length+incoming.length-decisions.length-closing.length,
+  };
+  if(flow.balanceDifference!==0)throw Error('flow_inconsistent');
   const counts={total:incoming.length,pendingAtCutoff:0,upheldBeforeCutoff:0,revokedBeforeCutoff:0};
   for(const row of incoming){
     if(row.decidedAt===null||Date.parse(row.decidedAt)>=cutoff)counts.pendingAtCutoff++;
@@ -60,10 +73,10 @@ export function summarizeOutcomePeriod(outcomes:Outcome[],period:OutcomePeriod,o
   const durations=decisions.map(row=>row.processingMinutes!).sort((a,b)=>a-b);
   const middle=Math.floor(durations.length/2);
   const median=durations.length===0?null:durations.length%2?durations[middle]:(durations[middle-1]+durations[middle])/2;
-  const included=new Set([...incoming,...decisions]);
+  const included=new Set([...incoming,...decisions,...closing]);
   return {
     from:period.from,untilExclusive:period.until,timeZone:'Asia/Shanghai',observedThrough:new Date(cutoff).toISOString(),
-    incoming:counts,
+    incoming:counts,flow,
     decisions:{total:decisions.length,upheld:decisions.filter(row=>row.state==='upheld').length,
       revoked:decisions.filter(row=>row.state==='revoked').length,
       over48Hours:durations.filter(minutes=>minutes>48*60).length,medianProcessingMinutes:median},
@@ -126,7 +139,7 @@ export async function reviewOutcomes(read:Transport,period?:OutcomePeriod){
     }
     throw Error('case_page_limit');
   }catch(error){
-    const known=['case_changed','duplicate_appeal','invalid_decision_time','appeal_page_limit','case_page_limit'];
+    const known=['case_changed','duplicate_appeal','invalid_decision_time','appeal_page_limit','case_page_limit','flow_inconsistent'];
     return {
       status:'incomplete' as const,startedAt,cases,counts:null,outcomes,
       error:error instanceof Error&&known.includes(error.message)?error.message:'request_failed',
