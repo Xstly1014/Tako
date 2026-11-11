@@ -3,7 +3,7 @@ import path from 'node:path';
 import {setTimeout as wait} from 'node:timers/promises';
 import {ReviewMonitor,type Observation} from '../src/review-monitor.ts';
 import {reviewHandoff} from '../src/review-handoff.ts';
-import {reviewOutcomes} from '../src/review-outcomes.ts';
+import {outcomePeriod,reviewOutcomes} from '../src/review-outcomes.ts';
 
 const localApi='http://127.0.0.1:3300/api';
 
@@ -26,7 +26,10 @@ async function main(){
     }
   }else if(mode==='--handoff-status'){
     if(args.length!==2||!validId(value))throw Error('invalid_cli');
-  }else if(args.length>1||(mode!==undefined&&!['--track','--events','--outcomes'].includes(mode))){
+  }else if(mode==='--outcomes'){
+    if(args.length!==1&&args.length!==3)throw Error('invalid_cli');
+    if(args.length===3)outcomePeriod(value,operatorLabel);
+  }else if(args.length>1||(mode!==undefined&&!['--track','--events'].includes(mode))){
     throw Error('invalid_cli');
   }
   if(!mode)return printScan(await runScan());
@@ -43,7 +46,8 @@ async function main(){
       let report;
       try{
         await session.signIn('login','operator@tako-test.invalid',password);
-        report=await reviewOutcomes((path,options)=>session.authorized(path,options));
+        report=await reviewOutcomes((path,options)=>session.authorized(path,options),
+          value===undefined?undefined:outcomePeriod(value,operatorLabel));
       }finally{
         if(session.snapshot().phase==='ready')await session.logout();
       }
@@ -164,7 +168,8 @@ function printScan({report,tracking,cleanupFailed}:Awaited<ReturnType<typeof run
 
 main().catch(error=>{
   const code=error instanceof Error&&['invalid_cli','local_api_required','test_operator_required',
-    'invalid_acknowledgment','review_event_not_found','not_backlog_event','handoff_target_changed'].includes(error.message)
+    'invalid_acknowledgment','review_event_not_found','not_backlog_event','handoff_target_changed',
+    'invalid_period','period_not_started'].includes(error.message)
     ?error.message:'review_scan_failed';
   console.error(code);
   process.exitCode=1;

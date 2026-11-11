@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {reviewOutcomes} from '../src/review-outcomes.ts';
+import {outcomePeriod,reviewOutcomes,summarizeOutcomePeriod,type Outcome} from '../src/review-outcomes.ts';
 import {ids} from '../src/cases.ts';
 import {ApiError} from '../../../mobile/src/api/client.ts';
 import type {Transport} from '../../../mobile/src/auth/session.ts';
@@ -43,4 +43,23 @@ test('failed or inconsistent detail cannot produce a complete outcome count',asy
     assert.equal(report.counts,null);
     assert.equal(report.outcomes.length,0);
   }
+});
+
+test('period reporting separates older decisions from new requests and reconstructs pending at cutoff',()=>{
+  const row=(id:number,requestedAt:string,decidedAt:string):Outcome=>({
+    appealId:id,caseId:1,scope:'version',state:'upheld',requestedAt,decidedAt,
+    processingMinutes:(Date.parse(decidedAt)-Date.parse(requestedAt))/60000,detailPath:'/ops/moderation/1',
+  });
+  const rows=[
+    row(1,'2026-10-30T00:00:00+08:00','2026-11-01T00:01:00+08:00'),
+    row(2,'2026-11-01T00:00:00+08:00','2026-11-03T00:00:00+08:00'),
+    row(3,'2026-11-01T12:00:00+08:00','2026-11-02T00:00:00+08:00'),
+    row(4,'2026-11-02T00:00:00+08:00','2026-11-02T01:00:00+08:00'),
+  ];
+  const summary=summarizeOutcomePeriod(rows,outcomePeriod('2026-11-01','2026-11-02'),'2026-11-04T00:00:00Z');
+  assert.deepEqual(summary.incoming,{total:2,pendingAtCutoff:2,upheldBeforeCutoff:0,revokedBeforeCutoff:0});
+  assert.deepEqual(summary.decisions,{total:1,upheld:1,revoked:0,over48Hours:1,medianProcessingMinutes:2881});
+  assert.deepEqual(summary.outcomes.map(item=>item.appealId),[1,2,3]);
+  assert.throws(()=>outcomePeriod('2026-02-30','2026-03-03'),/invalid_period/);
+  assert.throws(()=>outcomePeriod('2026-11-02','2026-11-01'),/invalid_period/);
 });

@@ -2,16 +2,54 @@ import {AuthorAppealsApi} from '../../../mobile/src/api/author-appeals.ts';
 import {ApiError} from '../../../mobile/src/api/client.ts';
 import type {Transport} from '../../../mobile/src/auth/session.ts';
 
-type Outcome={
+export type Outcome={
   appealId:number;caseId:number;scope:'work'|'version';state:'pending'|'upheld'|'revoked';
   requestedAt:string;decidedAt:string|null;processingMinutes:number|null;
   detailPath:string;
 };
+export type OutcomePeriod={from:string;until:string;start:number;end:number};
+
+export function outcomePeriod(from:string,until:string):OutcomePeriod{
+  const start=Date.parse(from+'T00:00:00+08:00'),end=Date.parse(until+'T00:00:00+08:00');
+  const valid=(text:string,at:number)=>/^\d{4}-\d{2}-\d{2}$/.test(text)&&Number.isFinite(at)&&
+    new Date(at+8*3600000).toISOString().slice(0,10)===text;
+  if(!valid(from,start)||!valid(until,end)||start>=end)throw Error('invalid_period');
+  return {from,until,start,end};
+}
+
+export function summarizeOutcomePeriod(outcomes:Outcome[],period:OutcomePeriod,observedAt:string){
+  const cutoff=Math.min(period.end,Date.parse(observedAt));
+  if(cutoff<=period.start)throw Error('period_not_started');
+  const inside=(at:string)=>Date.parse(at)>=period.start&&Date.parse(at)<cutoff;
+  const incoming=outcomes.filter(row=>inside(row.requestedAt));
+  const decisions=outcomes.filter(row=>row.decidedAt!==null&&inside(row.decidedAt));
+  const counts={total:incoming.length,pendingAtCutoff:0,upheldBeforeCutoff:0,revokedBeforeCutoff:0};
+  for(const row of incoming){
+    if(row.decidedAt===null||Date.parse(row.decidedAt)>=cutoff)counts.pendingAtCutoff++;
+    else if(row.state==='upheld')counts.upheldBeforeCutoff++;
+    else if(row.state==='revoked')counts.revokedBeforeCutoff++;
+  }
+  const durations=decisions.map(row=>row.processingMinutes!).sort((a,b)=>a-b);
+  const middle=Math.floor(durations.length/2);
+  const median=durations.length===0?null:durations.length%2?durations[middle]:(durations[middle-1]+durations[middle])/2;
+  const included=new Set([...incoming,...decisions]);
+  return {
+    from:period.from,untilExclusive:period.until,timeZone:'Asia/Shanghai',observedThrough:new Date(cutoff).toISOString(),
+    incoming:counts,
+    decisions:{total:decisions.length,upheld:decisions.filter(row=>row.state==='upheld').length,
+      revoked:decisions.filter(row=>row.state==='revoked').length,
+      over48Hours:durations.filter(minutes=>minutes>48*60).length,medianProcessingMinutes:median},
+    outcomes:outcomes.filter(row=>included.has(row)).map(row=>({
+      ...row,stateAtCutoff:row.decidedAt===null||Date.parse(row.decidedAt)>=cutoff?'pending' as const:row.state,
+    })),
+  };
+}
 
 // Request outcomes describe observed decisions. A revoked restriction can
 // also be an operator correction while a request is pending.
-export async function reviewOutcomes(read:Transport){
+export async function reviewOutcomes(read:Transport,period?:OutcomePeriod){
   const startedAt=new Date().toISOString();
+  if(period&&Date.parse(startedAt)<=period.start)throw Error('period_not_started');
   const api=new AuthorAppealsApi((path,options)=>read(
     path.replace('/my/moderation','/ops/moderation'),{...options,method:'GET'},
   ));
@@ -51,8 +89,11 @@ export async function reviewOutcomes(read:Transport){
       if(!before){
         const counts={pending:0,upheld:0,revoked:0};
         for(const row of outcomes)counts[row.state]++;
-        return {status:'complete' as const,startedAt,cases,counts,
-          outcomes:outcomes.sort((a,b)=>a.requestedAt.localeCompare(b.requestedAt)||a.appealId-b.appealId)};
+        outcomes.sort((a,b)=>a.requestedAt.localeCompare(b.requestedAt)||a.appealId-b.appealId);
+        if(period){
+          return {status:'complete' as const,startedAt,cases,period:summarizeOutcomePeriod(outcomes,period,startedAt)};
+        }
+        return {status:'complete' as const,startedAt,cases,counts,outcomes};
       }
     }
     throw Error('case_page_limit');
