@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ApiError, request, type RequestOptions } from "../src/api/client.ts";
 import {
-  changePost, filePostAppeal, isDefiniteChangeError, ownerPage, ownerVersion, ownerVersions, readOwnerImage, reviewLabel,
+  changePost, filePostAppeal, initialSubmission, isDefiniteChangeError, ownerPage, ownerVersion, ownerVersions, readOwnerImage, reviewLabel,
+  submissionHistory, submissionLabel,
 } from "../src/short-posts/manage.ts";
 
 const id = "00000000-0000-4000-8000-000000000001";
@@ -66,4 +67,29 @@ test("受限版本在作者时间线保留，复核回执须匹配原处置轮�
       reason: "补充说明", case_reason: "处置原因", decision_reason: "", submitted_at: at, decided_at: null } as T;
   };
   await assert.rejects(filePostAppeal(send, id, id, 8, "补充说明"), /contract/);
+});
+
+test("提交记录区分原始提交与正式版，校验分页和固定快照", async () => {
+  const receipt = "00000000-0000-4000-8000-000000000002";
+  const initial = { id: receipt, title: "原稿", submitted_at: at,
+    state: "superseded" as const, version: null, post_review_pending: false };
+  const rejected = { ...initial, id, state: "rejected" as const };
+  const page = { initial, items: [rejected], next_before: 0 };
+  const list = async <T>(path: string) => {
+    assert.equal(path, "/my/short-posts/" + id + "/revisions?before=20");
+    return page as T;
+  };
+  const history = await submissionHistory(list, id, 20);
+  assert.equal(submissionLabel(history.initial), "已替换");
+  assert.equal(submissionLabel(history.items[0]), "已驳回");
+  await assert.rejects(submissionHistory(async <T>() =>
+    ({ ...page, items: [rejected, rejected] }) as T, id), /contract/);
+  await assert.rejects(submissionHistory(async <T>() =>
+    ({ ...page, next_before: 20 }) as T, id, 20), /contract/);
+  const detail = await initialSubmission(async <T>(path: string) => {
+    assert.equal(path, "/my/short-posts/" + id + "/initial-submission");
+    return { ...initial, post_id: id, content: "固定正文", review_reason: "", novel_id: null, images: [] } as T;
+  }, id);
+  assert.equal(detail.id, receipt);
+  assert.equal(detail.content, "固定正文");
 });

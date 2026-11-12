@@ -75,6 +75,40 @@ func (a API) registerShortPostManagement(protected *gin.RouterGroup) {
 		}
 		c.JSON(200, out)
 	})
+	author.GET("/:id/revisions", func(c *gin.Context) {
+		id, ok := shortPostTarget(c, "id")
+		if !ok {
+			return
+		}
+		var before uint64
+		if raw := c.Query("before"); raw != "" {
+			before, ok = shortPostVersion(raw)
+			if !ok {
+				respondError(c, 400, "invalid_input")
+				return
+			}
+		}
+		owner := c.MustGet("account").(identity.Account).ID
+		out, err := store.SubmissionHistory(c.Request.Context(), owner, id, before)
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.JSON(200, out)
+	})
+	author.GET("/:id/initial-submission", func(c *gin.Context) {
+		id, ok := shortPostTarget(c, "id")
+		if !ok {
+			return
+		}
+		owner := c.MustGet("account").(identity.Account).ID
+		out, err := store.InitialSubmission(c.Request.Context(), owner, id)
+		if err != nil {
+			shortPostError(c, err)
+			return
+		}
+		c.JSON(200, out)
+	})
 	author.PUT("/:id/revisions/:revisionId", func(c *gin.Context) {
 		id, ok := shortPostTarget(c, "id")
 		if !ok {

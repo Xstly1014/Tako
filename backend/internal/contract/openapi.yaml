@@ -342,6 +342,43 @@ paths:
         '403': {$ref: '#/components/responses/OriginRejected'}
         '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/revisions:
+    get:
+      operationId: listMyShortPostSubmissions
+      tags: [短内容]
+      summary: 读取本人短帖的首发及修订记录
+      description: 首发单列。修订按提交状态版本倒序分页，包含被替换与被驳回的快照摘要。
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+        - {in: query, name: before, schema: {type: integer, minimum: 1, maximum: 9007199254740991}}
+      responses:
+        '200':
+          description: 本人短帖的提交记录
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostSubmissionPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/short-posts/{id}/initial-submission:
+    get:
+      operationId: readMyShortPostInitialSubmission
+      tags: [短内容]
+      summary: 读取本人短帖的首发快照与原审核结果
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 固定首发内容
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ShortPostRevisionSnapshot'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-posts/{id}/revisions/{revisionId}:
     put:
       operationId: reviseShortPost
@@ -6655,6 +6692,28 @@ components:
         version: {type: integer, minimum: 1, maximum: 9007199254740991}
         published_at: {type: string, format: date-time}
         platform_limited: {type: boolean}
+    ShortPostSubmissionNode:
+      type: object
+      additionalProperties: false
+      required: [id, title, state, version, post_review_pending, submitted_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 80}
+        state: {type: string, enum: [pending, published, superseded, rejected]}
+        version: {type: integer, minimum: 1, maximum: 9007199254740991, nullable: true}
+        post_review_pending: {type: boolean}
+        submitted_at: {type: string, format: date-time}
+    ShortPostSubmissionPage:
+      type: object
+      additionalProperties: false
+      required: [initial, items, next_before]
+      properties:
+        initial: {$ref: '#/components/schemas/ShortPostSubmissionNode'}
+        next_before: {type: integer, minimum: 0, maximum: 9007199254740991}
+        items:
+          type: array
+          maxItems: 12
+          items: {$ref: '#/components/schemas/ShortPostSubmissionNode'}
     ShortPostRevisionSnapshot:
       type: object
       additionalProperties: false

@@ -3,7 +3,9 @@ package httpapi
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -196,6 +198,59 @@ func verifyShortPostRevisions(t *testing.T, db *sql.DB, owner, other, operator, 
 	}
 	verifyShortPostAppeals(t, db, owner, other, operator, post, image, request)
 	verifyFirstShortPostReplacement(t, db, owner, operator, image, request)
+
+	originalPath := ownerPath + "/initial-submission"
+	historyPath := ownerPath + "/revisions"
+	for _, path := range []string{originalPath, historyPath} {
+		request("GET", other, path, nil, 404, "resource_not_found")
+		request("GET", uuid.Nil, path, nil, 401, "authentication_required")
+	}
+	request("GET", owner, historyPath+"?before=0", nil, 400, "invalid_input")
+	original := novelResult[shortpost.RevisionSnapshot](t, request("GET", owner, originalPath, nil, 200, "").Body.Bytes())
+	if original.Title != initial.Title || original.Content != initial.Content || original.State != "published" ||
+		original.Version == nil || *original.Version != 1 || !slices.Equal(original.Images, initial.Images) {
+		t.Fatal("initial submission did not retain its original private snapshot")
+	}
+	// Simulate older revisions aging out of the quota without changing the outer preview fixture.
+	if _, err := db.Exec(`UPDATE short_post_previews p
+ SET expires_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE p.owner_id=? AND p.id<>? AND (
+ EXISTS (SELECT 1 FROM short_posts s WHERE s.owner_id=p.owner_id AND s.preview_id=p.id)
+ OR EXISTS (SELECT 1 FROM short_post_revision_submissions r WHERE r.owner_id=p.owner_id AND r.preview_id=p.id))`, owner[:], original.PreviewID[:]); err != nil {
+		t.Fatal(err)
+	}
+	expired := novelResult[shortpost.RevisionSnapshot](t, request("GET", owner, ownerPath+"/revisions/"+first.String(), nil, 200, "").Body.Bytes())
+	if expired.Title != "第二版" || expired.Content != "固定修订内容" {
+		t.Fatal("the submitted snapshot must outlive its preview expiry")
+	}
+	setObservation(true)
+	defer setObservation(false)
+	submitted := make([]uuid.UUID, 13)
+	for i := range submitted {
+		submitted[i], _, _ = revise(fmt.Sprintf("历史提交 %d", i))
+	}
+	getHistory := func(before uint64) shortpost.SubmissionPage {
+		t.Helper()
+		path := historyPath
+		if before != 0 {
+			path += fmt.Sprintf("?before=%d", before)
+		}
+		resp := request("GET", owner, path, nil, 200, "")
+		if resp.Header().Get("Cache-Control") != "no-store" ||
+			bytes.Contains(resp.Body.Bytes(), []byte("固定修订内容")) {
+			t.Fatal("private history must be uncached and omit submission body")
+		}
+		return novelResult[shortpost.SubmissionPage](t, resp.Body.Bytes())
+	}
+	historyPage := getHistory(0)
+	if historyPage.Initial.ID != original.ID || historyPage.NextBefore == 0 || len(historyPage.Items) != 12 ||
+		historyPage.Items[0].ID != submitted[12] || historyPage.Items[0].State != "pending" ||
+		historyPage.Items[11].ID != submitted[1] || historyPage.Items[11].State != "superseded" {
+		t.Fatal("history did not show the latest pending and replaced submissions")
+	}
+	older := getHistory(historyPage.NextBefore)
+	if older.Initial.ID != original.ID || len(older.Items) < 1 || older.Items[0].ID != submitted[0] {
+		t.Fatal("history cursor skipped or repeated a submission")
+	}
 }
 
 func verifyFirstShortPostReplacement(t *testing.T, db *sql.DB, owner, operator, image uuid.UUID,
@@ -249,6 +304,18 @@ func verifyFirstShortPostReplacement(t *testing.T, db *sql.DB, owner, operator, 
 		t.Fatal("author cannot recover the rejection result")
 	}
 	final := submitReplacement("最终首发")
+	history := novelResult[shortpost.SubmissionPage](t, request("GET", owner, ownerPath+"/revisions", nil, 200, "").Body.Bytes())
+	if history.Initial.State != "superseded" || history.Initial.Version != nil || len(history.Items) != 3 ||
+		history.Items[0].ID != final || history.Items[0].State != "pending" ||
+		history.Items[1].ID != latest || history.Items[1].State != "rejected" ||
+		history.Items[2].ID != first || history.Items[2].State != "superseded" {
+		t.Fatal("first-review replacement and rejection history did not remain distinct")
+	}
+	archived := novelResult[shortpost.RevisionSnapshot](t, request("GET", owner, ownerPath+"/revisions/"+latest.String(), nil, 200, "").Body.Bytes())
+	if archived.Title != "第二次替换" || archived.Content != "合成替换正文" || archived.Reason != "合成审核" {
+		t.Fatal("an older rejection lost its original snapshot or reason")
+	}
+
 	decide("approve", &final, 200, "")
 	post := novelResult[shortpost.PublicPost](t, request("GET", uuid.Nil, publicPath, nil, 200, "").Body.Bytes())
 	if post.Version != 1 || post.Title != "最终首发" || len(post.Images) != 1 {

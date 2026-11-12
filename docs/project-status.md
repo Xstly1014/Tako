@@ -13,6 +13,7 @@ Tako以Android App为开发重心，Go API供App与Web共用。免费中篇创�
 | N5讨论链路 | 实际App源组件→HTTP/MySQL，以及真实Cookie/Origin运营Web同库联调通过；见[N5复盘](reviews/n5-discussion-discovery-stage-review.md) |
 | N5 长文搜索 | 真实 HTTP/MySQL 覆盖公开判权、字面匹配和 12＋1 分页。App 源组件联调验证失败重试、目录返回和旧结果权限重判，见[N5复盘](reviews/n5-discussion-discovery-stage-review.md) |
 | 备份恢复 | 20261112 升级前和含短帖配图快照均通过本机隔离恢复。含图快照 73 张表指纹一致，2 张正式版引用图片共 146 字节。见[短帖复盘](reviews/short-posts-stage-review.md) |
+| 短帖作者提交记录 | 源码支持本人回查首发、历次修订、审核原因与固定图文。常驻 3300 尚未切到含新接口的镜像。见[短帖复盘](reviews/short-posts-stage-review.md) |
 | 真机 | P0 C1与后续原生输入、账号、生命周期/返回等仍待，见[设备队列](handoff/device-requests.md) |
 | 用户结果 | 无新增外部读者留存、讨论活跃或治理成效样本；合成数据和自动化不代替业绩 |
 | 远程CI | 按具体SHA核对，不能把本地检查或前一提交CI套给当前提交；见[主开发进度](handoff/primary-progress.md) |

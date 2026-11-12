@@ -284,6 +284,8 @@ function OwnerDetail({ owner, id }: { owner: string; id: string }) {
           </> : null}
         </View>}
         <View style={s.controls}>
+          <LinkButton label="提交记录" disabled={busy}
+            onPress={() => router.push({ pathname: "/my-short-posts/[id]/submissions", params: { id } })} />
           <LinkButton label="复核记录" disabled={busy} onPress={() => openAppeals()} />
           {post.limit_case_revision ? <LinkButton label="申请整帖复核" disabled={busy}
             onPress={() => openAppeals(post.limit_case_revision!)} /> : null}

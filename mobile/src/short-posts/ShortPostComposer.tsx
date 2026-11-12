@@ -19,14 +19,16 @@ import { shortPostJournal } from "../publication/journal";
 import { theme as t } from "../theme";
 import { composeMessage, postInput, preparePost, ShortPostSubmission, type Preview, type Receipt, type RevisionTarget } from "./publish";
 import { shortPostsTrial } from "./trial";
-import { latestRevision, managedPost, type Managed, type Revision } from "./manage";
+import { initialSubmission, latestRevision, managedPost, type Managed, type Revision } from "./manage";
 import { PrivateImages, useOwner } from "./ShortPostManagement";
 
 type Photo = { id: string; asset?: ImagePickerAsset; uploaded: boolean };
 type Book = Pick<PublicNovel, "id" | "title">;
 const maxImages = 4;
-function back(post?: string) {
-  if (post && UUID.test(post)) router.dismissTo({ pathname: "/my-short-posts/[id]", params: { id: post } });
+function back(post?: string, history = false) {
+  if (post && UUID.test(post) && history)
+    router.dismissTo({ pathname: "/my-short-posts/[id]/submissions", params: { id: post } });
+  else if (post && UUID.test(post)) router.dismissTo({ pathname: "/my-short-posts/[id]", params: { id: post } });
   else router.dismissTo("/short-community");
 }
 type Seed = { post: Managed; snapshot: Managed | Revision; replacesPending: boolean };
@@ -44,20 +46,22 @@ function TextAction({ label, onPress, disabled = false }: {
 
 export default function ShortPostComposer() {
   const { account, phase } = useSession();
-  const params = useLocalSearchParams<{ post?: string; revision?: string }>();
+  const params = useLocalSearchParams<{ post?: string; revision?: string; initial?: string; history?: string }>();
   const post = typeof params.post === "string" ? params.post : undefined;
   const source = typeof params.revision === "string" ? params.revision : undefined;
+  const initial = !source && params.initial === "1";
+  const history = params.history === "1";
   const [auth, setAuth] = useState(false);
   if (!shortPostsTrial) return <Redirect href="/community" />;
   if (phase === "ready" && account?.nickname) {
     return post === undefined
       ? <AuthorComposer key={account.id} owner={account.id} />
-      : <RevisionEntry key={account.id + ":" + post + ":" + (source ?? "")}
-          owner={account.id} post={post} source={source} />;
+      : <RevisionEntry key={account.id + ":" + post + ":" + (source ?? (initial ? "initial" : ""))}
+          owner={account.id} post={post} source={source} initial={initial} history={history} />;
   }
   return (
     <SafeAreaView style={s.screen}>
-      <TextAction label={post ? "返回短帖管理" : "返回短内容"} onPress={() => back(post)} />
+      <TextAction label={history ? "返回提交记录" : post ? "返回短帖管理" : "返回短内容"} onPress={() => back(post, history)} />
       <Status loading={phase === "loading"} title={
         phase === "loading" ? "正在核对账号" :
           phase === "offline" ? "联网后发帖" : account ? "先设置笔名" : "登录后发帖"
@@ -71,7 +75,9 @@ export default function ShortPostComposer() {
   );
 }
 
-function RevisionEntry({ owner, post, source }: { owner: string; post: string; source?: string }) {
+function RevisionEntry({ owner, post, source, initial, history }: {
+  owner: string; post: string; source?: string; initial: boolean; history: boolean;
+}) {
   const send = useOwner(owner);
   const [seed, setSeed] = useState<Seed>();
   const [attempt, setAttempt] = useState(0);
@@ -82,7 +88,8 @@ function RevisionEntry({ owner, post, source }: { owner: string; post: string; s
     managedPost(send, post, signal).then(async (item) => {
       const latest = item.latest_submission_id
         ? await latestRevision(send, post, item.latest_submission_id, signal) : undefined;
-      const snapshot = !source ? item : latest?.id === source
+      const snapshot = initial ? await initialSubmission(send, post, signal)
+        : !source ? item : latest?.id === source
         ? latest : await latestRevision(send, post, source, signal);
       if (!signal.aborted) setSeed({ post: item, snapshot,
         replacesPending: latest?.state === "pending" || (!item.display_version && item.review_status === "pending") });
@@ -90,9 +97,9 @@ function RevisionEntry({ owner, post, source }: { owner: string; post: string; s
       if (!signal.aborted) setError(failure);
     });
     return () => controller.abort();
-  }, [attempt, post, send, source]);
-  return seed ? <AuthorComposer owner={owner} seed={seed} /> : <SafeAreaView style={s.screen}>
-    <TextAction label="返回短帖管理" onPress={() => back(post)} />
+  }, [attempt, initial, post, send, source]);
+  return seed ? <AuthorComposer owner={owner} seed={seed} history={history} /> : <SafeAreaView style={s.screen}>
+    <TextAction label={history ? "返回提交记录" : "返回短帖管理"} onPress={() => back(post, history)} />
     <Status loading={!error} title={error ? "未能打开原稿" : "正在读取原稿"}
       message={error ? composeMessage(error) : undefined}
       onRetry={error ? () => { setError(undefined); setAttempt((value) => value + 1); } : undefined} />
@@ -113,7 +120,7 @@ function imageSource(asset: ImagePickerAsset) {
   return { file, mediaType };
 }
 
-function AuthorComposer({ owner, seed }: { owner: string; seed?: Seed }) {
+function AuthorComposer({ owner, seed, history = false }: { owner: string; seed?: Seed; history?: boolean }) {
   const { session } = useSession();
   const nav = useNavigation();
   const send = useCallback(<T,>(path: string, options?: Omit<RequestOptions, "token">) => {
@@ -344,7 +351,7 @@ function AuthorComposer({ owner, seed }: { owner: string; seed?: Seed }) {
       router.replace({ pathname: "/short-posts/[id]", params: { id: destination.post } });
     } else if (destination.target === "manage") {
       router.dismissTo({ pathname: "/my-short-posts/[id]", params: { id: destination.post } });
-    } else back(target?.post);
+    } else back(target?.post, history);
   }, [busy, destination, target?.post]);
 
   const move = (index: number, delta: number) => {
@@ -357,7 +364,7 @@ function AuthorComposer({ owner, seed }: { owner: string; seed?: Seed }) {
   return (
     <SafeAreaView style={s.screen}>
       <View style={s.header}>
-        <TextAction label={target ? "返回短帖管理" : "返回短内容"} onPress={() => back(target?.post)} disabled={busy} />
+        <TextAction label={history ? "返回提交记录" : target ? "返回短帖管理" : "返回短内容"} onPress={() => back(target?.post, history)} disabled={busy} />
         <Text accessibilityRole="header" style={s.heading}>
           {receipt ? "提交结果" : preview ? "发布预览" : target ? "修订短帖" : "发短帖"}
         </Text>
