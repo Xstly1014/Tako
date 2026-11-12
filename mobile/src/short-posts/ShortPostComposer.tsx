@@ -352,7 +352,7 @@ function AuthorComposer({ owner, seed, history = false }: { owner: string; seed?
     } else if (destination.target === "manage") {
       router.dismissTo({ pathname: "/my-short-posts/[id]", params: { id: destination.post } });
     } else back(target?.post, history);
-  }, [busy, destination, target?.post]);
+  }, [busy, destination, history, target?.post]);
 
   const move = (index: number, delta: number) => {
     const next = [...photos];
