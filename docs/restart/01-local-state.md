@@ -31,7 +31,7 @@ Docker 中还有其他项目的数据卷，不能根据本页做全局删除。
 
 2026-11-12 升级前快照 ~20261112T015038Z-a42d6cb3.tako.enc~ 已通过 65 张表的隔离恢复。~writing-community-api:pre-short-20261112~ 与 ~writing-community-web:pre-short-20261112~ 保留升级前运行镜像。回退应用镜像时保留现有测试卷和迁移 36，不用清表或降级迁移代替应用回退。
 
-提交记录上线后，API 和维护进程使用 writing-community-api:short-509d3de 对应镜像。应用级回退标签为 writing-community-api:short-4d8602b。Web 继续运行 4d8602b。两版 API 共用迁移 36 和原有 tako-local-test_mysql_data 数据卷。
+提交记录上线后，API 和维护进程使用 writing-community-api:short-509d3de 对应镜像。应用级回退标签为 writing-community-api:short-4d8602b。两版 API 共用迁移 36 和原有 tako-local-test_mysql_data 数据卷。Web 当前镜像 writing-community-web:forge-1.4.3，对应 022fcb9 的 Web 源码加 node-forge 锁定补丁。回退标签为 writing-community-web:short-4d8602b。
 
 同日短帖图文快照 `20261112T015928Z-f86edefa.tako.enc` 隔离恢复 73 张表。两张被正式短帖版本引用的合成图片共 146 字节。媒体复验命令见[重启手册](README.md)。
 
