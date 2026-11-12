@@ -1,6 +1,6 @@
 # 当前本机环境
 
-状态日期：2026-11-02。业务与验收现状读 [交接入口](../handoff/README.md)，本页只维护运行所需信息。
+状态日期：2026-11-12。业务与验收现状读 [交接入口](../handoff/README.md)，本页只维护运行所需信息。
 
 | 项目 | 当前值 |
 |---|---|
@@ -11,7 +11,7 @@
 | 测试库 | `tako_sandbox`，schema 13；后续以 migrations 为准 |
 | API/Web 镜像 | `writing-community-api:local` / `writing-community-web:local` |
 | 基础镜像 | `mysql:8.4`、`nginx:1.28-alpine`、迁移工具 `golang:1.26` |
-| 服务 | mysql、api、web、gateway；不需要发信、OSS、Metro |
+| 服务 | mysql、api、web、gateway、maintenance；不需要发信、OSS、Metro |
 | 地址 | `http://127.0.0.1:3300/community`、`/workspace`、`/account`、`/docs/` |
 | 数据 | 1000 个合成用户、20000 篇中篇基线及后续测试记录；不是实际用户和压测结果 |
 
@@ -29,7 +29,11 @@ Docker 中还有其他项目的数据卷，不能根据本页做全局删除。
 
 `.runtime/local-test/` 中配置、初始化标记和备份密钥不能删。AUTH_PEPPER 等配套密钥丢失不能靠改密码配置恢复旧账号；先找原配置。`backups/local-test/` 是加密快照，缺密钥不可解密。两者均被 Git 忽略，推送不等于备份。
 
-本次清理前已验证快照：`backups/local-test/20261102T024534Z-5f94e336.tako.enc`，对应 `.runtime/local-test/recovery.key`；32 张表隔离恢复指纹一致。它记录的是 2026-11-02 此次快照，不含此后新增修改。证据见 [重启复盘](../reviews/local-restart-review.md)。
+2026-11-12 升级前快照 ~20261112T015038Z-a42d6cb3.tako.enc~ 已通过 65 张表的隔离恢复。~writing-community-api:pre-short-20261112~ 与 ~writing-community-web:pre-short-20261112~ 保留升级前运行镜像。回退应用镜像时保留现有测试卷和迁移 36，不用清表或降级迁移代替应用回退。
+
+同日短帖图文快照 `20261112T015928Z-f86edefa.tako.enc` 隔离恢复 73 张表。两张被正式短帖版本引用的合成图片共 146 字节。媒体复验命令见[重启手册](README.md)。
+
+2026-11-02 清理前已验证快照：`backups/local-test/20261102T024534Z-5f94e336.tako.enc`，对应 `.runtime/local-test/recovery.key`；32 张表隔离恢复指纹一致。它记录的是 2026-11-02 此次快照，不含此后新增修改。证据见 [重启复盘](../reviews/local-restart-review.md)。
 
 `.runtime/mobile/artifacts/tako-test-0.1.0.apk` 是已有个人测试包，删镜像不会删它。ADB 在 `.runtime/tools/android/platform-tools/adb.exe`。SDK 本体主要在上述 Docker 卷中，保留仓库却删卷仍会损失缓存。
 
