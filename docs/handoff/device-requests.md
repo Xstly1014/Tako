@@ -2,11 +2,13 @@
 
 ## 2026-11-12 · App 短帖作者提交记录
 
-设备批次需使用含提交记录接口的本机测试 API。主开发核验首发、旧驳回原因及私有配图，从旧稿准备修订后返回原详情，以及硬件返回键回到提交列表。
+本机 3300 已运行 API 509d3de／迁移 36。个人测试包 .runtime/mobile/artifacts/tako-test-0.1.0.apk 已由 App 源码 2a830ab 构建并通过 apksigner，启用 EXPO_PUBLIC_SHORT_POSTS_TRIAL=true，包含 arm64-v8a 与 armeabi-v7a。APK SHA-256 fb25e856fa39f141ecef55e7f89f0d67820ccb5df459a42890a64d2f4763894b。当前 ADB 无连接设备，未安装。
+
+设备可用后由主开发先走 C1 P0，随后使用 scripts/mobile_android.ps1 install 建立 3300 端口转发并安装。短帖批次核验首发、旧驳回原因及私有配图，从旧稿准备修订后返回原详情，以及硬件返回键回到提交列表。按下方原定范围继续检查相册、弱网、切号和提交回执。
 
 ## 2026-11-12 · 短帖图文与复核，等待设备
 
-本机 3300 已运行 API 0.37、迁移 36，API/Web 源码基线 4d8602b。ADB 当前无已授权设备，尚无本轮 APK。设备可用后由主开发用 EXPO_PUBLIC_SHORT_POSTS_TRIAL=true 构建并记录源码和 APK SHA-256，先退出 C1 P0 门槛，再验相册选择/取消、JPEG 与 PNG 排序、失败重试、固定预览与原生图像方向、应用后台和切号、修订回执、版本切换、隐藏权限和复核。隔离媒体恢复及本机真实 HTTP 证据见[短帖阶段复盘](../reviews/short-posts-stage-review.md)。
+该批次记录时，本机 3300 运行 API 0.37、迁移 36，API/Web 源码基线 4d8602b，当时尚无对应 APK。上方条目记录最新安装包。设备可用后由主开发用 EXPO_PUBLIC_SHORT_POSTS_TRIAL=true 构建并记录源码和 APK SHA-256，先退出 C1 P0 门槛，再验相册选择/取消、JPEG 与 PNG 排序、失败重试、固定预览与原生图像方向、应用后台和切号、修订回执、版本切换、隐藏权限和复核。隔离媒体恢复及本机真实 HTTP 证据见[短帖阶段复盘](../reviews/short-posts-stage-review.md)。
 
 ## 2026-11-09 · N5 长文搜索，等待主开发设备
 
