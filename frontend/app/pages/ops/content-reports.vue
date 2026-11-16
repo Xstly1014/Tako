@@ -71,6 +71,8 @@ async function open(id: number) { if (busy.value)
         content.value = raw.work.content;
         response.value = row.response;
         decision.value = 'dismissed';
+        moderationReason.value = '';
+        existingCase.value = '';
     }
 }
 catch (e) {

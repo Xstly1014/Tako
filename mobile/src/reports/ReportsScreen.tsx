@@ -26,7 +26,7 @@ function ReportsBody({ work, version }: {
         const out = await new ReportsAPI((path, options) => auth.session.authorized(path, options)).list(more ? next : 0);
         const latest=selected&&!more?await new ReportsAPI((path,options)=>auth.session.authorized(path,options)).detail(selected.id):null;
         if (current()) {
-            setItems(old => more ? [...old, ...out.items] : out.items);
+            setItems(old => more ? [...new Map([...old, ...out.items].map(item => [item.id, item])).values()].sort((a, b) => b.id - a.id) : out.items);
             setNext(out.next);
             if(latest)setSelected(latest);
         }
@@ -57,7 +57,7 @@ function ReportsBody({ work, version }: {
         const out = await new ReportsAPI((path, options) => auth.session.authorized(path, options)).submit(work, version, reason);
         if (current()) {
             setSelected(out);
-            setItems(old => [out, ...old.filter(x => x.id !== out.id)]);
+            setItems(old => [out, ...old.filter(x => x.id !== out.id)].sort((a, b) => b.id - a.id));
             setSent(true);
             setReason('');
         }
