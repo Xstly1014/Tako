@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.37.0
+  version: 0.38.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -6614,11 +6614,499 @@ paths:
         required: true
         schema: {type: string, format: uuid}
       - *chapterpath003
+  "/api/works/{id}/versions/{number}/reports": {
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "post": {
+      "operationId": "createContentReport",
+      "tags": [
+        "发布"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/CreateContentReport"
+            }
+          }
+        }
+      }
+    }
+  }
+  "/api/my/content-reports": {
+    "get": {
+      "operationId": "listMyContentReports",
+      "tags": [
+        "发布"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReportPage"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "parameters": [
+        {
+          "name": "before",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        {
+          "name": "state",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "pending",
+              "resolved"
+            ],
+            "default": "all"
+          }
+        }
+      ]
+    }
+  }
+  "/api/my/content-reports/{number}": {
+    "parameters": [
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "get": {
+      "operationId": "readMyContentReport",
+      "tags": [
+        "发布"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      }
+    }
+  }
+  "/api/ops/content-reports": {
+    "get": {
+      "operationId": "listOperatorContentReports",
+      "tags": [
+        "发布"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReportPage"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "parameters": [
+        {
+          "name": "before",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        {
+          "name": "state",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "pending",
+              "resolved"
+            ],
+            "default": "all"
+          }
+        }
+      ]
+    }
+  }
+  "/api/ops/content-reports/{number}": {
+    "parameters": [
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "get": {
+      "operationId": "readOperatorContentReport",
+      "tags": [
+        "发布"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      }
+    },
+    "post": {
+      "operationId": "resolveContentReport",
+      "tags": [
+        "发布"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ResolveContentReport"
+            }
+          }
+        }
+      }
+    }
+  }
 components:
   securitySchemes:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    "ContentReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "version",
+        "reason",
+        "state",
+        "revision",
+        "outcome",
+        "response",
+        "created_at",
+        "decided_at"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "work_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "resolved"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "",
+            "dismissed",
+            "handled"
+          ]
+        },
+        "response": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "case_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        }
+      }
+    }
+    "ContentReportPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "next"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/components/schemas/ContentReport"
+          }
+        },
+        "next": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    }
+    "CreateContentReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    }
+    "ResolveContentReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "outcome",
+        "response",
+        "case_id"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "dismissed",
+            "handled"
+          ]
+        },
+        "response": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "case_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "nullable": true
+        }
+      }
+    }
     ShortPostAppeal:
       type: object
       additionalProperties: false
@@ -7990,6 +8478,7 @@ components:
           "revision"
         ],
         "properties": {
+          "case_id": {"type":"integer","minimum":1,"maximum":9007199254740991},
           "id": {
             "type": "integer",
             "minimum": 1,

@@ -26,4 +26,4 @@
 
 一位读者完成提交和断线重查；另一账号不能读取该记录；同账号同版重复返回原结果，新版可另报；作品变为不可读后仍可查本人回执但不能借此读取正文；运营完成核查与处置/无处置两分支；旧修订、关联错误、并发结案与重放有稳定语义；最终回到读者侧核对回执和实际公开状态。
 
-尚未实现。本阶段 Agent 评测暂停，检查点见 `docs/reviews/author-agent-acceptance-checkpoint.md`。
+本阶段源码链路、隔离真实 HTTP/MySQL、Web 操作及 App 请求适配器联调已完成，证据与剩余安装门槛见 [阶段验收](../reviews/content-reports-stage-review.md)。本阶段 Agent 评测暂停，检查点见 `docs/reviews/author-agent-acceptance-checkpoint.md`。

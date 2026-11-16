@@ -186,7 +186,7 @@ function ReaderContent({ id }: { id: string }) {
         </Pressable>
         <FutureAction name="赞" icon="heart" />
         <FavoriteButton workId={id} disabled={!work} />
-        <FutureAction name="更多操作" icon="more" />
+        <Pressable disabled={!work} accessibilityLabel="举报内容及查看我的举报" onPress={()=>router.push({pathname:'/content-reports',params:{work:id,version:String(work?.version??0)}})} style={s.back}><Text>举报</Text></Pressable>
       </View>
       {work ? (
         <CommentsPanel

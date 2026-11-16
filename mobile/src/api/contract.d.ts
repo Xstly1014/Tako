@@ -3650,10 +3650,131 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+
+    "/api/works/{id}/versions/{number}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createContentReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/my/content-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMyContentReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/my/content-reports/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        get: operations["readMyContentReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/content-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listOperatorContentReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/content-reports/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        get: operations["readOperatorContentReport"];
+        put?: never;
+        post: operations["resolveContentReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+        ContentReport: {
+            id: number;
+            /** Format: uuid */
+            work_id: string;
+            version: number;
+            reason: string;
+            /** @enum {string} */
+            state: "pending" | "resolved";
+            revision: number;
+            /** @enum {string} */
+            outcome: "" | "dismissed" | "handled";
+            response: string;
+            case_id?: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            decided_at: string | null;
+        };
+        ContentReportPage: {
+            items: components["schemas"]["ContentReport"][];
+            next: number;
+        };
+        CreateContentReport: {
+            reason: string;
+        };
+        ResolveContentReport: {
+            expected_revision: number;
+            /** @enum {string} */
+            outcome: "dismissed" | "handled";
+            response: string;
+            case_id: number | null;
+        };
+
     ShortPostAppeal: {
       /** Format: uuid */
       id: string;
@@ -4657,12 +4778,13 @@ export interface components {
       reason: string;
       appeal_id?: number;
     };
-    ModerationResult: {
-      id: number;
-      /** @enum {string} */
-      state: "approved" | "restricted" | "pending" | "active" | "revoked";
-      revision: number;
-    };
+        ModerationResult: {
+            case_id?: number;
+            id: number;
+            /** @enum {string} */
+            state: "approved" | "restricted" | "pending" | "active" | "revoked";
+            revision: number;
+        };
     ModerationTask: {
       id: number;
       /** Format: uuid */
@@ -11972,4 +12094,184 @@ export interface operations {
       503: components["responses"]["Unavailable"];
     };
   };
+
+    createContentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContentReport"];
+            };
+        };
+        responses: {
+            /** @description 当前举报记录，不代表公开访问已经恢复 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentReport"];
+                };
+            };
+            400: components["responses"]["BadInput"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["OriginRejected"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listMyContentReports: {
+        parameters: {
+            query?: {
+                before?: number;
+                state?: "all" | "pending" | "resolved";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前举报记录，不代表公开访问已经恢复 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentReportPage"];
+                };
+            };
+            400: components["responses"]["BadInput"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["OriginRejected"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    readMyContentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前举报记录，不代表公开访问已经恢复 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentReport"];
+                };
+            };
+            400: components["responses"]["BadInput"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["OriginRejected"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listOperatorContentReports: {
+        parameters: {
+            query?: {
+                before?: number;
+                state?: "all" | "pending" | "resolved";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前举报记录，不代表公开访问已经恢复 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentReportPage"];
+                };
+            };
+            400: components["responses"]["BadInput"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["OriginRejected"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    readOperatorContentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前举报记录，不代表公开访问已经恢复 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentReport"];
+                };
+            };
+            400: components["responses"]["BadInput"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["OriginRejected"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    resolveContentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveContentReport"];
+            };
+        };
+        responses: {
+            /** @description 当前举报记录，不代表公开访问已经恢复 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentReport"];
+                };
+            };
+            400: components["responses"]["BadInput"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["OriginRejected"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
 }

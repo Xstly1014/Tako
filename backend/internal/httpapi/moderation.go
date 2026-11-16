@@ -25,6 +25,7 @@ func (a API) registerModeration(protected *gin.RouterGroup, s publication.Store,
 		respondError(c, 403, "operator_required")
 		return false
 	}
+	a.registerContentReports(protected, s, enabled, gate)
 	number := func(c *gin.Context, key string, param bool) (uint64, bool) {
 		raw := c.Query(key)
 		if param {

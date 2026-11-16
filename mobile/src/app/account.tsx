@@ -180,6 +180,9 @@ export default function Account() {
               <Text style={s.rowTitle}>我的评论</Text>
               <Text style={s.meta}>评论与处置原因</Text>
             </Pressable>
+            <Pressable accessibilityRole="button" onPress={()=>router.push('/content-reports')} style={s.row}>
+              <Text style={s.rowTitle}>我的举报</Text><Text style={s.meta}>核查进度与处理回执</Text>
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               onPress={() => {

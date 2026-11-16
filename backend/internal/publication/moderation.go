@@ -23,9 +23,10 @@ type ModerationAction struct {
 	AppealID         uint64    `json:"appeal_id,omitempty"`
 }
 type ModerationResult struct {
-	ID       uint64 `json:"id"`
-	State    string `json:"state"`
-	Revision uint64 `json:"revision"`
+	ID       uint64  `json:"id"`
+	CaseID   *uint64 `json:"case_id,omitempty"`
+	State    string  `json:"state"`
+	Revision uint64  `json:"revision"`
 }
 type ModerationCase struct {
 	ID           uint64     `json:"id"`
@@ -182,16 +183,24 @@ func (s Store) Review(ctx context.Context, actor, work uuid.UUID, version uint64
 			return ModerationResult{}, ErrReviewConflict
 		}
 		resultState := "approved"
+		var caseID *uint64
 		if in.Decision != "approve" {
 			resultState = "restricted"
 			scope := "version"
 			if in.Decision == "restrict_work" {
 				scope = "work"
 			}
-			_, e = tx.ExecContext(ctx, "INSERT INTO moderation_cases(owner_id,work_id,version,scope,reason,created_at) VALUES(?,?,?,?,?,?)", owner[:], work[:], version, scope, in.Reason, now)
+			created, insertErr := tx.ExecContext(ctx, "INSERT INTO moderation_cases(owner_id,work_id,version,scope,reason,created_at) VALUES(?,?,?,?,?,?)", owner[:], work[:], version, scope, in.Reason, now)
+			e = insertErr
 			if e != nil {
 				return ModerationResult{}, e
 			}
+			caseNumber, numberErr := created.LastInsertId()
+			if numberErr != nil {
+				return ModerationResult{}, numberErr
+			}
+			value := uint64(caseNumber)
+			caseID = &value
 			if scope == "work" {
 				_, e = tx.ExecContext(ctx, "UPDATE works SET platform_limited=TRUE,discovery_revision=discovery_revision+1 WHERE id=?", work[:])
 			} else {
@@ -210,7 +219,7 @@ func (s Store) Review(ctx context.Context, actor, work uuid.UUID, version uint64
 			return ModerationResult{}, e
 		}
 		_, e = tx.ExecContext(ctx, "UPDATE works SET state_revision=state_revision+1 WHERE id=?", work[:])
-		return ModerationResult{ID: id, State: resultState, Revision: rev + 1}, e
+		return ModerationResult{ID: id, CaseID: caseID, State: resultState, Revision: rev + 1}, e
 	})
 }
 
