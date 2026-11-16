@@ -26,3 +26,13 @@ P2：剩余 7 条 low 为 deepmerge 原型污染及其上游传播链，公告�
 公告：[glob](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4)、[minimatch](https://github.com/advisories/GHSA-g3hv-75wg-m249)、[deepmerge](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)。
 
 远程收口：4c63ad0 的 [Frontend checks](https://github.com/Xstly1014/Tako/actions/runs/41455088475) completed/success，保留原 moderate 阈值；同提交 Mobile/Backend 亦成功。P1 依赖门禁阻塞关闭，P2 deepmerge 跟进仍按上文条件执行。
+
+## 2026-11-12 · node-forge 补丁
+
+022fcb9 的 Web CI 在 moderate 审计失败。本机原锁复现 1 项中危、7 项低危。Nuxt 的间接依赖 listhen 声明 node-forge ^1.4.0，npm 定向更新锁文件后只有 node-forge 从 1.4.2 变为 1.4.3。保持既有依赖范围和审计阈值。见 [上游补丁](https://github.com/digitalbazaar/forge/releases/tag/v1.4.3)。
+
+Node 24 容器中 npm ci、19 项 Web 单测、2 项归档/文件追踪兼容测试、类型检查、Nuxt 构建均通过。类型检查在挂载完整仓库后读取共享 App 契约。原命令 npm audit --audit-level=moderate 返回 0，仍有 deepmerge 同源 7 条低危。生产镜像构建成功，镜像中无可独立解析的 node-forge、listhen 或 deepmerge 模块。该检查仅覆盖独立模块解析。
+
+本机 3300 只换 Web 镜像，社区、写作、短帖审核页面与 API 健康检查通过。核对 API、维护、MySQL 和网关容器 ID 均一致。回退标签 writing-community-web:short-4d8602b。ECS 仍停机。
+
+App 的锁文件生产依赖分类中仍有 9 项中危，根依赖为 glob、minimatch 与 node-forge。该批暴露在 Expo CLI、Metro、指纹或签名工具的依赖树，APK 暴露范围需另验。公开分发前独立验证更新、生成内置 Bundle 和签名 APK；本机真机验收继续用已冻结测试包。

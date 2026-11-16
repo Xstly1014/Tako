@@ -27,6 +27,12 @@ python -X utf8 scripts/local_test_restore.py
 
 它加密备份独立测试库并在临时MySQL核对全字段指纹，不覆盖源库；文件在backups/local-test，密钥在.runtime/local-test/recovery.key，两者均不提交。维护可能改变业务数据，演练前应按现有流程暂停维护并在finally恢复。指纹变化或依赖失败就不能宣称恢复通过。本机恢复不是离机备份。
 
+验证短帖配图时，测试库需要有至少一张被正式版本引用且仍有内容的图片。运行下面的命令会在全表指纹一致后，额外核对恢复库中这类图片的数量和字节数。
+
+~~~powershell
+python -X utf8 scripts/local_test_restore.py --require-short-post-media
+~~~
+
 详细步骤：[本机状态与保留项](01-local-state.md)、[失败与恢复边界](02-recovery.md)、[交接入口](../handoff/README.md)。可用$tako-restart触发原机恢复，$tako-handoff用于跨电脑/会话接手。
 
 [整理前入口快照](../history/2026-11-06/restart-entry.md)仅供追溯，不执行其中已失效的版本或设备分工。

@@ -102,7 +102,27 @@ def load_archive(path):
     return json.loads(gzip.decompress(AESGCM(key()).decrypt(data[offset:offset+12], data[offset+12:], MAGIC)))
 
 
-def restore(path):
+def restored_short_post_media(container):
+    """Require real image bytes referenced by a formal short-post version."""
+    tables = set(sql("SHOW TABLES", container).splitlines())
+    if not {"short_post_images", "short_post_preview_images", "short_post_versions"} <= tables:
+        raise RuntimeError("short_post_media_missing_in_restore")
+    values = sql("""
+        SELECT COUNT(*), COALESCE(SUM(OCTET_LENGTH(i.content)),0)
+        FROM short_post_images i
+        WHERE i.purged_at IS NULL AND OCTET_LENGTH(i.content)>1 AND EXISTS (
+          SELECT 1 FROM short_post_preview_images m
+          JOIN short_post_versions v ON v.owner_id=m.owner_id AND v.preview_id=m.preview_id
+          WHERE m.owner_id=i.owner_id AND m.image_id=i.id
+        )
+    """, container)
+    rows, size = map(int, values.split())
+    if rows == 0:
+        raise RuntimeError("short_post_media_missing_in_restore")
+    return {"referenced_short_post_images": rows, "referenced_short_post_image_bytes": size}
+
+
+def restore(path, require_short_post_media=False):
     started = time.monotonic()
     payload = load_archive(path)
     container = "tako-restore-" + secrets.token_hex(6)
@@ -129,6 +149,8 @@ def restore(path):
                   "draft_rows": actual.get("drafts", {}).get("rows", 0),
                   "revision_rows": actual.get("draft_revisions", {}).get("rows", 0),
                   "scope": "local_isolated_container_not_off_machine"}
+        if require_short_post_media:
+            report.update(restored_short_post_media(container))
         (ROOT / ".runtime").mkdir(exist_ok=True)
         (ROOT / ".runtime" / "restore-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(json.dumps(report))

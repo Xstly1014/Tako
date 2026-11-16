@@ -1,4 +1,5 @@
 """Encrypted restore drill exclusively for the independently configured local test stack."""
+import argparse
 import json
 import secrets
 import shutil
@@ -10,7 +11,7 @@ import recovery
 from local_test import compose, DIRECTORY, ROOT
 STAGE='configuration'
 
-def main():
+def main(require_short_post_media=False):
     global STAGE
     key_path=DIRECTORY/'recovery.key'
     if not key_path.exists():
@@ -29,13 +30,17 @@ def main():
     destination=folder/path.name
     shutil.move(str(path),str(destination))
     STAGE='isolated_restore'
-    recovery.restore(destination)
+    recovery.restore(destination, require_short_post_media=require_short_post_media)
     print(json.dumps({'event':'local_test_restore_verified','environment':'test','backup_file':destination.name,'off_host':False}))
 
 if __name__=='__main__':
-    try:main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--require-short-post-media", action="store_true",
+                        help="Require at least one restored formal short-post image with content.")
+    args = parser.parse_args()
+    try:main(args.require_short_post_media)
     except Exception as error:
-        allowed={'database_changed_retry_during_quiet_period','container_operation_failed','backup_key_required','backup_format_invalid','restored_data_mismatch','isolated_mysql_not_ready'}
+        allowed={'database_changed_retry_during_quiet_period','container_operation_failed','backup_key_required','backup_format_invalid','restored_data_mismatch','isolated_mysql_not_ready','short_post_media_missing_in_restore'}
         code=str(error) if isinstance(error,RuntimeError) and str(error) in allowed else 'operation_timeout' if isinstance(error,subprocess.TimeoutExpired) else 'configuration_or_dependency_error'
         print(json.dumps({'event':'local_test_restore_failed','stage':STAGE,'code':code,'hint':'Check dedicated test configuration and isolated restore status; no production environment was selected.'}))
         raise SystemExit(1)

@@ -142,6 +142,11 @@ func verifyShortPostManagement(t *testing.T, db *sql.DB, owner, other, operator 
 	if denied.ReviewStatus != "rejected" || denied.Reason != "合成驳回理由" || denied.PublishedAt != nil {
 		t.Fatal("rejection visibility or reason")
 	}
+	rejectedOwner := mine + "/" + rejected.PostID.String()
+	original := novelResult[shortpost.RevisionSnapshot](t, request("GET", owner, rejectedOwner+"/initial-submission", nil, 200, "").Body.Bytes())
+	if original.ID != rejected.ID || original.State != "rejected" || original.Version != nil || original.Reason != denied.Reason {
+		t.Fatal("the rejected initial submission lost its receipt, state or original reason")
+	}
 	request("GET", uuid.Nil, "/api/short-posts/"+rejected.PostID.String(), nil, 404, "resource_not_found")
 	firstMine := novelResult[shortpost.PostPage[shortpost.OwnedPostItem]](t, request("GET", owner, mine, nil, 200, "").Body.Bytes())
 	if len(firstMine.Items) != 12 || firstMine.Items[0].ID != rejected.PostID ||

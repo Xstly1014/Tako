@@ -227,6 +227,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/my/short-posts/{id}/revisions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+    * 读取本人短帖的首发及修订记录
+    * @description 首发单列。修订按提交状态版本倒序分页，包含被替换与被驳回的快照摘要。
+    */
+    get: operations["listMyShortPostSubmissions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/my/short-posts/{id}/initial-submission": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 读取本人短帖的首发快照与原审核结果 */
+    get: operations["readMyShortPostInitialSubmission"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/my/short-posts/{id}/revisions/{revisionId}": {
     parameters: {
       query?: never;
@@ -3670,6 +3707,22 @@ export interface components {
       published_at: string;
       platform_limited: boolean;
     };
+    ShortPostSubmissionNode: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      /** @enum {string} */
+      state: "pending" | "published" | "superseded" | "rejected";
+      version: number | null;
+      post_review_pending: boolean;
+      /** Format: date-time */
+      submitted_at: string;
+    };
+    ShortPostSubmissionPage: {
+      initial: components["schemas"]["ShortPostSubmissionNode"];
+      next_before: number;
+      items: components["schemas"]["ShortPostSubmissionNode"][];
+    };
     ShortPostRevisionSnapshot: {
       /** Format: uuid */
       novel_id: string | null;
@@ -5714,6 +5767,61 @@ export interface operations {
         };
       };
       400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  listMyShortPostSubmissions: {
+    parameters: {
+      query?: {
+        before?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 本人短帖的提交记录 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostSubmissionPage"];
+        };
+      };
+      400: components["responses"]["BadInput"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["OriginRejected"];
+      404: components["responses"]["NotFound"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  readMyShortPostInitialSubmission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 固定首发内容 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShortPostRevisionSnapshot"];
+        };
+      };
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["OriginRejected"];
       404: components["responses"]["NotFound"];
