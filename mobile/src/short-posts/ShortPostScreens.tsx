@@ -259,6 +259,7 @@ function ShortPostDetail({ id }: { id: string }) {
               <Text style={s.link}>{related.title}</Text>
             </Pressable>
           ) : null}
+          <InlineAction label="举报内容" onPress={() => router.push({pathname:'/content-reports',params:{kind:'short-post',work:post.id,version:String(post.version)}})} />
           <ShortPostHistory post={post} onRead={load} busy={busy} readError={error} />
         </ScrollView>
       ) : (

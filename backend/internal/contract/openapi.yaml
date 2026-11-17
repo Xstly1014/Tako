@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.38.0
+  version: 0.39.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -6957,11 +6957,678 @@ paths:
       }
     }
   }
+  "/api/short-posts/{id}/versions/{number}/reports": {
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "post": {
+      "operationId": "createShortPostReport",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/CreateShortPostReport"
+            }
+          }
+        }
+      },
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
+  "/api/my/short-post-reports": {
+    "get": {
+      "operationId": "listMyShortPostReports",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReportPage"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "parameters": [
+        {
+          "name": "before",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        {
+          "name": "state",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "pending",
+              "resolved"
+            ],
+            "default": "all"
+          }
+        }
+      ],
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
+  "/api/my/short-post-reports/{number}": {
+    "parameters": [
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "get": {
+      "operationId": "readMyShortPostReport",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
+  "/api/ops/short-post-reports": {
+    "get": {
+      "operationId": "listOperatorShortPostReports",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReportPage"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "parameters": [
+        {
+          "name": "before",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        {
+          "name": "state",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "pending",
+              "resolved"
+            ],
+            "default": "all"
+          }
+        }
+      ],
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
+  "/api/ops/short-post-reports/{number}": {
+    "parameters": [
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "get": {
+      "operationId": "readOperatorShortPostReport",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    },
+    "post": {
+      "operationId": "resolveShortPostReport",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReport"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ResolveShortPostReport"
+            }
+          }
+        }
+      },
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
+  "/api/ops/short-post-reports/{number}/evidence": {
+    "parameters": [
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "get": {
+      "operationId": "readShortPostReportEvidence",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "当前举报记录，不代表公开访问已经恢复",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortPostReportEvidence"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
+  "/api/ops/short-post-reports/{number}/evidence/images/{imageId}": {
+    "parameters": [
+      {
+        "name": "number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "name": "imageId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    ],
+    "get": {
+      "operationId": "readShortPostReportEvidenceImage",
+      "tags": [
+        "短帖"
+      ],
+      "responses": {
+        "200": {
+          "description": "受保护的原正式版配图，拒绝不同版本/不同报告图片，禁止缓存",
+          "content": {
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "400": {
+          "$ref": "#/components/responses/BadInput"
+        },
+        "401": {
+          "$ref": "#/components/responses/Unauthorized"
+        },
+        "403": {
+          "$ref": "#/components/responses/OriginRejected"
+        },
+        "404": {
+          "$ref": "#/components/responses/NotFound"
+        },
+        "409": {
+          "$ref": "#/components/responses/Conflict"
+        },
+        "503": {
+          "$ref": "#/components/responses/Unavailable"
+        }
+      },
+      "description": "仅 test 环境启用。按会话账号判权；重复同版返回原举报，不自动限制内容。结案关联该帖当前有效处置轮次，旧轮次或不同版本返回 work_state_conflict。"
+    }
+  }
 components:
   securitySchemes:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    "ShortPostReportEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "content",
+        "version",
+        "images",
+        "state_revision",
+        "post_case_revision",
+        "version_case_revision"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "nullable": true
+        },
+        "images": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/components/schemas/ShortPostImage"
+          }
+        },
+        "state_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "post_case_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "nullable": true
+        },
+        "version_case_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "nullable": true
+        }
+      }
+    }
+    "ShortPostReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "post_id",
+        "version",
+        "reason",
+        "state",
+        "revision",
+        "outcome",
+        "response",
+        "created_at",
+        "decided_at"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "post_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "resolved"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "",
+            "dismissed",
+            "handled"
+          ]
+        },
+        "response": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "case_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        }
+      }
+    }
+    "ShortPostReportPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "next"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/components/schemas/ShortPostReport"
+          }
+        },
+        "next": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    }
+    "CreateShortPostReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    }
+    "ResolveShortPostReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "outcome",
+        "response",
+        "case_revision"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "dismissed",
+            "handled"
+          ]
+        },
+        "response": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "case_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "nullable": true
+        }
+      }
+    }
     "ContentReport": {
       "type": "object",
       "additionalProperties": false,

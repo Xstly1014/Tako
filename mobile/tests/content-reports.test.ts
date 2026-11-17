@@ -32,3 +32,18 @@ test('resolved responses require a real decision and timestamp; unknown status i
         assert.throws(() => checkedReport(value));
     assert.equal(checkedReport({ ...report, state: 'resolved', revision: 2, outcome: 'dismissed', response: '核查后无需处置', decided_at: '2026-11-16T01:00:00Z' }).state, 'resolved');
 });
+
+test('short-post inbox binds post/version and cannot accept a work report with the same report number', async () => {
+    const { work_id: target, ...fields } = report;
+    const short = { ...fields, post_id: target };
+    const paths: string[] = [];
+    const api = new ReportsAPI((async (path: string) => { paths.push(path); return path.includes('?') ? {items:[short],next:0} : short; }) as Transport, 'short-post');
+    assert.deepEqual(await api.submit(work, 1, '原图文问题'), short);
+    assert.equal((await api.detail(short.id)).post_id, work);
+    assert.equal((await api.list()).items[0].post_id, work);
+    assert.deepEqual(paths, [`/short-posts/${work}/versions/1/reports`, '/my/short-post-reports/2', '/my/short-post-reports?before=0']);
+    assert.throws(() => checkedReport(report, 'short-post'));
+    assert.throws(() => checkedReport(short));
+    assert.throws(() => checkedReport({...short,work_id:work}, 'short-post'));
+    await assert.rejects(new ReportsAPI((async()=>({...short,version:2})) as Transport, 'short-post').submit(work,1,'不可串版'));
+});

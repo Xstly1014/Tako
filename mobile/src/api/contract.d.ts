@@ -3738,10 +3738,181 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+"/api/short-posts/{id}/versions/{number}/reports": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            id: string;
+            number: number;
+        };
+        cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["createShortPostReport"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/my/short-post-reports": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    get: operations["listMyShortPostReports"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/my/short-post-reports/{number}": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    get: operations["readMyShortPostReport"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/ops/short-post-reports": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    get: operations["listOperatorShortPostReports"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/ops/short-post-reports/{number}": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    get: operations["readOperatorShortPostReport"];
+    put?: never;
+    post: operations["resolveShortPostReport"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/ops/short-post-reports/{number}/evidence": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    get: operations["readShortPostReportEvidence"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/ops/short-post-reports/{number}/evidence/images/{imageId}": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+            imageId: string;
+        };
+        cookie?: never;
+    };
+    get: operations["readShortPostReportEvidenceImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+ShortPostReportEvidence: {
+    title: string;
+    content: string;
+    version: number | null;
+    images: components["schemas"]["ShortPostImage"][];
+    state_revision: number;
+    post_case_revision: number | null;
+    version_case_revision: number | null;
+};
+
+ShortPostReport: {
+    id: number;
+    post_id: string;
+    version: number;
+    reason: string;
+    state: "pending" | "resolved";
+    revision: number;
+    outcome: "" | "dismissed" | "handled";
+    response: string;
+    case_revision?: number;
+    created_at: string;
+    decided_at: string | null;
+};
+
+ShortPostReportPage: {
+    items: components["schemas"]["ShortPostReport"][];
+    next: number;
+};
+
+CreateShortPostReport: {
+    reason: string;
+};
+
+ResolveShortPostReport: {
+    expected_revision: number;
+    outcome: "dismissed" | "handled";
+    response: string;
+    case_revision: number | null;
+};
+
         ContentReport: {
             id: number;
             /** Format: uuid */
@@ -12274,4 +12445,241 @@ export interface operations {
             503: components["responses"]["Unavailable"];
         };
     };
+createShortPostReport: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            id: string;
+            number: number;
+        };
+        cookie?: never;
+    };
+    requestBody: {
+        content: {
+            "application/json": components["schemas"]["CreateShortPostReport"];
+        };
+    };
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReport"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+listMyShortPostReports: {
+    parameters: {
+        query?: {
+            before?: number;
+            state?: "all" | "pending" | "resolved";
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReportPage"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+readMyShortPostReport: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReport"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+listOperatorShortPostReports: {
+    parameters: {
+        query?: {
+            before?: number;
+            state?: "all" | "pending" | "resolved";
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReportPage"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+readOperatorShortPostReport: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReport"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+resolveShortPostReport: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    requestBody: {
+        content: {
+            "application/json": components["schemas"]["ResolveShortPostReport"];
+        };
+    };
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReport"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+readShortPostReportEvidence: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+        };
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ShortPostReportEvidence"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+readShortPostReportEvidenceImage: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            number: number;
+            imageId: string;
+        };
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "image/png": string;
+                "image/jpeg": string;
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
 }

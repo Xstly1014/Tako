@@ -23,10 +23,10 @@ type ModerationAction struct {
 	AppealID         uint64    `json:"appeal_id,omitempty"`
 }
 type ModerationResult struct {
-	ID       uint64  `json:"id"`
-	CaseID   *uint64 `json:"case_id,omitempty"`
-	State    string  `json:"state"`
-	Revision uint64  `json:"revision"`
+	ID       uint64 `json:"id"`
+	CaseID   uint64 `json:"case_id,omitempty"`
+	State    string `json:"state"`
+	Revision uint64 `json:"revision"`
 }
 type ModerationCase struct {
 	ID           uint64     `json:"id"`
@@ -183,7 +183,7 @@ func (s Store) Review(ctx context.Context, actor, work uuid.UUID, version uint64
 			return ModerationResult{}, ErrReviewConflict
 		}
 		resultState := "approved"
-		var caseID *uint64
+		var caseID uint64
 		if in.Decision != "approve" {
 			resultState = "restricted"
 			scope := "version"
@@ -199,8 +199,7 @@ func (s Store) Review(ctx context.Context, actor, work uuid.UUID, version uint64
 			if numberErr != nil {
 				return ModerationResult{}, numberErr
 			}
-			value := uint64(caseNumber)
-			caseID = &value
+			caseID = uint64(caseNumber)
 			if scope == "work" {
 				_, e = tx.ExecContext(ctx, "UPDATE works SET platform_limited=TRUE,discovery_revision=discovery_revision+1 WHERE id=?", work[:])
 			} else {

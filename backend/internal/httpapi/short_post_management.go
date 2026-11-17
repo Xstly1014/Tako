@@ -9,6 +9,7 @@ import (
 
 func (a API) registerShortPostManagement(protected *gin.RouterGroup) {
 	store := shortpost.PostStore{DB: a.DB}
+	a.registerShortPostReports(protected)
 	author := protected.Group("/my/short-posts", a.shortPostTestOnly)
 	operatorOnly := func(c *gin.Context) {
 		if !a.isOperator(c.MustGet("account").(identity.Account).ID) {

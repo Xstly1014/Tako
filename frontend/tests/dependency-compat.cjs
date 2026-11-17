@@ -7,8 +7,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const { finished } = require('node:stream/promises');
 const nitro = createRequire(require.resolve('nitropack/package.json'));
-const archiver = nitro('archiver');
-const archiveUtils = createRequire(nitro.resolve('archiver'))('archiver-utils');
+const { ZipArchive } = nitro('archiver');
 const { nodeFileTrace } = nitro('@vercel/nft');
 async function files(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tako-dependency-'));
@@ -20,9 +19,9 @@ async function files(t) {
 }
 test('Nitro archive consumers retain glob include/exclude and ZIP entry behavior', async t => {
   const root = await files(t);
-  const expanded = archiveUtils.file.expand({ cwd: root, filter: 'isFile' }, ['assets/*.txt', '!**/ignored.txt']);
-  assert.deepEqual(expanded.sort(), ['assets/first.txt', 'assets/中文.txt']);
-  const archive = archiver('zip'), entries = [], bytes = [];
+  // Nitro now consumes archiver 8, which removed archiver-utils. Exercise its
+  // actual glob/archive boundary rather than importing the removed dependency.
+  const archive = new ZipArchive(), entries = [], bytes = [];
   archive.on('entry', value => entries.push(value.name));
   archive.on('data', value => bytes.push(value));
   archive.on('warning', error => archive.destroy(error));

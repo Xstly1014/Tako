@@ -157,7 +157,7 @@ onMounted(async () => { await load(); if (account.value) {
 onUnmounted(() => { alive = false; generation++; channel?.close(); });
 useHead({ title: '举报治理 · Tako', meta: [{ name: 'robots', content: 'noindex,nofollow,noarchive' }] });
 </script>
-<template><AppHeader :account="account" operator/><main class="reports"><h1>举报治理</h1><p v-if="message" role="status">{{message}}</p>
+<template><AppHeader :account="account" operator/><main class="reports"><h1>举报治理</h1><NuxtLink to="/ops/short-post-reports">短帖举报</NuxtLink><p v-if="message" role="status">{{message}}</p>
 <div class="toolbar"><label>处理状态 <select v-model="state" :disabled="busy" @change="load()"><option value="pending">待核查</option><option value="resolved">已结案</option><option value="all">全部</option></select></label><button :disabled="busy" @click="load()">刷新</button></div>
 <div class="layout"><aside><p v-if="!items.length">{{busy?'正在读取…':'当前没有匹配的举报。'}}</p><button v-for="item in items" :key="item.id" :disabled="busy||!!pending" @click="open(item.id)">#{{item.id}} · {{item.state==='pending'?'待核查':'已结案'}}<small>{{item.reason}}</small></button><button v-if="next" :disabled="busy" @click="load(true)">加载更多</button></aside>
 <article v-if="detail"><h2>举报 #{{detail.id}}</h2><p>{{detail.reason}}</p><p>原正式版 V{{detail.version}} · {{detail.created_at}}</p><details><summary>核查原文</summary><p class="body">{{content||'待确认操作恢复后，可先从内容治理核对原版本。'}}</p></details>

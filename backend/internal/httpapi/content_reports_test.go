@@ -147,10 +147,10 @@ func TestContentReportJourney(t *testing.T) {
 	call("POST", target, map[string]string{"reason": "新用户不能借此举报隐藏内容"}, other, 404)
 	ops := "/api/ops/content-reports/" + fmtID(report.ID)
 	call("POST", ops, map[string]any{"expected_revision": 1, "outcome": "handled", "response": "不能关联不存在的处置", "case_id": uint64(9007199254740991)}, owner, 409)
-	if result.CaseID == nil {
+	if result.CaseID == 0 {
 		t.Fatal("restriction case identifier missing")
 	}
-	body := map[string]any{"expected_revision": 1, "outcome": "handled", "response": "已核查并限制原版本", "case_id": *result.CaseID}
+	body := map[string]any{"expected_revision": 1, "outcome": "handled", "response": "已核查并限制原版本", "case_id": result.CaseID}
 	call("POST", ops, body, owner, 200)
 	call("POST", ops, body, owner, 200)
 	body["response"] = "不能覆盖已结案回执"
