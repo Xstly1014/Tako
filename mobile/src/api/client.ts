@@ -109,6 +109,8 @@ export function apiMessage(error: unknown) {
     network: "连接超时或已断开，请检查 USB 连接后重试。",
     environment: "未连接到测试环境，请检查服务和 USB 转发。",
     storage: "无法保存安全凭据，请检查手机存储后重试。",
+    follow_conflict: "关注状态已变化，请重新核对。",
+    nickname_required: "请先在「我的」里设置昵称。",
     favorite_conflict: "收藏状态已变化，请刷新后操作。",
     work_restricted: "作品暂不可收藏。",
     resource_not_found: "作品暂不可用。",

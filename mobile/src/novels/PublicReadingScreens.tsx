@@ -19,6 +19,7 @@ import { ShelfControls } from "./ShelfUi";
 import { Action, Brand, Status } from "../components/Ui";
 import { BottomNavigation } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
+import { AuthorFollowButton } from "../components/AuthorFollowButton";
 import { shortPostsTrial } from "../short-posts/trial";
 import {
   NovelReadingApi,
@@ -289,6 +290,14 @@ export function NovelCommunityScreen() {
     </SafeAreaView>
   );
 }
+function readingOrigin(fromNotice: string | undefined, fromShelf: boolean, fromSearch: boolean, fromFeed: boolean, fromPost?: string) {
+  if (fromNotice) return { from: "notice", notice: fromNotice };
+  if (fromPost) return { from: "short", post: fromPost };
+  if (fromShelf) return { from: "shelf" };
+  if (fromSearch) return { from: "search" };
+  if (fromFeed) return { from: "author-feed" };
+  return {};
+}
 export function NovelDirectoryScreen() {
   const params = useLocalSearchParams<{
     id: string;
@@ -303,6 +312,7 @@ export function NovelDirectoryScreen() {
       book={book}
       fromSearch={params.from === "search"}
       fromShelf={params.from === "shelf"}
+      fromFeed={params.from === "author-feed"}
       fromPost={params.from === "short" && id(params.post) ? params.post : undefined}
       fromNotice={
         params.from === "notice" && id(params.notice)
@@ -318,12 +328,14 @@ function DirectoryContent({
   fromSearch,
   fromNotice,
   fromPost,
+  fromFeed,
 }: {
   book: string;
   fromShelf: boolean;
   fromSearch: boolean;
   fromNotice?: string;
   fromPost?: string;
+  fromFeed: boolean;
 }) {
   const sync = useReadingPosition(book);
   const { localError } = useReadingLifecycle(sync);
@@ -344,10 +356,11 @@ function DirectoryContent({
     <SafeAreaView style={s.screen}>
       <Header
         title="章节目录"
-        back={fromPost ? "返回短帖" : fromNotice ? "消息详情" :
+        back={fromFeed ? "关注动态" : fromPost ? "返回短帖" : fromNotice ? "消息详情" :
           fromShelf ? "我的书架" : fromSearch ? "搜索结果" : "长文频道"}
         onBack={() => {
-          if (fromPost) {
+          if (fromFeed) router.dismissTo("/author-social");
+          else if (fromPost) {
             router.dismissTo({ pathname: "/short-posts/[id]", params: { id: fromPost } });
           } else if (fromNotice) {
             router.dismissTo({ pathname: "/notice/[id]", params: { id: fromNotice } });
@@ -385,6 +398,7 @@ function DirectoryContent({
                 {details.introduction ? (
                   <Text style={s.intro}>{details.introduction}</Text>
                 ) : null}
+                <AuthorFollowButton kind="novel" id={book} />
                 <ShelfControls book={book} readable={!error} />
                 <ReadingPositionControls
                   sync={sync}
@@ -396,13 +410,7 @@ function DirectoryContent({
                         book,
                         chapter: p.chapter_id,
                         resume: "1",
-                        ...(fromNotice
-                          ? { from: "notice", notice: fromNotice }
-                          : fromShelf
-                            ? { from: "shelf" }
-                            : fromSearch
-                              ? { from: "search" }
-                              : {}),
+                        ...readingOrigin(fromNotice, fromShelf, fromSearch, fromFeed, fromPost),
                       },
                     })
                   }
@@ -427,13 +435,7 @@ function DirectoryContent({
                   params: {
                     book,
                     chapter: item.id,
-                    ...(fromNotice
-                      ? { from: "notice", notice: fromNotice }
-                      : fromShelf
-                        ? { from: "shelf" }
-                        : fromSearch
-                          ? { from: "search" }
-                          : {}),
+                    ...readingOrigin(fromNotice, fromShelf, fromSearch, fromFeed, fromPost),
                   },
                 })
               }
@@ -471,6 +473,7 @@ export function NovelChapterScreen() {
     resume?: string;
     from?: string;
     notice?: string;
+    post?: string;
   }>();
   const book = typeof params.book === "string" ? params.book : "",
     chapter = typeof params.chapter === "string" ? params.chapter : "";
@@ -482,6 +485,8 @@ export function NovelChapterScreen() {
       resume={params.resume === "1"}
       fromSearch={params.from === "search"}
       fromShelf={params.from === "shelf"}
+      fromFeed={params.from === "author-feed"}
+      fromPost={params.from === "short" && id(params.post) ? params.post : undefined}
       fromNotice={
         params.from === "notice" && id(params.notice)
           ? params.notice
@@ -497,6 +502,8 @@ function ChapterContent({
   fromShelf,
   fromSearch,
   fromNotice,
+  fromFeed,
+  fromPost,
 }: {
   book: string;
   chapter: string;
@@ -504,6 +511,8 @@ function ChapterContent({
   fromShelf: boolean;
   fromSearch: boolean;
   fromNotice?: string;
+  fromFeed: boolean;
+  fromPost?: string;
 }) {
   const { session } = useSession();
   const [comments, setComments] = useState(false),
@@ -652,13 +661,7 @@ function ChapterContent({
             book,
             chapter: p.chapter_id,
             resume: "1",
-            ...(fromNotice
-              ? { from: "notice", notice: fromNotice }
-              : fromShelf
-                ? { from: "shelf" }
-                : fromSearch
-                  ? { from: "search" }
-                  : {}),
+            ...readingOrigin(fromNotice, fromShelf, fromSearch, fromFeed, fromPost),
           },
         });
         return;
@@ -689,7 +692,7 @@ function ChapterContent({
         setResumeNotice("位置暂未定位，可继续阅读或再次点击续读。");
       }
     },
-    [book, chapter, value, sync, fromShelf, fromSearch, fromNotice],
+    [book, chapter, value, sync, fromShelf, fromSearch, fromNotice, fromFeed, fromPost],
   );
   useEffect(() => {
     if (
@@ -777,13 +780,7 @@ function ChapterContent({
                   pathname: "/novel/[id]",
                   params: {
                     id: book,
-                    ...(fromNotice
-                      ? { from: "notice", notice: fromNotice }
-                      : fromShelf
-                        ? { from: "shelf" }
-                        : fromSearch
-                          ? { from: "search" }
-                          : {}),
+                    ...readingOrigin(fromNotice, fromShelf, fromSearch, fromFeed, fromPost),
                   },
                 })
               : router.dismissTo("/novel-community")
@@ -881,13 +878,7 @@ function ChapterContent({
                     pathname: "/novel/[id]",
                     params: {
                       id: book,
-                      ...(fromNotice
-                        ? { from: "notice", notice: fromNotice }
-                        : fromShelf
-                          ? { from: "shelf" }
-                          : fromSearch
-                            ? { from: "search" }
-                            : {}),
+                      ...readingOrigin(fromNotice, fromShelf, fromSearch, fromFeed, fromPost),
                     },
                   })
                 }

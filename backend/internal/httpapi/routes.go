@@ -302,6 +302,7 @@ func (a API) Register(r *gin.Engine) error {
 	a.registerPublicationRoutes(api, protected)
 	a.registerDiscovery(api, protected)
 	a.registerFavorites(protected)
+	a.registerAuthorFollows(protected)
 	a.registerComments(api, protected)
 	a.registerNovels(protected)
 	a.registerChapterDrafts(protected)

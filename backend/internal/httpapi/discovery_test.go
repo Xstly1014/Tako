@@ -103,6 +103,30 @@ func TestDiscoveryHTTPContractAndOperatorBoundary(t *testing.T) {
 		}
 		return res
 	}
+	defer db.Exec("DELETE FROM author_follows WHERE reader_id=?", other[:])
+	const social = "/api/my/author-social/"
+	followPath := social + "targets/work/" + published.WorkID.String()
+	add := map[string]any{"following": true, "expected_revision": 0}
+	call("GET", social+"followers", nil, "", 401)
+	call("PUT", followPath, map[string]any{"following": true}, otherToken, 400)
+	call("PUT", followPath, add, token, 400)
+	call("PUT", followPath, add, otherToken, 200)
+	call("PUT", followPath, add, otherToken, 409)
+	call("GET", social+"targets/post/"+published.WorkID.String(), nil, otherToken, 503)
+	people := novelResult[publication.FollowPeoplePage](t, call("GET", social+"followers", nil, token, 200).Body.Bytes())
+	if len(people.Items) != 1 || people.Items[0].ID == other {
+		t.Fatal("missing fan or exposed account identity")
+	}
+	edge := social + "targets/relation/" + people.Items[0].ID.String()
+	call("GET", edge, nil, token, 404)
+	call("GET", edge, nil, otherToken, 200)
+	if !strings.Contains(call("GET", social+"feed", nil, otherToken, 200).Body.String(), published.WorkID.String()) {
+		t.Fatal("missing followed work")
+	}
+	if !strings.Contains(call("GET", social+"followers", nil, otherToken, 200).Body.String(), `"items":[]`) {
+		t.Fatal("fans not isolated")
+	}
+	call("GET", social+"feed?cursor=invalid", nil, otherToken, 400)
 	call("GET", "/api/community", nil, "", 200)
 	search := call("GET", "/api/search?q="+url.QueryEscape("发现契约作品"), nil, "", 200)
 	if !strings.Contains(search.Body.String(), published.WorkID.String()) || strings.Contains(search.Body.String(), "不会出现在发现卡片的正文") {
@@ -159,6 +183,14 @@ func TestDiscoveryHTTPContractAndOperatorBoundary(t *testing.T) {
 	}
 	if _, e = s.Change(ctx, owner, published.WorkID, publication.Change{MutationID: uuid.New(), ExpectedStateRevision: state.StateRevision, Action: "hide"}); e != nil {
 		t.Fatal(e)
+	}
+	call("GET", followPath, nil, otherToken, 404)
+	if strings.Contains(call("GET", social+"feed", nil, otherToken, 200).Body.String(), published.WorkID.String()) {
+		t.Fatal("hidden work in following feed")
+	}
+	call("PUT", edge, map[string]any{"following": false, "expected_revision": 1}, otherToken, 200)
+	if !strings.Contains(call("GET", social+"followers", nil, token, 200).Body.String(), `"items":[]`) {
+		t.Fatal("unfollow did not remove fan")
 	}
 	hidden := call("GET", "/api/community", nil, "", 200)
 	privateFavorites := call("GET", "/api/my/favorites", nil, otherToken, 200)

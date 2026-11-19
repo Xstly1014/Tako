@@ -8,7 +8,7 @@
   let current = '', focusBefore, dialogReturn, confirmAction, toastTimer;
   const demo = {
     work: { title:'末班车开往星期八', hidden:false, display:2, history:false, comments:12, favorites:3, genre:'幻想' },
-    kind:'mid', frozen:null, published:false, favorite:true, following:true, shelf:true,
+    kind:'mid', frozen:null, published:false, favorite:true, shelf:true,
     photos:[], selectedReport:null, novel:null, author:null, feedback:['这个结尾让我想起了回家的路。'], reports:[], appeals:[],
     source:null, product:'穿越龙族的日常生活 · 精装纪念版', price:128, cover:'cv-1', sku:'精装纪念版', quantity:1,
     address:null, orders:[], selectedOrder:null, custom:null,
@@ -164,9 +164,21 @@
   page('长文','read-short','短内容全文',()=>`${article('秋招不知道第几天','今天面完最后一场，我在楼下便利店坐了半小时。')}${row('作者主页','墨洗章鱼','author')}${row('讨论','','feedback-thread')}${button('举报当前图文','report','btn-ghost')}`);
   page('长文','public-versions','公开历史版本',()=>`${info('仅列出作者开放且当前可读的正式版。')}${row('当前展示版','V2','read-mid')}${row('较早正式版','V1','read-mid')}`);
 
-  page('账号与互动','following','我的关注',()=>`${row('墨洗章鱼',demo.following?'已关注':'未关注','author')}${row('旧巷口','记录平凡日子','author')}`);
-  page('账号与互动','followers','关注者',()=>`${row('沙糖桔','喜欢故事，也喜欢生活','author')}${row('无双奇术','','author')}`);
-  page('账号与互动','author','作者主页',()=>`<div class="flow-avatar"><img src="${art}" alt="作者头像示意"><div><strong>${esc(demo.author||demo.novel?.a||'墨洗章鱼')}</strong><p>把脑洞留在文字里。</p></div></div>${act(demo.following?'已关注 · 管理':'关注作者','follow','btn-ghost')}${row('末班车开往星期八','中篇 · 评论 12 · 收藏 3','read-mid')}${row('穿越龙族的日常生活','长文连载','book')}`);
+  const authors = window.TakoDemoAuthors;
+  const chosenAuthor = () => demo.author || demo.novel?.a || '墨洗章鱼';
+  function authorFollow(name) {
+    const following = authors.has(name);
+    confirm(following ? '取消关注这位作者？' : '关注这位作者？',
+      following ? '这位作者的作品将移出你的关注动态。' : '作者可以在粉丝名单中看到你的昵称。',
+      following ? '取消关注' : '关注', () => { authors.set(name, !following); if (current) draw(); });
+  }
+  document.addEventListener('tako:follow-request', e => authorFollow(e.detail));
+  page('账号与互动','following','我的关注',()=>{
+    const names = authors.following();
+    return names.length ? names.map(name=>`<button class="flow-row" data-author="${esc(name)}"><strong>${esc(name)}</strong><small>已关注 ›</small></button>`).join('') : empty('还没有关注作者','在阅读页关注作者后，可以在这里找到对方。');
+  });
+  page('账号与互动','followers','我的粉丝',()=>`<h2>2 位读者</h2><div class="flow-row"><strong>沙糖桔</strong><small>今天关注</small></div><div class="flow-row"><strong>无双奇术</strong><small>昨天关注</small></div>`);
+  page('账号与互动','author','作者主页',()=>`<div class="flow-avatar"><img src="${art}" alt="作者头像示意"><div><strong>${esc(chosenAuthor())}</strong><p>把脑洞留在文字里。</p></div></div>${act(authors.has(chosenAuthor())?'已关注 · 管理':'关注作者','follow','btn-ghost')}${authors.works(chosenAuthor()).map((w,i)=>`<button class="flow-row" data-author-work="${i}"><strong>${esc(w.t)}</strong><small>${w.kind==='short'?'短帖':w.kind==='mid'?'中篇':'长文'} ›</small></button>`).join('')}`);
   page('账号与互动','favorite-list','我的收藏',()=>demo.favorite?`${row('末班车开往星期八','墨洗章鱼','read-mid')}${act('取消收藏','favorite','btn-ghost')}`:empty('还没有收藏','遇到喜欢的作品，可以先收藏。','read-mid','去看看'));
   page('账号与互动','my-comments','我的评论',()=>`${row('这个结尾让我想起了回家的路','末班车开往星期八','feedback-thread')}${row('期待下一章','穿越龙族的日常生活','feedback-thread')}`);
   page('账号与互动','notice-detail','作品公告',()=>article('本周更新安排','本周继续更新新的章节，谢谢大家的耐心阅读。'));
@@ -284,7 +296,7 @@
     if(key==='notice-preview'){if(required(['title','body']))open('notice-preview');return}
     if(key==='notice-publish'){confirm('发布公告？','原型不会向读者发送通知。','预览发布结果',()=>open('notice-manage'));return}
     if(key==='favorite'){demo.favorite=!demo.favorite;draw();toast(demo.favorite?'演示收藏已添加':'演示收藏已取消');return}
-    if(key==='follow'){if(demo.following)confirm('取消关注？','演示关系仅保存在本次页面会话。','取消关注',()=>{demo.following=false;draw()});else{demo.following=true;draw()}return}
+    if(key==='follow'){authorFollow(chosenAuthor());return}
     if(key==='shelf'){if(demo.shelf)confirm('移出书架？','会同时停止追更，已有消息和续读位置保留。','移出',()=>{demo.shelf=false;draw()});else{demo.shelf=true;draw()}return}
     if(key==='nickname'){if(required(['nickname'])){$('me-name').textContent=forms.profile.nickname;toast('演示笔名已更新')}return}
     if(key==='logout'){confirm('退出登录？','未同步的本机草稿需要原账号登录后恢复。','演示退出',()=>{current='';$('flow-page').hidden=true;$('scr-app').inert=false;document.dispatchEvent(new CustomEvent('tako:base',{detail:{page:'login'}}))});return}
@@ -340,6 +352,15 @@
   }});
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b){if(e.target===overlay)closeDialog();return}
+    if(b.dataset.author){demo.author=b.dataset.author;open('author');return}
+    if(b.dataset.authorWork!==undefined){
+      const work=authors.works(chosenAuthor())[Number(b.dataset.authorWork)];
+      if(!work)return;
+      if(work.kind==='mid'||work.kind==='short'){dialog(work.t,`<p class="flow-article">${esc(work.body||work.excerpt)}</p>`)}
+      else{demo.novel=work;open('book')}
+      return
+    }
+    if(b.dataset.flow==='author' && current==='book')demo.author=demo.novel?.a||'墨洗章鱼';
     if(b.dataset.flow){if(b.dataset.flow==='report'&&['read-mid','read-short'].includes(current))demo.source=current==='read-mid'?{id:'m1',title:demo.work.title,kind:'mid',version:demo.work.display}:{id:'s1',title:'秋招不知道第几天',kind:'short',version:2};if(b.dataset.index!==undefined){if(b.dataset.flow==='feedback-thread')demo.work=catalog[Number(b.dataset.index)];else demo.selectedReport=Number(b.dataset.index);}if(current==='custom-work')demo.custom={title:b.querySelector('strong').textContent};open(b.dataset.flow,!current);return}
     if(b.dataset.do){perform(b.dataset.do);return}
     if(b.hasAttribute('data-confirm')){const fn=confirmAction;closeDialog();fn?.();return}

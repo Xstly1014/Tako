@@ -35,6 +35,27 @@ func verifyShortPostSubmission(t *testing.T, db *sql.DB, owner, other, operator,
 	setHidden(false)
 	original := request("PUT", owner, submission, in, 200, "").Body.Bytes()
 	published := novelResult[shortpost.SubmissionReceipt](t, original)
+	defer db.Exec("DELETE FROM author_follows WHERE reader_id=? AND author_id=?", other[:], owner[:])
+	const social = "/api/my/author-social/"
+	request("PUT", other, social+"targets/post/"+published.PostID.String(), map[string]any{"following": true, "expected_revision": 0}, 200, "")
+	rel := request("GET", other, social+"targets/novel/"+book.String(), nil, 200, "")
+	if !bytes.Contains(rel.Body.Bytes(), []byte(`"following":true`)) {
+		t.Fatal("book and post should share the author's relationship")
+	}
+	feed := request("GET", other, social+"feed", nil, 200, "").Body.Bytes()
+	if !bytes.Contains(feed, []byte(book.String())) || !bytes.Contains(feed, []byte(published.PostID.String())) {
+		t.Fatal("missing book or post in feed")
+	}
+	withoutPosts := request("GET", other, social+"feed?include_posts=false", nil, 200, "").Body.Bytes()
+	if bytes.Contains(withoutPosts, []byte(published.PostID.String())) || !bytes.Contains(withoutPosts, []byte(book.String())) {
+		t.Fatal("feed ignored client post availability")
+	}
+	setHidden(true)
+	feed = request("GET", other, social+"feed", nil, 200, "").Body.Bytes()
+	if bytes.Contains(feed, []byte(book.String())) || !bytes.Contains(feed, []byte(published.PostID.String())) {
+		t.Fatal("hidden book should not hide public post")
+	}
+	setHidden(false)
 	if published.Status != "published" || published.PreviewID != preview.ID || published.PostID == uuid.Nil {
 		t.Fatal("incorrect published receipt")
 	}

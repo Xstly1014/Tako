@@ -18,6 +18,8 @@ func publicationError(c *gin.Context, e error) {
 		c.Header("Retry-After", "60")
 	case errors.Is(e, publication.ErrCommentConflict):
 		status, code = 409, "comment_conflict"
+	case errors.Is(e, publication.ErrFollowConflict):
+		status, code = 409, "follow_conflict"
 	case errors.Is(e, publication.ErrFavoriteConflict):
 		status, code = 409, "favorite_conflict"
 	case errors.Is(e, publication.ErrCurationConflict):

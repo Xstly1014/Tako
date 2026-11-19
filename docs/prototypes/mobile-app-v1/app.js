@@ -4,7 +4,20 @@
   var $ = function (id) { return document.getElementById(id); };
   var screens = { splash: $('scr-splash'), login: $('scr-login'), onboard: $('scr-onboard'), app: $('scr-app') };
   var state = { pref: null, guest: false, homeTab: null, page: 'home', query: '', followOnly: false, cate: null };
-  var liked = {}, faved = {}, followed = {};
+  var liked = {}, faved = {}, followed = { '旧巷口': true }, trackedBooks = {};
+  window.TakoDemoAuthors = {
+    following: function () { return Object.keys(followed).filter(function (name) { return followed[name]; }); },
+    has: function (name) { return !!followed[name]; },
+    works: function (name) { return POOL.concat(NOVELS).filter(function (item) { return item.a === name; }); },
+    set: function (name, value) {
+      followed[name] = value;
+      $('me-follow-count').textContent = this.following().length;
+      if (readerItem) syncReaderBtns();
+      if (detailItem) syncDetailBar();
+      rerenderCurrent();
+    }
+  };
+  function requestFollow(name) { document.dispatchEvent(new CustomEvent('tako:follow-request', {detail: name})); }
 
   function show(name) {
     Object.keys(screens).forEach(function (k) { screens[k].hidden = k !== name; });
@@ -248,7 +261,7 @@
   $('reader-close').addEventListener('click', function () { $('reader-sheet').hidden = true; });
   $('reader-like').addEventListener('click', function () { if (!readerItem) return; liked[readerItem.id] = !liked[readerItem.id]; syncReaderBtns(); rerenderCurrent(); });
   $('reader-fav').addEventListener('click', function () { if (!readerItem) return; faved[readerItem.id] = !faved[readerItem.id]; syncReaderBtns(); rerenderCurrent(); });
-  $('reader-follow').addEventListener('click', function () { if (!readerItem) return; followed[readerItem.a] = !followed[readerItem.a]; syncReaderBtns(); renderNovel(); });
+  $('reader-follow').addEventListener('click', function () { if (!readerItem) return; requestFollow(readerItem.a); });
 
   /* ---------- 短内容详情页：整页推入 + 两级评论 ---------- */
   /* 评论为业务提案（后端未实现）：两级=楼主评论→回复；回复的回复平铺并 @被回复人 */
@@ -357,7 +370,7 @@
   $('dt-back').addEventListener('click', function () { $('page-detail').hidden = true; rerenderCurrent(); });
   $('dt-like').addEventListener('click', function () { liked[detailItem.id] = !liked[detailItem.id]; syncDetailBar(); });
   $('dt-fav').addEventListener('click', function () { faved[detailItem.id] = !faved[detailItem.id]; syncDetailBar(); });
-  $('dt-follow').addEventListener('click', function () { followed[detailItem.a] = !followed[detailItem.a]; syncDetailBar(); });
+  $('dt-follow').addEventListener('click', function () { requestFollow(detailItem.a); });
   $('dt-cmt').addEventListener('click', function () {
     $('dt-comments').scrollIntoView({ behavior: 'smooth' });
     $('dt-input').focus();
@@ -464,7 +477,7 @@
     }
     function rowHtml(d) {
       return '<article data-open="' + d.id + '"><i class="cover ' + d.cv + '"></i><div><strong>' + esc(d.t) +
-        '<button type="button" class="n-follow' + (followed[d.a] ? ' on' : '') + '" data-follow="' + esc(d.a) + '">' + (followed[d.a] ? '已追更' : '追更') + '</button></strong>' +
+        '<button type="button" class="n-follow' + (trackedBooks[d.id] ? ' on' : '') + '" data-follow="' + esc(d.id) + '">' + (trackedBooks[d.id] ? '已追更' : '追更') + '</button></strong>' +
         '<p>' + esc(d.excerpt) + '</p>' +
         '<span class="n-meta">' + esc(d.genre) + ' · ' + (d.words / 10000).toFixed(0) + ' 万字 · ' + d.chapters + ' 章 · ' + d.upd + '<em>口碑 ' + d.praise.toFixed(1) + '</em></span></div></article>';
     }
@@ -547,8 +560,8 @@
   $('view-novel').addEventListener('click', function (e) {
     var f = e.target.closest('.n-follow');
     if (f) {
-      var name = f.getAttribute('data-follow');
-      followed[name] = !followed[name];
+      var bookId = f.getAttribute('data-follow');
+      trackedBooks[bookId] = !trackedBooks[bookId];
       renderNovel();
       return;
     }

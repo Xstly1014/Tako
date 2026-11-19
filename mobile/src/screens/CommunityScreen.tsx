@@ -152,8 +152,8 @@ export default function Community() {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="仅展示已关注作者，尚未开放"
-          onPress={() => unavailable("关注筛选")}
+          accessibilityLabel="查看关注动态"
+          onPress={() => router.push("/author-social")}
           style={s.follow}
         >
           <Icon name="dots" size={16} />

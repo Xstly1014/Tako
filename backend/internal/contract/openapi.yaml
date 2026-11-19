@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tako 创作 API
-  version: 0.39.0
+  version: 0.40.0
   description: |
     私有测试阶段。A 核心链路已验收，两项真机补测搁置。B1 发布与阅读受 PUBLICATION_ENABLED 开关控制，默认关闭；不代表完整 B 已交付。
     Cookie 会话由当前启用的登录方式建立，浏览器不得手动填写会话令牌。
@@ -19,6 +19,104 @@ security:
   - session: []
   - appSession: []
 paths:
+  /api/my/author-social/targets/{kind}/{id}:
+    get:
+      operationId: getMyAuthorFollow
+      summary: 从当前可读作品或本人关系列表核对关注状态
+      description: 三种内容共用同一作者关系。relation 标识仅对发起关注的本人有效。
+      parameters:
+        - {"name":"kind","in":"path","required":true,"schema":{"type":"string","enum":["work","novel","post","relation"]}}
+        - {"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}
+      responses:
+        '200':
+          description: Successful read or confirmed relationship state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorFollowState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    put:
+      operationId: setMyAuthorFollow
+      summary: 关注作品作者或取消关注
+      description: 新关注需要昵称并禁止关注自己。仅根据会话和公开作品解析作者。旧 revision 返回 follow_conflict。作品下架后仍可使用本人 relation 取消，relation 不能用于新增关注。
+      parameters:
+        - {"name":"kind","in":"path","required":true,"schema":{"type":"string","enum":["work","novel","post","relation"]}}
+        - {"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthorFollowChange'}
+      responses:
+        '200':
+          description: Successful read or confirmed relationship state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorFollowState'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/NotJSON'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/author-social/following:
+    get:
+      operationId: listMyAuthorFollowing
+      summary: 列出我关注的作者和当前关注总数
+      parameters:
+        - {"name":"cursor","in":"query","required":false,"schema":{"type":"string","maxLength":512}}
+      responses:
+        '200':
+          description: Successful read or confirmed relationship state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FollowPeoplePage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/author-social/followers:
+    get:
+      operationId: listMyAuthorFollowers
+      summary: 列出关注我的读者昵称和当前粉丝总数
+      description: 仅限会话本人查看，以新增关注时间倒序分页。返回关系标识，不包含粉丝账号标识或邮箱。
+      parameters:
+        - {"name":"cursor","in":"query","required":false,"schema":{"type":"string","maxLength":512}}
+      responses:
+        '200':
+          description: Successful read or confirmed relationship state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FollowPeoplePage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/my/author-social/feed:
+    get:
+      operationId: listMyAuthorFeed
+      summary: 读取本人关注作者当前可读的作品，按展示版本或可读章更新时间排序
+      parameters:
+        - {name: include_posts, in: query, schema: {type: boolean, default: true}, description: 关闭时排除短帖。测试环境之外始终排除短帖。}
+        - {"name":"cursor","in":"query","required":false,"schema":{"type":"string","maxLength":512}}
+      responses:
+        '200':
+          description: Successful read or confirmed relationship state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FollowFeedPage'}
+        '400': {$ref: '#/components/responses/BadInput'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/OriginRejected'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/my/short-posts/{id}/appeals:
     get:
       operationId: listMyShortPostAppeals
@@ -7429,6 +7527,111 @@ components:
     appSession: {type: http, scheme: bearer, bearerFormat: tako_app_, description: 原生专用随机会话；不能混用 Cookie 或 Origin，不接受 Web 会话作为 Bearer}
     session: {type: apiKey, in: cookie, name: tako_session}
   schemas:
+    AuthorFollowState:
+      type: object
+      additionalProperties: false
+      required:
+        - following
+        - own
+        - revision
+      properties:
+        following:
+          type: boolean
+        own:
+          type: boolean
+        revision:
+          type: integer
+          minimum: 0
+    AuthorFollowChange:
+      type: object
+      additionalProperties: false
+      required:
+        - following
+        - expected_revision
+      properties:
+        following:
+          type: boolean
+        expected_revision:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740990
+    FollowPerson:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nickname
+        - revision
+        - followed_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Opaque relationship ID
+        nickname:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        followed_at:
+          type: string
+          format: date-time
+    FollowFeedItem:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - id
+        - title
+        - author
+        - updated_at
+      properties:
+        kind:
+          type: string
+          enum:
+            - work
+            - novel
+            - post
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        author:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    FollowPeoplePage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+        - total
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FollowPerson'
+        next_cursor:
+          type: string
+    FollowFeedPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FollowFeedItem'
+        next_cursor:
+          type: string
     "ShortPostReportEvidence": {
       "type": "object",
       "additionalProperties": false,
@@ -9649,7 +9852,7 @@ components:
       properties:
         error:
           type: string
-          enum: [novel_shelf_conflict, reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, invalid_image, image_type_unsupported, image_too_large, image_upload_busy, image_quota_reached, short_post_image_unavailable, short_post_novel_unavailable, short_post_preview_quota_reached, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
+          enum: [follow_conflict, novel_shelf_conflict, reading_position_conflict, completion_check_expired, novel_state_conflict, novel_restricted, chapter_preview_expired, chapter_publication_conflict, novel_revision_conflict, comment_conflict, reading_context_invalid, favorite_conflict, curation_conflict, invalid_login, invalid_password, account_exists, password_already_set, auth_method_disabled, invalid_input, authentication_required, origin_rejected, draft_not_found, revision_conflict, mutation_id_reused, delivery_id_reused, nickname_required, payload_too_large, json_required, invalid_image, image_type_unsupported, image_too_large, image_upload_busy, image_quota_reached, short_post_image_unavailable, short_post_novel_unavailable, short_post_preview_quota_reached, rate_limited, mail_unavailable, service_unavailable, internal_error, resource_not_found, source_revision_unavailable, preview_expired, publication_conflict, unsupported_publication_state, publication_disabled, work_state_conflict, version_unavailable, work_restricted, operator_required, review_conflict, appeal_pending, appeal_cooldown]
         request_id: {type: string, format: uuid}
     CreateDraft:
       type: object

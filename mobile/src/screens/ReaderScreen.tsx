@@ -22,7 +22,8 @@ import {
   type PublicWork,
 } from "../api/reader";
 import { Brand, Status } from "../components/Ui";
-import { FutureAction, Icon, unavailable } from "../components/PrototypeUi";
+import { AuthorFollowButton } from "../components/AuthorFollowButton";
+import { FutureAction, Icon } from "../components/PrototypeUi";
 import { theme as t } from "../theme";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { CommentsPanel } from "../components/CommentsPanel";
@@ -111,14 +112,7 @@ function ReaderContent({ id }: { id: string }) {
             <View style={s.authorRow}>
               <View style={s.avatar} />
               <Text style={s.author}>{work.author_nickname}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="关注，尚未开放"
-                onPress={() => unavailable("关注")}
-                style={s.follow}
-              >
-                <Text style={s.followText}>关注</Text>
-              </Pressable>
+              <AuthorFollowButton kind="work" id={id} />
             </View>
             <Text selectable accessibilityRole="header" style={s.title}>
               {work.title}
@@ -238,14 +232,6 @@ const s = StyleSheet.create({
     backgroundColor: "#7ea0f5",
   },
   author: { flex: 1, fontSize: 14, fontWeight: "600", color: t.ink },
-  follow: {
-    borderWidth: 1,
-    borderColor: t.line,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  followText: { fontSize: 12, color: t.brand },
   title: {
     fontSize: 18,
     lineHeight: 27,

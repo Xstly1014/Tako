@@ -123,10 +123,11 @@ export default function Account() {
             <Text style={s.statTitle}>收藏</Text>
             <Text style={s.meta}>查看收藏</Text>
           </Pressable>
-          <Pressable onPress={() => unavailable("关注")}>
-            <Text style={s.statTitle}>关注</Text>
-            <Text style={s.meta}>尚未开放</Text>
-          </Pressable>
+          {(["following","followers"] as const).map(tab => <Pressable key={tab} accessibilityRole="button"
+            onPress={() => phase === "ready" ? router.push({pathname:"/author-social",params:{tab}}) : setSheet(true)}>
+            <Text style={s.statTitle}>{tab === "following" ? "关注" : "粉丝"}</Text>
+            <Text style={s.meta}>{tab === "following" ? "我的关注" : "我的粉丝"}</Text>
+          </Pressable>)}
         </View>
         {phase === "loading" ? (
           <ActivityIndicator color={t.brand} />

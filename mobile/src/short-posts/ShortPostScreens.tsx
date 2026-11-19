@@ -20,6 +20,7 @@ import { BottomNavigation } from "../components/PrototypeUi";
 import { Action, Status } from "../components/Ui";
 import { mergeReadingItems } from "../novels/reading-model";
 import { theme as t } from "../theme";
+import { AuthorFollowButton } from "../components/AuthorFollowButton";
 import { shortPostsTrial } from "./trial";
 
 function useRequest() {
@@ -209,12 +210,12 @@ function ShortPostFeedContent() {
 }
 
 export function ShortPostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   if (!shortPostsTrial) return <Redirect href="/community" />;
-  return <ShortPostDetail key={id} id={typeof id === "string" ? id : ""} />;
+  return <ShortPostDetail key={id} fromFeed={from === "author-feed"} id={typeof id === "string" ? id : ""} />;
 }
 
-function ShortPostDetail({ id }: { id: string }) {
+function ShortPostDetail({ id, fromFeed }: { id: string; fromFeed: boolean }) {
   const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const [read, setRead] = useState<{ post: ShortPost; imageReadId: string }>();
   const { run, busy, error } = useRequest();
@@ -232,12 +233,13 @@ function ShortPostDetail({ id }: { id: string }) {
   return (
     <SafeAreaView style={s.screen}>
       <View style={s.toolbar}>
-        <InlineAction label="返回短内容" onPress={() => router.dismissTo("/short-community")} />
+        <InlineAction label={fromFeed ? "返回关注动态" : "返回短内容"} onPress={() => router.dismissTo(fromFeed ? "/author-social" : "/short-community")} />
       </View>
       {post && read ? (
         <ScrollView ref={scroller} contentContainerStyle={s.detail}>
           <View style={s.byline}>
             <Text style={s.label}>{post.author}</Text>
+            <AuthorFollowButton kind="post" id={post.id} />
             <Text style={s.muted}>{new Date(post.published_at).toLocaleDateString("zh-CN")}</Text>
           </View>
           <Text accessibilityRole="header" style={s.title}>{post.title}</Text>

@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+"/api/my/author-social/targets/{kind}/{id}": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    get: operations["getMyAuthorFollow"];
+    put: operations["setMyAuthorFollow"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/my/author-social/following": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    get: operations["listMyAuthorFollowing"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/my/author-social/followers": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    get: operations["listMyAuthorFollowers"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
+"/api/my/author-social/feed": {
+    parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    get: operations["listMyAuthorFeed"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+};
+
   "/api/my/short-posts/{id}/appeals": {
     parameters: {
       query?: never;
@@ -3873,6 +3941,43 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+AuthorFollowState: {
+    following: boolean;
+    own: boolean;
+    revision: number;
+};
+
+AuthorFollowChange: {
+    following: boolean;
+    expected_revision: number;
+};
+
+FollowPerson: {
+    id: string;
+    nickname: string;
+    revision: number;
+    followed_at: string;
+};
+
+FollowFeedItem: {
+    kind: "work" | "novel" | "post";
+    id: string;
+    title: string;
+    author: string;
+    updated_at: string;
+};
+
+FollowPeoplePage: {
+    total: number;
+    items: components["schemas"]["FollowPerson"][];
+    next_cursor: string;
+};
+
+FollowFeedPage: {
+    items: components["schemas"]["FollowFeedItem"][];
+    next_cursor: string;
+};
+
 ShortPostReportEvidence: {
     title: string;
     content: string;
@@ -5201,60 +5306,8 @@ ResolveShortPostReport: {
       nickname: string;
     };
     Error: {
-      /** @enum {string} */
-      error:
-        | "novel_shelf_conflict"
-        | "reading_position_conflict"
-        | "completion_check_expired"
-        | "novel_state_conflict"
-        | "novel_restricted"
-        | "chapter_preview_expired"
-        | "chapter_publication_conflict"
-        | "novel_revision_conflict"
-        | "comment_conflict"
-        | "reading_context_invalid"
-        | "favorite_conflict"
-        | "curation_conflict"
-        | "invalid_login"
-        | "invalid_password"
-        | "account_exists"
-        | "password_already_set"
-        | "auth_method_disabled"
-        | "invalid_input"
-        | "authentication_required"
-        | "origin_rejected"
-        | "draft_not_found"
-        | "revision_conflict"
-        | "mutation_id_reused"
-        | "delivery_id_reused"
-        | "nickname_required"
-        | "payload_too_large"
-        | "json_required"
-        | "invalid_image"
-        | "image_type_unsupported"
-        | "image_too_large"
-        | "image_upload_busy"
-        | "image_quota_reached"
-        | "short_post_image_unavailable"
-        | "short_post_novel_unavailable"
-        | "short_post_preview_quota_reached"
-        | "rate_limited"
-        | "mail_unavailable"
-        | "service_unavailable"
-        | "internal_error"
-        | "resource_not_found"
-        | "source_revision_unavailable"
-        | "preview_expired"
-        | "publication_conflict"
-        | "unsupported_publication_state"
-        | "publication_disabled"
-        | "work_state_conflict"
-        | "version_unavailable"
-        | "work_restricted"
-        | "operator_required"
-        | "review_conflict"
-        | "appeal_pending"
-        | "appeal_cooldown";
+error: "follow_conflict" | "novel_shelf_conflict" | "reading_position_conflict" | "completion_check_expired" | "novel_state_conflict" | "novel_restricted" | "chapter_preview_expired" | "chapter_publication_conflict" | "novel_revision_conflict" | "comment_conflict" | "reading_context_invalid" | "favorite_conflict" | "curation_conflict" | "invalid_login" | "invalid_password" | "account_exists" | "password_already_set" | "auth_method_disabled" | "invalid_input" | "authentication_required" | "origin_rejected" | "draft_not_found" | "revision_conflict" | "mutation_id_reused" | "delivery_id_reused" | "nickname_required" | "payload_too_large" | "json_required" | "invalid_image" | "image_type_unsupported" | "image_too_large" | "image_upload_busy" | "image_quota_reached" | "short_post_image_unavailable" | "short_post_novel_unavailable" | "short_post_preview_quota_reached" | "rate_limited" | "mail_unavailable" | "service_unavailable" | "internal_error" | "resource_not_found" | "source_revision_unavailable" | "preview_expired" | "publication_conflict" | "unsupported_publication_state" | "publication_disabled" | "work_state_conflict" | "version_unavailable" | "work_restricted" | "operator_required" | "review_conflict" | "appeal_pending" | "appeal_cooldown";
+
       /** Format: uuid */
       request_id: string;
     };
@@ -5690,6 +5743,151 @@ ResolveShortPostReport: {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+getMyAuthorFollow: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            kind: "work" | "novel" | "post" | "relation";
+            id: string;
+        };
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["AuthorFollowState"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+setMyAuthorFollow: {
+    parameters: {
+        query?: never;
+        header?: never;
+        path: {
+            kind: "work" | "novel" | "post" | "relation";
+            id: string;
+        };
+        cookie?: never;
+    };
+    requestBody: {
+        content: {
+            "application/json": components["schemas"]["AuthorFollowChange"];
+        };
+    };
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["AuthorFollowState"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+        413: components["responses"]["TooLarge"];
+        415: components["responses"]["NotJSON"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+listMyAuthorFollowing: {
+    parameters: {
+        query?: {
+            cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["FollowPeoplePage"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+listMyAuthorFollowers: {
+    parameters: {
+        query?: {
+            cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["FollowPeoplePage"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
+listMyAuthorFeed: {
+    parameters: {
+        query?: {
+            include_posts?: boolean;
+            cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+        200: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["FollowFeedPage"];
+            };
+        };
+        400: components["responses"]["BadInput"];
+        401: components["responses"]["Unauthorized"];
+        403: components["responses"]["OriginRejected"];
+        404: components["responses"]["NotFound"];
+        503: components["responses"]["Unavailable"];
+    };
+};
+
   listMyShortPostAppeals: {
     parameters: {
       query?: {
