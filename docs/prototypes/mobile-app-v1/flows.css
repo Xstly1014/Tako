@@ -55,3 +55,22 @@
 .work-group .flow-row{padding:12px 2px}.work-group .flow-row strong{font-size:15px}.work-group .flow-row small{color:#687184;font-size:12px}
 .work-visibility{margin-top:18px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:52px;font-size:13px;color:#4a5162}
 .work-visibility small{font-size:12px;color:#687184}.work-danger{color:#b33939}
+.work-item{gap:10px}.work-item-end{display:flex;flex:none;align-items:center;gap:8px}
+.work-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:5px;color:#586170;background:#f1f3f7;font-size:11px;font-weight:600;line-height:1.55}
+.work-badge.is-public{color:#356451;background:#edf5f0}.work-badge.is-limited{color:#984f2a;background:#fff0e7}
+.work-count b{font-weight:600;color:#485266;font-variant-numeric:tabular-nums}
+.work-summary{padding:18px 16px;background:#f6f8ff;border:0;border-radius:14px}.work-summary h2{line-height:1.4;margin:7px 0 12px}
+.work-summary-compact h2{font-size:20px;margin-bottom:0}.work-kicker{color:#535d70;line-height:1.5}
+.work-group{margin-top:20px}.work-group h3{padding:0 2px 6px;color:#5e687b}
+.work-group .flow-row{min-height:56px;padding:9px 2px}.work-group .flow-row small{margin-top:2px}
+.work-group .work-revise{padding:11px 12px;margin:2px 0 4px;border:1px solid #e1e9ff;border-radius:10px;background:#f6f8ff;color:var(--blue)}
+.work-group .work-revise:active{background:#e8eeff}.work-group .work-revise .arrow{color:var(--blue)}
+.work-visibility{margin-top:4px}
+.version-label{color:#687184;font-size:12px;font-weight:400;margin-left:8px}
+.version-tabs{position:sticky;top:-16px;z-index:1;display:flex;gap:4px;padding:4px;background:#f1f3f8;border-radius:10px}
+.version-tabs button{flex:1;min-height:42px;border-radius:7px;font-size:13px;color:#535d70;padding:4px}
+.version-tabs button[aria-pressed=true]{background:#fff;color:var(--blue)}.version-tabs b{font-weight:600;margin-left:3px}
+.version-reading{padding:18px 4px 12px}.version-reading .flow-article{font-size:16px}.version-reading h2{margin-bottom:0}
+.version-footer{position:sticky;bottom:-16px;background:#fff;border-top:1px solid var(--line);padding:10px 0;margin:8px 0 -16px}
+.version-footer .btn-primary,.version-footer .flow-status{margin:0}
+@media(max-width:350px){.work-item-end{gap:4px}.work-item-meta{gap:4px 8px}.work-item-main strong{font-size:15px}}

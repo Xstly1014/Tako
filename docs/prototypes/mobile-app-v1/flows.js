@@ -51,7 +51,7 @@
     { title:'合租屋的第七个室友是猫', hidden:false, limited:true, display:2, history:false, comments:0, favorites:0, genre:'日常', body:'签合同的时候中介没说屋里已经有住户。它蹲在窗台上，尾巴扫过我的行李箱。' },
   ];
   const workQuery = { text:'', author:'all', platform:'all' };
-  let candidateVersion = 1;
+  let candidateVersion = 1, comparisonPane = 'candidate';
   const authorLabels = { all:'全部', yes:'已隐藏', no:'未隐藏' };
   const platformLabels = { all:'全部', yes:'受限', no:'未受限' };
   function workStatus(work) {
@@ -60,7 +60,8 @@
     if (work.limited) return '平台受限';
     return '公开中';
   }
-  const workStats = work => `评论 ${work.comments}　收藏 ${work.favorites}`;
+  const workStats = work => `<span class="work-count"><b>${work.comments}</b> 评论</span><span class="work-count"><b>${work.favorites}</b> 收藏</span>`;
+  const workBadge = work => `<span class="work-badge ${work.limited?'is-limited':work.hidden?'is-hidden':'is-public'}">${workStatus(work)}</span>`;
   const workTabs = () => choices([['中篇','works'],['短帖','short-works'],['长文','work-books']]);
   function renderWorkCatalog() {
     const filtered = catalog.filter(work =>
@@ -77,39 +78,60 @@
         <button type="submit">搜索</button><button type="button" data-do="work-filter">筛选${filters.length?' · '+filters.length:''}</button>
       </form>
       ${filters.length?`<div class="work-filter-tags">${filters.map(([key,value,labels])=>`<button type="button" data-clear-work="${key}" aria-label="清除${labels[value]}筛选">${labels[value]} ×</button>`).join('')}</div>`:''}
-      <div class="work-list-head"><strong>中篇作品 <small>${filtered.length}</small></strong><button type="button" data-flow="feedback">读者反馈 ›</button></div>
+      <div class="work-list-head"><strong>${workQuery.text||filters.length?'匹配作品':'已发布作品'} <small>${filtered.length}</small></strong><button type="button" data-flow="feedback">读者反馈 ›</button></div>
       ${filtered.length?filtered.map(work=>`<button type="button" class="work-item" data-work="${catalog.indexOf(work)}">
         <span class="work-item-main"><strong>${esc(work.title)}</strong>
-        <span class="work-item-meta"><span class="${work.hidden||work.limited?'':'is-public'}">${workStatus(work)}</span><span>${workStats(work)}</span></span></span>
-        <span class="work-chevron" aria-hidden="true">›</span>
+        <span class="work-item-meta"><span>${esc(work.genre)}</span>${workStats(work)}</span></span>
+        <span class="work-item-end">${workBadge(work)}<span class="work-chevron" aria-hidden="true">›</span></span>
       </button>`).join(''):`<div class="flow-empty"><img src="${art}" alt=""><h3>没有符合条件的作品</h3><button type="button" data-clear-work="all" class="work-text-action">清除搜索和筛选</button></div>`}`;
   }
   const group = (title,content) => `<section class="work-group"><h3>${title}</h3>${content}</section>`;
   page('作品管理','works','我的作品',renderWorkCatalog);
   page('作品管理','work','作品管理',()=>{
     const work=demo.work;
-    return `<div class="work-summary"><div class="work-kicker">中篇 · ${esc(work.genre)}</div>
-      <h2>${esc(work.title)}</h2><div class="work-item-meta"><span>${workStatus(work)}</span><span>${workStats(work)}</span></div></div>
-      ${group('内容',`<button type="button" class="flow-row" data-do="revise-selected"><span><strong>修订发行</strong><small>编辑工作稿，新版本需另行发布</small></span><span class="arrow" aria-hidden="true">›</span></button>`+row('内容与版本','查看正式正文，调整读者看到的版本','versions'))}
-      ${group('读者与记录',row('读者反馈','查看这部作品的讨论','feedback-thread')+row('提交记录','核对首发与修订结果','submissions')+row('管理记录','查看展示及公开状态变更','history')+row('处置与复核','查看限制原因与复核进度','moderation'))}
-      <div class="work-visibility"><span>公开设置</span>${work.hidden&&work.limited?'<small>平台限制解除后才可恢复公开</small>':act(work.hidden?'恢复公开':'隐藏作品','toggle-hidden','work-text-action'+(work.hidden?'':' work-danger'))}</div>`;
+    return `<header class="work-summary"><div class="work-kicker">中篇 · ${esc(work.genre)}</div>
+      <h2>${esc(work.title)}</h2><div class="work-item-meta">${workBadge(work)}${workStats(work)}</div></header>
+      ${group('编辑与发布',`<button type="button" class="flow-row work-revise" data-do="revise-selected"><span><strong>修订发行</strong><small>继续编辑工作稿</small></span><span class="arrow" aria-hidden="true">›</span></button>`+row('正式版本',`当前展示 V${work.display} · 查看和切换`,'versions'))}
+      ${group('读者与记录',row('作品反馈',work.hidden||work.limited?'当前不可访问':work.comments+' 条评论','work-feedback-entry')+row('提交记录','首发与修订结果','submissions')+row('管理记录','公开状态与展示变更','history'))}
+      ${group('公开设置',row('处置与复核',work.limited?'平台限制中':'查看处置记录','work-moderation'))}
+      <div class="work-visibility"><span>${work.hidden?'读者无法访问':'作者公开设置'}</span>${work.hidden&&work.limited?'<small>平台限制解除后才可恢复公开</small>':act(work.hidden?'恢复公开':'隐藏作品','toggle-hidden','work-text-action'+(work.hidden?'':' work-danger'))}</div>`;
   });
-  page('作品管理','versions','内容与版本',()=>{
+  page('作品管理','work-feedback-entry','作品反馈',()=>{
     const work=demo.work;
-    return `<div class="work-summary"><h2>${esc(work.title)}</h2><p class="flow-caption">当前展示 V${work.display}</p></div>
-      ${group('正式版本',[2,1].map(version=>`<button type="button" class="flow-row" data-version-choice="${version}"><span><strong>V${version} · ${version===work.display?'当前展示':'正式版本'}</strong><small>${version===work.display?'查看完整正文':'核对全文并比较当前展示版'}</small></span><span class="work-chevron" aria-hidden="true">›</span></button>`).join(''))}
-      <div class="work-visibility"><span>历史正文 · ${work.history?'已开放':'未开放'}</span>${act(work.history?'关闭':'开放','history-access','work-text-action')}</div>`;
+    if(work.hidden||work.limited)return empty('暂不可查看反馈','作品隐藏或受限期间，讨论入口关闭。');
+    if(!work.comments)return empty('还没有评论','有读者留言后会显示在这里。');
+    return pages['feedback-thread'].body();
+  });
+  page('作品管理','work-moderation','处置与复核',()=>demo.work.limited
+    ?row(demo.work.title,'平台限制中','case')
+    :empty('没有处置记录','平台作出处置后，可在这里核对原因及复核资格。'));
+  page('作品管理','versions','正式版本',()=>{
+    const work=demo.work;
+    return `<div class="work-summary work-summary-compact"><div class="work-kicker">${esc(work.title)}</div><h2>当前展示 V${work.display}</h2></div>
+      ${group('版本记录',[2,1].map(version=>`<button type="button" class="flow-row" data-version-choice="${version}"><span><strong>V${version}<span class="version-label">${version===work.display?'当前展示':version===2?'最新正式版':'初版'}</span></strong><small>${version===work.display?'阅读正式正文':'对照后可切换展示'}</small></span><span class="work-chevron" aria-hidden="true">›</span></button>`).join(''))}
+      <div class="work-visibility"><span>读者可查看历史版本</span>${act(work.history?'已开放':'未开放','history-access','work-text-action')}</div>`;
   });
   function versionArticle(version) {
     const work=demo.work;
-    return article(work.title,version===1?('初版 · '+(work.body||excerpt)):(work.body||excerpt));
+    const full=work.body||excerpt;
+    const initial=full.split(/\n\n|(?<=。)/).filter(Boolean).slice(0,2).join('\n\n');
+    return `<div class="version-reading"><h2>${esc(work.title)}</h2><div class="flow-article">${esc(version===1?initial:full)}</div></div>`;
   }
-  page('作品管理','compare-current','当前展示全文',()=>`${info('当前展示 V'+demo.work.display)}${versionArticle(demo.work.display)}${candidateVersion!==demo.work.display?button('返回候选版','compare-candidate','btn-ghost'):''}`);
-  page('作品管理','compare-candidate','核对候选版',()=>`${info('当前展示 V'+demo.work.display+' → 候选 V'+candidateVersion)}${button('查看当前展示全文','compare-current','btn-ghost')}${versionArticle(candidateVersion)}${demo.work.limited||demo.work.hidden?info('当前作品不可切换公开展示。'):act('将 V'+candidateVersion+' 设为展示版','switch-version')}`);
+  page('作品管理','compare-current','当前展示全文',()=>`${info('当前展示 V'+demo.work.display)}${versionArticle(demo.work.display)}`);
+  page('作品管理','compare-candidate','核对展示版本',()=>{
+    const work=demo.work;
+    const version=comparisonPane==='current'?work.display:candidateVersion;
+    return `<div class="version-tabs" role="group" aria-label="对照版本">
+      <button type="button" data-compare="current" aria-pressed="${comparisonPane==='current'}">当前展示 <b>V${work.display}</b></button>
+      <button type="button" data-compare="candidate" aria-pressed="${comparisonPane==='candidate'}">候选版本 <b>V${candidateVersion}</b></button>
+      </div>${versionArticle(version)}
+      <div class="version-footer">${work.limited||work.hidden?info('当前作品不可切换公开展示。'):act('将 V'+candidateVersion+' 设为展示版','switch-version')}</div>`;
+  });
   page('作品管理','history','管理记录',()=>`${(demo.work.events||[]).length?demo.work.events.map(text=>`<div class="flow-row"><span><strong>${esc(text)}</strong><small>本次预览会话</small></span></div>`).join(''):empty('还没有管理记录','切换展示或修改公开状态后，记录会出现在这里。')}`);
-  page('作品管理','feedback','读者反馈',()=>`${choices([['待回应','feedback'],['全部','feedback-all']])}${row('青禾：这个结尾让我想起了回家的路','末班车开往星期八','feedback-thread')}`);
-  page('作品管理','feedback-all','全部反馈',()=>`${row('青禾','末班车开往星期八 · 1 条讨论','feedback-thread')}${row('旧巷口','外婆的裁缝铺 · 2 条讨论','feedback-thread')}`);
-  page('作品管理','feedback-thread','作品讨论',()=>`<h3>${esc(demo.work.title)}</h3>${demo.feedback.map((text,i)=>`<div class="cmt"><i></i><div class="cmt-main"><div class="cmt-head"><strong>${i?'我 · 作者':'青禾'}</strong></div><p class="cmt-text">${esc(text)}</p>${i?`<button class="cmt-del" data-delete-reply="${i}">删除</button>`:''}</div></div>`).join('')}${field('回复青禾','reply','写下回复…','textarea')}${act('发表演示回复','reply')}`);
+  page('作品管理','feedback','读者反馈',()=>`${choices([['待回应','feedback'],['全部','feedback-all']])}${row('青禾：这个结尾让我想起了回家的路','末班车开往星期八','feedback-thread',0)}`);
+  page('作品管理','feedback-all','全部反馈',()=>`${row('青禾','末班车开往星期八 · 1 条讨论','feedback-thread',0)}${row('旧巷口','外婆的裁缝铺 · 2 条讨论','feedback-thread',1)}`);
+  const workReplies = () => demo.work.replies ??= [demo.work===catalog[0]?demo.feedback[0]:'读完了，最喜欢这一篇的结尾。'];
+  page('作品管理','feedback-thread','作品讨论',()=>`<h3>${esc(demo.work.title)}</h3>${workReplies().map((text,i)=>`<div class="cmt"><i></i><div class="cmt-main"><div class="cmt-head"><strong>${i?'我 · 作者':'青禾'}</strong></div><p class="cmt-text">${esc(text)}</p>${i?`<button class="cmt-del" data-delete-reply="${i}">删除</button>`:''}</div></div>`).join('')}${field('回复青禾','reply','写下回复…','textarea')}${act('发表演示回复','reply')}`);
   page('作品管理','short-works','我的短帖',()=>`<div class="work-tabs">${workTabs()}</div>${row(forms['edit-short']?.title||'秋招不知道第几天','公开中','short-manage')}`);
   page('作品管理','work-books','我的长文',()=>`<div class="work-tabs">${workTabs()}</div>${row('穿越龙族的日常生活','连载中 · 42 章','book-manage')}${row('私密新书','尚未发行 · 章节草稿','book-drafts')}`);
   page('作品管理','short-manage','短帖管理',()=>`<h2>${esc(forms['edit-short']?.title||'秋招不知道第几天')}</h2>${photos()}${row('修订图文','固定原文字与图片顺序','edit-short')}${row('正式版本','核对原图文后切换','short-versions')}${row('提交记录','首发与历次修订','submissions')}${row('处置与复核','原处置和申请','moderation')}${act('隐藏短帖','hide-short','flow-danger')}`);
@@ -256,7 +278,7 @@
       });
       return;
     }
-    if(key==='reply'){if(required(['reply'])){demo.feedback.push(forms[current].reply);forms[current].reply='';draw()}return}
+    if(key==='reply'){if(required(['reply'])){workReplies().push(forms[current].reply);forms[current].reply='';draw()}return}
     if(key==='new-book'){if(required(['title']))open('book-drafts');return}
     if(key==='save-book'){if(required(['title'])){open('book-drafts');toast('演示资料已保存')}return}
     if(key==='notice-preview'){if(required(['title','body']))open('notice-preview');return}
@@ -318,13 +340,13 @@
   }});
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b){if(e.target===overlay)closeDialog();return}
-    if(b.dataset.flow){if(b.dataset.flow==='report'&&['read-mid','read-short'].includes(current))demo.source=current==='read-mid'?{id:'m1',title:demo.work.title,kind:'mid',version:demo.work.display}:{id:'s1',title:'秋招不知道第几天',kind:'short',version:2};if(b.dataset.index!==undefined)demo.selectedReport=Number(b.dataset.index);if(current==='custom-work')demo.custom={title:b.querySelector('strong').textContent};open(b.dataset.flow,!current);return}
+    if(b.dataset.flow){if(b.dataset.flow==='report'&&['read-mid','read-short'].includes(current))demo.source=current==='read-mid'?{id:'m1',title:demo.work.title,kind:'mid',version:demo.work.display}:{id:'s1',title:'秋招不知道第几天',kind:'short',version:2};if(b.dataset.index!==undefined){if(b.dataset.flow==='feedback-thread')demo.work=catalog[Number(b.dataset.index)];else demo.selectedReport=Number(b.dataset.index);}if(current==='custom-work')demo.custom={title:b.querySelector('strong').textContent};open(b.dataset.flow,!current);return}
     if(b.dataset.do){perform(b.dataset.do);return}
     if(b.hasAttribute('data-confirm')){const fn=confirmAction;closeDialog();fn?.();return}
     if(b.hasAttribute('data-close-flow-dialog')){closeDialog();return}
     if(b.dataset.tag){forms.prepublish??={};forms.prepublish.tag=b.dataset.tag;closeDialog();toast('已选择 '+b.dataset.tag);return}
     if(b.hasAttribute('data-remove-photo')){const i=Number(b.dataset.removePhoto);demo.photos.splice(i,1);draw();return}
-    if(b.hasAttribute('data-delete-reply')){const i=Number(b.dataset.deleteReply);confirm('删除这条回复？','原型中删除的示例回复将消失。','删除',()=>{demo.feedback.splice(i,1);draw()});return}
+    if(b.hasAttribute('data-delete-reply')){const i=Number(b.dataset.deleteReply);confirm('删除这条回复？','原型中删除的示例回复将消失。','删除',()=>{workReplies().splice(i,1);draw()});return}
     if(b.hasAttribute('data-select-sku')){const n=Number($('flow-qty').value);if(!Number.isInteger(n)||n<1||n>9){$('flow-sku-error').textContent='演示数量为 1 至 9 件。';return}demo.quantity=n;demo.sku=$('flow-sku').value;open('checkout');return}
     if(b.hasAttribute('data-demo-paid')){demo.orders[demo.selectedOrder].status='演示已付款';closeDialog();draw();return}
     if(b.hasAttribute('data-order')){demo.selectedOrder=Number(b.dataset.order);open('order');return}
@@ -349,7 +371,14 @@
       open('work');
       return;
     }
+    if(b.dataset.compare){
+      comparisonPane=b.dataset.compare;
+      draw();
+      document.querySelector('[data-compare="'+comparisonPane+'"]').focus();
+      return;
+    }
     if(b.hasAttribute('data-version-choice')){
+      comparisonPane='candidate';
       candidateVersion=Number(b.dataset.versionChoice);
       open(candidateVersion===demo.work.display?'compare-current':'compare-candidate');
       return;
