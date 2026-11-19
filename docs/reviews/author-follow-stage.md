@@ -22,4 +22,5 @@ API 0.40，迁移 39 新建 `author_follows`。同一读者与作者的关系唯
 | 契约 | 路由覆盖、成功和失败响应校验、App 生成声明与 OpenAPI 一致性通过。 |
 | App | TypeScript、lint、长文章节目录与阅读组件回归通过。Expo 导出 Android Hermes 业务包。 |
 | 常驻本地环境 | 已在核对过环境身份的 3300 测试库执行增量迁移 38 → 39，API、维护进程与网关就绪。使用 App 原生请求客户端和两个既有合成测试账号，完成关注、按昵称查粉丝和总数、从动态定位作品、从名单取消，再读回人数与关系，测试关系已取消。 |
+| Android 安装包 | 业务提交 `7541530` 的四套远程 CI 均已通过。已构建双 ABI 个人测试 APK，`apksigner verify` 通过，包内业务 bundle 含关注接口。本机产物 `.runtime/mobile/follow-apk/tako-author-follow.apk`，SHA-256 `966ec51ad0c3040a3dc4e8146963dbb99ded54173e1d15fff949dea4fafffe75`。 |
 | 设备 | P1 待连接 Android 手机，安装本批测试包，实机核对两账号切换、确认弹窗、动态返回和名单刷新。 |
