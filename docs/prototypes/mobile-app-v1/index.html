@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tako · 移动端 App 原型 V1</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="flows.css?v=1.16">
 </head>
 <body>
 <div class="stage">
@@ -36,7 +37,7 @@
         <button id="btn-open-auth" class="btn-primary" type="button">登录 / 注册</button>
         <button id="btn-guest" class="btn-ghost" type="button">游客访问</button>
       </div>
-      <p class="login-terms">登录即表示同意 <a href="#terms">用户协议与隐私政策</a></p>
+      <p class="login-terms">登录即表示同意 <button type="button" class="flow-author-link" data-flow="legal">用户协议与隐私政策</button></p>
 
       <div id="auth-sheet" class="sheet" role="dialog" aria-label="登录或注册" hidden>
         <div class="sheet-grab" aria-hidden="true"></div>
@@ -196,13 +197,18 @@
         </header>
         <div class="me-stats"><span><b>3</b>作品</span><span><b>12</b>收藏</span><span><b>8</b>关注</span></div>
         <div class="me-menu">
+          <button type="button" data-flow="works">我的作品<span>中篇 / 短帖 / 长文</span></button>
           <button type="button" id="me-shelf">我的书架<span>4 本在读与收藏</span></button>
           <button type="button" id="me-pref">阅读偏好<span id="me-pref-val">短内容</span></button>
-          <button type="button">草稿箱<span>2 篇待继续</span></button>
-          <button type="button">我的收藏<span>12</span></button>
-          <button type="button">设置<span></span></button>
+          <button type="button" data-flow="drafts">草稿箱<span>2 篇待继续</span></button>
+          <button type="button" data-flow="favorite-list">我的收藏<span>12</span></button>
+          <button type="button" data-flow="following">我的关注<span>8</span></button>
+          <button type="button" data-flow="feedback">读者反馈<span>评论与回复</span></button>
+          <button type="button" data-flow="reports">我的举报<span>处理进度</span></button>
+          <button type="button" data-flow="orders">周边订单<span>演示订单</span></button>
+          <button type="button" data-flow="settings">设置<span></span></button>
         </div>
-        <p class="me-note">原型演示：菜单均为静态样稿。</p>
+        <p class="me-note">原型演示：所有数据仅在当前页面会话中保留。</p>
       </div>
 
       <!-- 6 底部导航 -->
@@ -233,6 +239,7 @@
           <button id="reader-close" type="button" aria-label="关闭阅读">×</button>
         </header>
         <div id="reader-body" class="reader-body"></div>
+        <button id="reader-view" type="button" class="btn-ghost">查看详情</button>
         <div class="reader-actions">
           <button id="reader-like" type="button">♡ 赞</button>
           <button id="reader-fav" type="button">☆ 收藏</button>
@@ -262,7 +269,7 @@
           <p class="dt-proposal">原型演示：赞 / 评论 / 关注为业务提案，后端未实现</p>
           <div class="dt-author">
             <i class="dt-ava" aria-hidden="true"></i>
-            <div><strong id="dt-author"></strong><span id="dt-author-sub"></span></div>
+            <div><button id="dt-author" type="button" class="flow-author-link"></button><span id="dt-author-sub"></span></div>
             <button id="dt-follow" type="button" class="n-follow">关注</button>
           </div>
           <h2 id="dt-title"></h2>
@@ -292,7 +299,7 @@
         </div>
         <div id="dt-more-sheet" class="sheet sheet-more" role="dialog" aria-label="更多操作" hidden>
           <div class="sheet-grab" aria-hidden="true"></div>
-          <button type="button" data-dmore="report">举报（C 期业务提案）</button>
+          <button type="button" data-dmore="report">举报这份内容</button>
           <button type="button" data-dmore="copy">复制链接</button>
           <button id="dt-more-cancel" type="button" class="sheet-cancel">取消</button>
           <p id="dt-more-msg" class="sheet-msg" role="status"></p>
@@ -303,11 +310,12 @@
 
   <aside class="stage-note">
     <h1>Tako 移动端 App 原型 V1</h1>
-    <p>独立静态样稿：开屏 → 登录/游客 → 形态引导 → 首页（发现瀑布流 / 长文频道）→ 书架 / 消息 / 我的 / 发帖。</p>
+    <p>独立静态样稿：开屏 → 登录/游客 → 形态引导 → 首页（发现瀑布流 / 长文频道）→ 周边 / 消息 / 我的 / 发帖。</p>
     <p>全部为合成数据，不连接账号、邮件或数据库；刷新即重置。角色素材复用 <code>frontend/public/images</code> 既有资产。</p>
     <p>评审要点见同目录 README.md。</p>
   </aside>
 </div>
-<script src="app.js"></script>
+<script src="app.js?v=1.16"></script>
+<script src="flows.js?v=1.16"></script>
 </body>
 </html>

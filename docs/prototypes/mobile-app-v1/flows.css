@@ -1,0 +1,33 @@
+/* V1 subpages: additions only. Existing screens and visual rules remain authoritative. */
+.flow-page{position:absolute;inset:0;background:#fff;z-index:40;display:flex;flex-direction:column}
+.flow-page[hidden],.flow-overlay[hidden]{display:none}
+.flow-page .sub-top{flex:none;min-height:54px;border-bottom:1px solid var(--line)}
+.flow-page .sub-top button{min-width:44px;min-height:44px}
+.flow-page .sub-top h2{font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%}
+.flow-body{flex:1;overflow:auto;overscroll-behavior:contain;padding:16px;min-height:0}
+.flow-body h2{font-size:20px;line-height:1.5;margin:8px 0 12px}.flow-body h3{font-size:15px;margin:20px 0 10px}.flow-body p{font-size:13px;line-height:1.8;color:#4a5162;margin:8px 0}
+.flow-body .flow-caption{font-size:11px;color:var(--muted);margin:4px 0 12px}
+.flow-label{display:block;font-size:13px;color:#4a5162;margin:14px 0}
+.flow-label input,.flow-label textarea,.flow-label select{display:block;width:100%;margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;color:var(--ink);background:#fff}
+.flow-label textarea{min-height:140px;line-height:1.9;resize:vertical}.flow-label textarea.flow-editor{min-height:300px;border:0;padding:8px 0;font-size:15px}
+.flow-page input:focus,.flow-page textarea:focus,.flow-page select:focus{outline:1.5px solid var(--blue);outline-offset:2px}
+.flow-row{display:flex;width:100%;align-items:center;gap:12px;padding:16px 2px;text-align:left;border-bottom:1px solid var(--line);min-height:64px}
+.flow-row>span:first-child{flex:1;min-width:0}.flow-row strong{font-size:14px;line-height:1.6;font-weight:600;display:block}.flow-row small{font-size:11px;color:var(--muted);line-height:1.7;display:block;margin-top:4px}.flow-row .arrow{color:#9ba1ad;font-size:20px;flex:none}
+.flow-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.flow-actions button{font-size:12px;padding:9px 12px;background:var(--bg);border-radius:10px;color:var(--blue);min-height:40px}
+.flow-actions button.on{background:#e8eeff;font-weight:600}.flow-body .btn-primary,.flow-body .btn-ghost{margin-top:14px;min-height:46px}
+.flow-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#fff;flex:none}
+.flow-status{padding:10px 12px;border-radius:10px;background:#f1f4fb;font-size:12px;color:#53627d;line-height:1.7;margin:12px 0}
+.flow-error{font-size:12px;color:#b33939;line-height:1.7;margin:12px 0;min-height:0}
+.flow-empty{text-align:center;padding:34px 8px}.flow-empty img{width:94px;height:94px;object-fit:contain;margin:0 auto 12px}.flow-empty h3{margin:8px 0}.flow-empty p{font-size:12px}
+.flow-avatar{display:flex;align-items:center;gap:12px;padding:16px 0}.flow-avatar img{width:54px;height:54px;border-radius:50%;background:var(--bg);object-fit:cover}.flow-avatar strong{font-size:17px}.flow-avatar p{font-size:12px;margin:4px 0;color:var(--muted)}
+.flow-article{font-size:15px;line-height:1.95;color:#333a47;white-space:pre-wrap;padding:12px 0}.flow-check{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.8;margin-top:16px}.flow-check input{margin-top:4px}
+.flow-overlay{position:absolute;inset:0;z-index:60;background:#0d1b3f55;display:flex;align-items:flex-end}.flow-overlay .sheet{position:relative;max-height:88%;width:100%;overflow:auto;animation:none}.flow-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}.flow-dialog-head h2{font-size:17px}.flow-dialog-head button{font-size:22px;min-width:44px;min-height:44px;color:var(--muted)}.flow-overlay p{font-size:13px;line-height:1.8;color:#4a5162;margin:10px 0}.flow-overlay .btn-primary{margin-top:14px}.flow-overlay .flow-label{margin:14px 0}
+.flow-danger{width:100%;min-height:46px;padding:12px;margin-top:16px;border-radius:12px;background:#fff3f0;color:#b33939;font-size:13px}
+.flow-photos{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.flow-photos figure{margin:0;position:relative}.flow-photos img{width:88px;height:100px;object-fit:cover;border-radius:10px}.flow-photos button{position:absolute;right:2px;top:2px;background:#fff;border-radius:50%;width:28px;height:28px}
+.flow-product{background:linear-gradient(180deg,#f7f4ee,#fff 340px)}.flow-product .flow-body{padding-top:24px}.flow-product .flow-hero{background:#f1eadf;border-radius:18px;padding:32px 0;margin-bottom:20px}.flow-product .book3d{height:180px}.flow-product .book{width:110px;height:160px}.flow-product .btn-primary{background:#4a3f5e}.flow-product .flow-actions button.on{background:#f0e9dc;color:#6b5a40}.flow-price{font-size:24px;font-weight:700;color:#8a6d3b;margin:10px 0}.flow-product .flow-status{background:#f5f0e7;color:#7a6848}.flow-product .flow-row{border-color:#eee7da}
+.flow-timeline{border-left:2px solid #e8e2d6;margin:18px 10px;padding-left:20px}.flow-timeline h3{position:relative}.flow-timeline h3:before{content:'';position:absolute;left:-25px;top:6px;width:8px;height:8px;border-radius:50%;background:#8a6d3b}
+.flow-toast{position:absolute;bottom:24px;left:16px;right:16px;z-index:80;background:#202631;color:#fff;border-radius:12px;padding:12px 16px;font-size:12px;text-align:center}.flow-toast[hidden]{display:none}
+.flow-review{margin-top:20px;border-top:1px solid #ccd2dd;padding-top:16px}.flow-review summary{font-size:13px;cursor:pointer}.flow-review select{font:inherit;width:100%;padding:10px;margin:10px 0;border:1px solid #ccd2dd;border-radius:8px;background:#fff}.flow-review button{padding:8px 12px;background:#fff;border-radius:8px;margin:4px;font-size:12px}.flow-review small{display:block;color:#6b7485;font-size:11px;line-height:1.7}
+.flow-page button:focus-visible,.flow-overlay button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}.flow-page button:disabled{opacity:.4;cursor:default}
+@media(max-width:440px){.stage{padding:0;min-height:100dvh}.phone{width:100%;height:100dvh;border:0;border-radius:0;box-shadow:none}.stage-note{padding:16px}.flow-page .sub-top{padding-top:env(safe-area-inset-top)}}
+.flow-author-link{color:var(--blue);font:inherit;min-height:24px}

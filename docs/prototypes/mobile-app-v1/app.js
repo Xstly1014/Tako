@@ -11,6 +11,9 @@
   }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+  function openFlow(page, extra) { document.dispatchEvent(new CustomEvent('tako:flow', { detail: Object.assign({page:page}, extra || {}) })); }
+  document.addEventListener('tako:base', function(e) { if(e.detail.page==='login')show('login'); });
+
   /* ---------- 1→2 开屏进入登录 ---------- */
   $('splash-enter').addEventListener('click', function () { show('login'); });
 
@@ -235,6 +238,13 @@
     $('reader-follow').textContent = followed[readerItem.a] ? '✓ 已关注' : '+ 关注作者';
     $('reader-follow').classList.toggle('on', !!followed[readerItem.a]);
   }
+  $('reader-view').addEventListener('click', function () {
+    if(!readerItem)return;
+    if(NOVELS.includes(readerItem))openFlow('book',{novel:readerItem});
+    else openDetail(readerItem.id);
+    $('reader-sheet').hidden=true;
+  });
+  $('dt-author').addEventListener('click',function(){if(detailItem)openFlow('author',{author:detailItem.a});});
   $('reader-close').addEventListener('click', function () { $('reader-sheet').hidden = true; });
   $('reader-like').addEventListener('click', function () { if (!readerItem) return; liked[readerItem.id] = !liked[readerItem.id]; syncReaderBtns(); rerenderCurrent(); });
   $('reader-fav').addEventListener('click', function () { if (!readerItem) return; faved[readerItem.id] = !faved[readerItem.id]; syncReaderBtns(); rerenderCurrent(); });
@@ -421,9 +431,10 @@
   $('dt-more-sheet').addEventListener('click', function (e) {
     var b = e.target.closest('[data-dmore]');
     if (!b) return;
-    $('dt-more-msg').textContent = b.getAttribute('data-dmore') === 'report'
-      ? '原型演示：举报为 C 期业务提案，未接通。'
-      : '原型演示：链接已复制（模拟）。';
+    if(b.getAttribute('data-dmore') === 'report') {
+      $('dt-more-sheet').hidden = true;
+      openFlow('report',{source:detailItem ? {id:detailItem.id,title:detailItem.t,kind:detailItem.kind,version:Number($('vr-row').querySelector('[aria-pressed=true]')?.dataset.ver||1)}:null});
+    } else $('dt-more-msg').textContent = '分享链接仅作原型展示，不会写入剪贴板。';
   });
 
   /* ---------- 7 长文页：社区连载频道 ---------- */
@@ -526,9 +537,9 @@
     if (which === 'genre') {
       openCate(null);
     } else if (which === 'daily') {
-      openDemoSheet('每日推荐', '每天一换 · 按你的阅读历史编辑', '原型演示：推荐策略页不在本样稿范围。\n\n今日推荐方向：2 部连载更新 + 1 部你还没开读的完本。');
+      openFlow('daily');
     } else if (which === 'tako') {
-      openDemoSheet('Tako精选', '编辑部每周精选', '原型演示：精选页不在本样稿范围。\n\n本周精选主题：「值得写下来的小瞬间」。');
+      openFlow('curated');
     } else {
       openTopic();
     }
@@ -544,19 +555,7 @@
     var row = e.target.closest('article[data-open]');
     if (row) openReader(row.getAttribute('data-open'));
   });
-  function openDemoSheet(title, meta, body) {
-    readerItem = null;
-    $('reader-title').textContent = title;
-    $('reader-meta').textContent = meta;
-    $('reader-body').textContent = body;
-    $('reader-like').textContent = '♡ 赞';
-    $('reader-fav').textContent = '☆ 收藏';
-    $('reader-follow').textContent = '+ 关注作者';
-    $('reader-sheet').hidden = false;
-  }
-  function openTopic() {
-    openDemoSheet('本周话题 · 通勤观察', '社区话题 · 32 篇短内容参与', '话题说明：写下你在通勤路上看到、听到、忍住没说的。\n\n参与精选：\n· 夜航西飞《地铁下班高峰期看到这个身材的爽感谁懂…》\n· 蒸馒头《秋招不知道第几天》\n· 青柠汽水《今天的风适合写一个关于告别的故事》\n\n原型演示：话题聚合页不在本样稿范围。');
-  }
+  function openTopic() { openFlow('topic'); }
 
   /* ---------- 6 底部导航 ---------- */
   var NAV = { home: 'nav-home', merch: 'nav-merch', msg: 'nav-msg', me: 'nav-me' };
@@ -590,26 +589,28 @@
       c.hidden = !!q && c.getAttribute('data-merch').toLowerCase().indexOf(q) < 0;
     });
   });
-  $('page-merch').addEventListener('click', function (e) {
-    var form = e.target.closest('[data-merch-form]');
-    if (form) {
-      var label = { novel: '实体小说', mag: '杂志薄本', memo: '纪念手册' }[form.getAttribute('data-merch-form')];
-      openDemoSheet(label + ' · 形态说明', '创作者作品实体化（业务提案）', '原型演示：' + label + '的装帧、定价与履约流程不在本样稿范围。\n\n读者可为喜爱的作品购买实体纪念；创作者可发起定制展示价值。');
-      return;
-    }
-    var card = e.target.closest('[data-merch]');
-    if (card) openDemoSheet(card.getAttribute('data-merch'), '实体纪念 · 限量编号', '原型演示：商品详情与购买流程不在本样稿范围。');
+  $('page-merch').addEventListener('click', function(e) {
+    var form=e.target.closest('[data-merch-form]');
+    if(form){openFlow('products');return;}
+    var card=e.target.closest('[data-merch]');
+    if(card)openFlow('product',{product:card.getAttribute('data-merch'),price:Number(card.querySelector('em').textContent.replace('¥','')),cover:Array.from(card.querySelector('.book').classList).filter(function(c){return c.indexOf('cv-')===0;})[0]});
   });
-  $('merch-make').addEventListener('click', function () {
-    openDemoSheet('发起定制', '创作者实体化入口（业务提案）', '原型演示：定制流程（选作品、装帧、定价、限量编号）不在本样稿范围。');
+  $('merch-make').addEventListener('click',function(){openFlow('custom-work');});
+  $('page-msg').querySelectorAll('article').forEach(function(row,i){
+    row.setAttribute('tabindex','0');row.setAttribute('role','button');
+    var open=function(){openFlow(['favorite-list','feedback-thread','followers','notification-detail'][i] || 'notification-detail');};
+    row.addEventListener('click',open);row.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});
   });
+  $('page-shelf').querySelector('.shelf-reading button').addEventListener('click',function(){openFlow('chapter-reader');});
+  $('page-shelf').querySelectorAll('.shelf-grid article').forEach(function(row){row.setAttribute('tabindex','0');row.setAttribute('role','button');row.addEventListener('click',function(){openFlow('book');});row.addEventListener('keydown',function(e){if(e.key==='Enter')openFlow('book');});});
 
   /* 发帖面板 */
   $('nav-post').addEventListener('click', function () { $('post-sheet').hidden = false; $('post-msg').textContent = ''; });
   $('post-cancel').addEventListener('click', function () { $('post-sheet').hidden = true; });
   Array.prototype.forEach.call(document.querySelectorAll('[data-post]'), function (btn) {
     btn.addEventListener('click', function () {
-      $('post-msg').textContent = '原型演示：' + PREF_LABEL[btn.getAttribute('data-post')] + '编辑器不在本样稿范围内。';
+      $('post-sheet').hidden = true;
+      openFlow({short:'edit-short',mid:'drafts',long:'books'}[btn.getAttribute('data-post')]);
     });
   });
 
